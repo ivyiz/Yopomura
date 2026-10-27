@@ -117,19 +117,20 @@ test("mega features smoke", async () => {
             .locator(".mediaPanelOverlay")
             .evaluate((el) => Number.parseFloat(window.getComputedStyle(el).top));
         expect(mediaTop).toBeGreaterThan(0);
-        // Choose a custom media folder, then go back to library folders.
-        await page.locator(".mediaPanelSourceButton", { hasText: "Choose folder" }).click();
-        await expect
-            .poll(async () => (await page.locator(".mediaPanelSourcePath").innerText()).trim(), {
-                timeout: 10_000,
-            })
-            .toContain("yokomura-mega-test");
-        await page.locator(".mediaPanelSourceButton", { hasText: "Use library" }).click();
-        await expect
-            .poll(async () => (await page.locator(".mediaPanelSourcePath").innerText()).trim(), {
-                timeout: 10_000,
-            })
-            .toBe("Library folders");
+        // Scan depth selector and the YouTube-style autoplay toggle.
+        const depthSelect = page.locator(".mediaPanelDepth select");
+        await expect(depthSelect).toHaveValue("8");
+        await depthSelect.selectOption("all");
+        await expect.poll(async () => depthSelect.inputValue(), { timeout: 10_000 }).toBe("all");
+        await depthSelect.selectOption("8");
+        await expect(depthSelect).toHaveValue("8");
+        const autoplayToggle = page.locator(".mediaPanelAutoplayToggle");
+        await expect(autoplayToggle).toHaveAttribute("aria-pressed", "true");
+        await autoplayToggle.click();
+        await expect(page.locator(".mediaPanelAutoplayNotice")).toContainText("Autoplay is off");
+        await expect(autoplayToggle).toHaveAttribute("aria-pressed", "false");
+        await autoplayToggle.click();
+        await expect(autoplayToggle).toHaveAttribute("aria-pressed", "true");
         await page.waitForSelector(".mediaPanelVideo, .mediaPanelList li", { timeout: 20_000 });
         const mediaItem = page.locator(".mediaPanelList li", { hasText: "sample" }).first();
         if (await mediaItem.count()) await mediaItem.click();
@@ -145,6 +146,7 @@ test("mega features smoke", async () => {
         await expect(page.locator(".mediaPanelVideoMeta")).toHaveCount(0);
         await expect(page.locator(".mediaPanelDescription")).toHaveCount(1);
         await expect(page.locator(".mediaPanelDescriptionFormat")).toHaveText("WEBM");
+        await expect(page.locator(".mediaPanelDescriptionGrid dt").first()).toHaveText("File");
         await expect(page.locator(".mediaPanelListThumb").first()).toBeVisible();
         await page.locator(".mediaPanelDescription").scrollIntoViewIfNeeded();
         await expect(page.locator(".mediaPanelDescriptionPath")).toBeVisible();

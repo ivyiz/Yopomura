@@ -35,6 +35,7 @@ export type MediaPlayerControlsProps = {
     rate: number;
     fullscreen: boolean;
     theater: boolean;
+    autoplayNext: boolean;
     pipActive: boolean;
     pipSupported: boolean;
     canNavigate: boolean;
@@ -48,6 +49,7 @@ export type MediaPlayerControlsProps = {
     onNext: () => void;
     onToggleFullscreen: () => void;
     onToggleTheater: () => void;
+    onToggleAutoplay: () => void;
     onTogglePictureInPicture: () => void;
     onToggleSpeedMenu: () => void;
     onCloseSpeedMenu: () => void;
@@ -74,6 +76,7 @@ const MediaPlayerControls = ({
     rate,
     fullscreen,
     theater,
+    autoplayNext,
     pipActive,
     pipSupported,
     canNavigate,
@@ -87,6 +90,7 @@ const MediaPlayerControls = ({
     onNext,
     onToggleFullscreen,
     onToggleTheater,
+    onToggleAutoplay,
     onTogglePictureInPicture,
     onToggleSpeedMenu,
     onCloseSpeedMenu,
@@ -336,6 +340,21 @@ const MediaPlayerControls = ({
                 </div>
 
                 <span className="mediaPanelControlSpacer" />
+
+                <button
+                    type="button"
+                    className={`mediaPanelAutoplayToggle${autoplayNext ? " is-on" : ""}`}
+                    aria-pressed={autoplayNext}
+                    aria-label="Autoplay next video"
+                    title={autoplayNext ? "Autoplay is on" : "Autoplay is off"}
+                    onClick={onToggleAutoplay}
+                >
+                    <span className="mediaPanelAutoplayTrack" aria-hidden>
+                        <span className="mediaPanelAutoplayKnob">
+                            <FontAwesomeIcon icon={faPlay} />
+                        </span>
+                    </span>
+                </button>
 
                 <div className="mediaPanelSpeedWrap" ref={speedWrapRef}>
                     <button

@@ -131,7 +131,24 @@ describe("scanVideoEntries", () => {
             "C:/Videos/Shows/ep2.webm",
             "C:/Videos/root.mp4",
         ]);
-        expect(DEFAULT_SCAN_MAX_DEPTH).toBe(4);
+        expect(DEFAULT_SCAN_MAX_DEPTH).toBe(8);
+    });
+
+    it("scans all nested folders when maxDepth is Infinity or aborts cleanly", async () => {
+        const controller = new AbortController();
+        const all = await scanVideoEntries(createIo(tree), ["C:/Videos"], {
+            maxDepth: Number.POSITIVE_INFINITY,
+            signal: controller.signal,
+        });
+        expect(all.entries.length).toBeGreaterThan(0);
+        expect(all.errors).toEqual([]);
+
+        controller.abort();
+        const aborted = await scanVideoEntries(createIo(tree), ["C:/Videos"], {
+            maxDepth: Number.POSITIVE_INFINITY,
+            signal: controller.signal,
+        });
+        expect(aborted.entries).toEqual([]);
     });
 
     it("collects unreadable directories and keeps scanning the rest", async () => {

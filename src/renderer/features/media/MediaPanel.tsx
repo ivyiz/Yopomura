@@ -6,25 +6,25 @@ import {
     faFolderOpen,
     faMagnifyingGlass,
     faPlay,
-    faRepeat,
     faTriangleExclamation,
     faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useAppSelector } from "@store/hooks";
+import { dialogUtils } from "@utils/dialog";
 import { promptSelectDir } from "@utils/file";
 import { absolutePathToFileUrl } from "@utils/libraryCover";
-import type { SyntheticEvent } from "react";
+import type { DragEvent, SyntheticEvent } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import MediaPlayerControls from "./MediaPlayerControls";
 import MediaThumbnail from "./MediaThumbnail";
 import {
     continueWatchingVideos,
-    DEFAULT_SCAN_MAX_DEPTH,
     END_CLEAR_THRESHOLD_SECONDS,
     filterAndSortVideos,
     formatBytes,
     formatTime,
+    isVideoPath,
     normalizeVideoPath,
     readWatchedPosition,
     readWatchedPositions,
@@ -46,6 +46,31 @@ export type MediaPanelProps = {
 const MEDIA_VOLUME_KEY = "yokomura-media-volume";
 const THEATER_KEY = "yokomura-media-theater";
 const CUSTOM_ROOT_KEY = "yokomura-media-folder";
+const SCAN_DEPTH_KEY = "yokomura-media-depth";
+const AUTOPLAY_KEY = "yokomura-media-autoplay";
+
+type ScanDepth = 1 | 3 | 5 | 8 | "all";
+
+const SCAN_DEPTH_OPTIONS: readonly { value: ScanDepth; label: string }[] = [
+    { value: 1, label: "1 level" },
+    { value: 3, label: "3 levels" },
+    { value: 5, label: "5 levels" },
+    { value: 8, label: "8 levels" },
+    { value: "all", label: "All subfolders" },
+];
+
+const readScanDepth = (): ScanDepth => {
+    try {
+        const stored = window.localStorage.getItem(SCAN_DEPTH_KEY);
+        if (stored === "all") return "all";
+        const parsed = Number.parseInt(stored ?? "", 10);
+        return parsed === 1 || parsed === 3 || parsed === 5 || parsed === 8 ? parsed : 8;
+    } catch {
+        return 8;
+    }
+};
+
+const isDriveRoot = (path: string): boolean => /^[a-zA-Z]:[\\/]?$/.test(path.trim());
 const POSITION_SAVE_DELAY_MS = 1000;
 const SEEK_STEP_SECONDS = 5;
 const VOLUME_STEP = 0.05;
@@ -112,6 +137,12 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
             return "";
         }
     });
+    const [scanDepth, setScanDepth] = useState<ScanDepth>(readScanDepth);
+    const [dragActive, setDragActive] = useState(false);
+    const [autoplayNotice, setAutoplayNotice] = useState("");
+    const scanAbortRef = useRef<AbortController | null>(null);
+    const pendingSelectRef = useRef<string | null>(null);
+    const autoplayNoticeTimer = useRef<number>(0);
 
     /* A chosen media folder replaces the library roots; otherwise use them. */
     const roots = useMemo(() => {
@@ -133,6 +164,9 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         for (const folder of folders) add(folder.path);
         return result;
     }, [customRoot, folders]);
+
+    const maxScanDepth = scanDepth === "all" ? Number.POSITIVE_INFINITY : scanDepth;
+    const depthLabel = scanDepth === "all" ? "all subfolders" : `${scanDepth} levels deep`;
 
     /* Preload-backed reader; depth and error handling live in the pure scan helper. */
     const scanIo = useMemo<VideoScanIo>(
@@ -192,7 +226,13 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
     });
     const [muted, setMuted] = useState(false);
     const [rate, setRate] = useState(1);
-    const [autoplayNext, setAutoplayNext] = useState(true);
+    const [autoplayNext, setAutoplayNext] = useState(() => {
+        try {
+            return window.localStorage.getItem(AUTOPLAY_KEY) !== "off";
+        } catch {
+            return true;
+        }
+    });
     const [theater, setTheater] = useState(() => {
         try {
             return window.localStorage.getItem(THEATER_KEY) === "1";
@@ -238,8 +278,9 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         setWatched(readWatchedPositions(window.localStorage));
     }, []);
 
-    /* Scan on mount, on refresh, and whenever the configured roots change. */
+    /* Scan on mount, on refresh, and whenever the configured roots/depth change. */
     useEffect(() => {
+        scanAbortRef.current?.abort();
         if (roots.length === 0) {
             setEntries([]);
             setScanErrors([]);
@@ -249,21 +290,30 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         }
 
         let cancelled = false;
+        const controller = new AbortController();
+        scanAbortRef.current = controller;
         setScanState("scanning");
 
         /* The token itself is unused; referencing it keeps the rescan dependency explicit. */
         void refreshToken;
 
-        void scanVideoEntries(scanIo, roots, { maxDepth: DEFAULT_SCAN_MAX_DEPTH })
+        void scanVideoEntries(scanIo, roots, { maxDepth: maxScanDepth, signal: controller.signal })
             .then((result) => {
-                if (cancelled) return;
+                if (cancelled || controller.signal.aborted) return;
                 setEntries(result.entries);
                 setScanErrors(result.errors);
                 setScanState("done");
                 setWatched(readWatchedPositions(window.localStorage));
+                const pending = pendingSelectRef.current;
+                if (pending) {
+                    const key = normalizeVideoPath(pending);
+                    const match = result.entries.find((entry) => normalizeVideoPath(entry.path) === key);
+                    if (match) setSelectedPath(match.path);
+                    pendingSelectRef.current = null;
+                }
             })
             .catch((error: unknown) => {
-                if (cancelled) return;
+                if (cancelled || controller.signal.aborted) return;
                 setEntries([]);
                 setScanErrors([
                     {
@@ -272,12 +322,16 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                     },
                 ]);
                 setScanState("done");
+            })
+            .finally(() => {
+                if (scanAbortRef.current === controller) scanAbortRef.current = null;
             });
 
         return () => {
             cancelled = true;
+            controller.abort();
         };
-    }, [refreshToken, roots, scanIo]);
+    }, [refreshToken, roots, scanIo, maxScanDepth]);
 
     /* Keep the active file valid after rescans; first load selects the newest video. */
     useEffect(() => {
@@ -714,10 +768,25 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
 
     const handleRefresh = () => {
         flushPosition();
+        scanAbortRef.current?.abort();
         setRefreshToken((token) => token + 1);
     };
 
-    const applyCustomRoot = (path: string) => {
+    const confirmRiskyRoot = async (path: string): Promise<boolean> => {
+        if (!isDriveRoot(path)) return true;
+        const { response } = await dialogUtils.warn({
+            title: "Scan an entire drive?",
+            message: `You selected ${path}. Scanning a whole drive can take a very long time.`,
+            detail: "Choose a folder inside the drive for a faster scan.",
+            noOption: false,
+            buttons: ["Cancel", "Scan drive"],
+            defaultId: 0,
+        });
+        return Boolean(response);
+    };
+
+    const applyCustomRoot = (path: string, selectPath?: string) => {
+        if (selectPath) pendingSelectRef.current = selectPath;
         setCustomRoot(path);
         try {
             window.localStorage.setItem(CUSTOM_ROOT_KEY, path);
@@ -730,12 +799,16 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
     const handleChooseFolder = () => {
         void promptSelectDir((selected) => {
             const path = Array.isArray(selected) ? selected[0] : selected;
-            if (path) applyCustomRoot(path);
+            if (!path) return;
+            void confirmRiskyRoot(path).then((approved) => {
+                if (approved) applyCustomRoot(path);
+            });
         });
     };
 
     const handleUseLibraryFolders = () => {
         setCustomRoot("");
+        pendingSelectRef.current = null;
         try {
             window.localStorage.removeItem(CUSTOM_ROOT_KEY);
         } catch {
@@ -744,22 +817,125 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         setRefreshToken((token) => token + 1);
     };
 
+    const applyScanDepth = (next: ScanDepth) => {
+        setScanDepth(next);
+        try {
+            window.localStorage.setItem(SCAN_DEPTH_KEY, String(next));
+        } catch {
+            /* ignore */
+        }
+        setRefreshToken((token) => token + 1);
+    };
+
+    const handleScanDepthChange = (next: ScanDepth) => {
+        if (next !== "all" || scanDepth === "all") {
+            applyScanDepth(next);
+            return;
+        }
+        void dialogUtils
+            .warn({
+                title: "Scan all subfolders?",
+                message: "Scanning every subfolder can take a very long time for a large folder.",
+                detail: "You can cancel the scan at any time with the Cancel button.",
+                noOption: false,
+                buttons: ["Cancel", "Scan all"],
+                defaultId: 0,
+            })
+            .then(({ response }) => {
+                if (response) applyScanDepth("all");
+            });
+    };
+
+    const cancelScan = () => {
+        scanAbortRef.current?.abort();
+        scanAbortRef.current = null;
+        setScanState("done");
+    };
+
+    const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        setDragActive(false);
+        const files = Array.from(event.dataTransfer.files ?? []);
+        if (files.length === 0) return;
+
+        void (async () => {
+            let folder = "";
+            let selectPath = "";
+            for (const file of files) {
+                const path = window.electron.getPathForFile(file);
+                if (!path) continue;
+                try {
+                    const stat = await scanIo.stat(path);
+                    if (stat.isDirectory) {
+                        folder = path;
+                        break;
+                    }
+                    if (isVideoPath(path)) {
+                        folder = window.path.dirname(path);
+                        selectPath = path;
+                        break;
+                    }
+                } catch {
+                    /* unsupported dropped item */
+                }
+            }
+            if (!folder) return;
+            if (!(await confirmRiskyRoot(folder))) return;
+            applyCustomRoot(folder, selectPath || undefined);
+        })();
+    };
+
+    const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
+        if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+        setDragActive(false);
+    };
+
+    const toggleAutoplay = () => {
+        setAutoplayNext((previous) => {
+            const next = !previous;
+            try {
+                window.localStorage.setItem(AUTOPLAY_KEY, next ? "on" : "off");
+            } catch {
+                /* ignore */
+            }
+            setAutoplayNotice(next ? "Autoplay is on" : "Autoplay is off");
+            window.clearTimeout(autoplayNoticeTimer.current);
+            autoplayNoticeTimer.current = window.setTimeout(() => setAutoplayNotice(""), 1600);
+            return next;
+        });
+    };
+
     const handleClose = () => {
         flushPosition();
         onClose();
     };
 
     const scanNote = customRoot
-        ? `Custom folder · ${DEFAULT_SCAN_MAX_DEPTH} levels deep`
+        ? `Custom folder · ${depthLabel}`
         : roots.length === 0
           ? "No library folder is configured."
-          : `Scanning ${roots.length} folder${roots.length === 1 ? "" : "s"} · ${DEFAULT_SCAN_MAX_DEPTH} levels deep`;
+          : `Scanning ${roots.length} folder${roots.length === 1 ? "" : "s"} · ${depthLabel}`;
 
     const videoSrc = useMemo(() => (selected ? absolutePathToFileUrl(selected.path) : ""), [selected]);
 
     return (
         <div className="mediaPanelOverlay" role="dialog" aria-modal="true" aria-label="Media library">
-            <div ref={panelRef} className={`mediaPanel${theater ? " is-theater" : ""}`} tabIndex={-1}>
+            <div
+                ref={panelRef}
+                className={`mediaPanel${theater ? " is-theater" : ""}`}
+                tabIndex={-1}
+                onDragEnter={(event) => {
+                    if (!event.dataTransfer.types.includes("Files")) return;
+                    event.preventDefault();
+                    setDragActive(true);
+                }}
+                onDragOver={(event) => {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = "copy";
+                }}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+            >
                 <header className="mediaPanelHeader">
                     <div className="mediaPanelBrand">
                         <span className="mediaPanelBrandIcon" aria-hidden>
@@ -837,14 +1013,24 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                         <FontAwesomeIcon icon={faFolderOpen} aria-hidden />
                         <span>{customRoot || "Library folders"}</span>
                     </span>
-                    <button
-                        type="button"
-                        className="mediaPanelSourceButton"
-                        title="Choose a media folder"
-                        onClick={handleChooseFolder}
-                    >
-                        Choose folder
-                    </button>
+                    <label className="mediaPanelDepth">
+                        <span>Depth</span>
+                        <select
+                            value={String(scanDepth)}
+                            aria-label="Scan depth"
+                            title="How many subfolder levels to scan"
+                            onChange={(event) => {
+                                const value = event.currentTarget.value;
+                                handleScanDepthChange(value === "all" ? "all" : (Number(value) as ScanDepth));
+                            }}
+                        >
+                            {SCAN_DEPTH_OPTIONS.map((option) => (
+                                <option key={option.value} value={String(option.value)}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
                     {customRoot ? (
                         <button
                             type="button"
@@ -852,7 +1038,7 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                             title="Scan the configured library folders instead"
                             onClick={handleUseLibraryFolders}
                         >
-                            Use library
+                            Back to library
                         </button>
                     ) : null}
                 </div>
@@ -923,6 +1109,10 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                         </div>
                                     ) : null}
 
+                                    {autoplayNotice ? (
+                                        <output className="mediaPanelAutoplayNotice">{autoplayNotice}</output>
+                                    ) : null}
+
                                     <MediaPlayerControls
                                         src={videoSrc}
                                         playing={playing}
@@ -936,6 +1126,7 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                         theater={theater}
                                         pipActive={pipActive}
                                         pipSupported={pipSupported}
+                                        autoplayNext={autoplayNext}
                                         canNavigate={visible.length > 1}
                                         speedMenuOpen={speedMenuOpen}
                                         onTogglePlay={togglePlay}
@@ -948,6 +1139,7 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                         onToggleFullscreen={toggleFullscreen}
                                         onToggleTheater={() => setTheater((previous) => !previous)}
                                         onTogglePictureInPicture={togglePictureInPicture}
+                                        onToggleAutoplay={toggleAutoplay}
                                         onToggleSpeedMenu={() => setSpeedMenuOpen((open) => !open)}
                                         onCloseSpeedMenu={() => setSpeedMenuOpen(false)}
                                     />
@@ -1101,33 +1293,45 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                 {scanState === "scanning" ? (
                                     <>
                                         <span className="mediaPanelSpinner" aria-hidden />
-                                        <span className="mediaPanelBlankTitle">Scanning your library…</span>
+                                        <span className="mediaPanelBlankTitle">Scanning your videos…</span>
                                         <span className="mediaPanelBlankText">{scanNote}</span>
+                                        <button
+                                            type="button"
+                                            className="mediaPanelButton is-ghost"
+                                            onClick={cancelScan}
+                                        >
+                                            Cancel
+                                        </button>
                                     </>
-                                ) : roots.length === 0 ? (
+                                ) : (
                                     <>
                                         <FontAwesomeIcon
                                             icon={faFolderOpen}
                                             className="mediaPanelBlankIcon"
                                             aria-hidden
                                         />
-                                        <span className="mediaPanelBlankTitle">No library folder configured</span>
+                                        <span className="mediaPanelBlankTitle">No videos yet</span>
                                         <span className="mediaPanelBlankText">
-                                            Add a folder under Settings → Library, then refresh this panel.
+                                            Drag a video folder or an MP4/WebM file here, or choose a folder.
                                         </span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <FontAwesomeIcon
-                                            icon={faFilm}
-                                            className="mediaPanelBlankIcon"
-                                            aria-hidden
-                                        />
-                                        <span className="mediaPanelBlankTitle">No videos found</span>
-                                        <span className="mediaPanelBlankText">
-                                            Put `.mp4` or `.webm` files in your library folder and use refresh to
-                                            rescan.
-                                        </span>
+                                        <div className="mediaPanelBlankActions">
+                                            <button
+                                                type="button"
+                                                className="mediaPanelButton"
+                                                onClick={handleChooseFolder}
+                                            >
+                                                Choose folder
+                                            </button>
+                                            {customRoot ? (
+                                                <button
+                                                    type="button"
+                                                    className="mediaPanelButton is-ghost"
+                                                    onClick={handleUseLibraryFolders}
+                                                >
+                                                    Back to library
+                                                </button>
+                                            ) : null}
+                                        </div>
                                     </>
                                 )}
                             </div>
@@ -1144,17 +1348,6 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                         : `${entries.length} video${entries.length === 1 ? "" : "s"}`}
                                 </span>
                             </div>
-                            <button
-                                type="button"
-                                className={`mediaPanelAutoplay${autoplayNext ? " is-on" : ""}`}
-                                aria-pressed={autoplayNext}
-                                title="Play the next video automatically"
-                                onClick={() => setAutoplayNext((previous) => !previous)}
-                            >
-                                <FontAwesomeIcon icon={faRepeat} aria-hidden />
-                                <span>Autoplay</span>
-                                <span className="mediaPanelAutoplayDot" aria-hidden />
-                            </button>
                         </div>
 
                         {scanState === "scanning" && entries.length === 0 ? (
@@ -1244,6 +1437,13 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                         ) : null}
                     </aside>
                 </div>
+
+                {dragActive ? (
+                    <div className="mediaPanelDropOverlay" aria-hidden>
+                        <FontAwesomeIcon icon={faFolderOpen} />
+                        <span>Drop a video folder or MP4/WebM file</span>
+                    </div>
+                ) : null}
             </div>
         </div>
     );

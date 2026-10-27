@@ -11,7 +11,7 @@ import { isVideoPath, normalizeVideoPath, videoTitleFromPath } from "./playlist"
 export { isVideoPath, normalizeVideoPath, videoTitleFromPath };
 
 /** How deep below a library root the walk may descend. */
-export const DEFAULT_SCAN_MAX_DEPTH = 4;
+export const DEFAULT_SCAN_MAX_DEPTH = 8;
 
 /** Resume positions closer than this to the end count as finished and are cleared. */
 export const END_CLEAR_THRESHOLD_SECONDS = 3;
@@ -56,8 +56,10 @@ export type VideoScanError = {
 };
 
 export type VideoScanOptions = {
-    /** Directories below roots are scanned while `depth < maxDepth`. Defaults to 4. */
+    /** Directories below roots are scanned while `depth < maxDepth`. Defaults to 8. Use `Infinity` for all. */
     maxDepth?: number;
+    /** Aborts a long "All depths" walk without discarding already collected entries. */
+    signal?: AbortSignal;
 };
 
 export type VideoScanResult = {
@@ -125,7 +127,10 @@ export const scanVideoEntries = async (
     roots: readonly string[],
     options: VideoScanOptions = {},
 ): Promise<VideoScanResult> => {
-    const maxDepth = Math.max(0, Math.trunc(options.maxDepth ?? DEFAULT_SCAN_MAX_DEPTH));
+    const requestedDepth = options.maxDepth ?? DEFAULT_SCAN_MAX_DEPTH;
+    const maxDepth = Number.isFinite(requestedDepth)
+        ? Math.max(0, Math.trunc(requestedDepth))
+        : Number.POSITIVE_INFINITY;
     const entries: VideoEntry[] = [];
     const errors: VideoScanError[] = [];
     const seenFiles = new Set<string>();
@@ -137,6 +142,7 @@ export const scanVideoEntries = async (
     };
 
     const walk = async (directory: string, depth: number): Promise<void> => {
+        if (options.signal?.aborted) return;
         const key = directoryKey(directory);
         if (!key || visitedDirectories.has(key)) return;
         visitedDirectories.add(key);
@@ -153,6 +159,7 @@ export const scanVideoEntries = async (
         const subdirectories: string[] = [];
 
         for (const name of names) {
+            if (options.signal?.aborted) return;
             if (typeof name !== "string" || !name) continue;
 
             const childPath = io.join(directory, name);
@@ -185,11 +192,13 @@ export const scanVideoEntries = async (
         }
 
         for (const subdirectory of subdirectories) {
+            if (options.signal?.aborted) return;
             await walk(subdirectory, depth + 1);
         }
     };
 
     for (const root of roots) {
+        if (options.signal?.aborted) break;
         const trimmed = typeof root === "string" ? root.trim() : "";
         if (!trimmed) continue;
         await walk(trimmed, 0);
