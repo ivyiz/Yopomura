@@ -12,6 +12,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useAppSelector } from "@store/hooks";
+import { promptSelectDir } from "@utils/file";
 import { absolutePathToFileUrl } from "@utils/libraryCover";
 import type { SyntheticEvent } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -43,6 +44,7 @@ export type MediaPanelProps = {
 
 const MEDIA_VOLUME_KEY = "yokomura-media-volume";
 const THEATER_KEY = "yokomura-media-theater";
+const CUSTOM_ROOT_KEY = "yokomura-media-folder";
 const POSITION_SAVE_DELAY_MS = 1000;
 const SEEK_STEP_SECONDS = 5;
 const VOLUME_STEP = 0.05;
@@ -102,8 +104,15 @@ const supportsPictureInPicture = (): boolean => {
  */
 const MediaPanel = ({ onClose }: MediaPanelProps) => {
     const folders = useAppSelector((state) => state.mainSettings.library.folders);
+    const [customRoot, setCustomRoot] = useState(() => {
+        try {
+            return window.localStorage.getItem(CUSTOM_ROOT_KEY)?.trim() ?? "";
+        } catch {
+            return "";
+        }
+    });
 
-    /* Default Location first, then every other configured folder, deduplicated. */
+    /* A chosen media folder replaces the library roots; otherwise use them. */
     const roots = useMemo(() => {
         const result: string[] = [];
         const seen = new Set<string>();
@@ -115,10 +124,14 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
             seen.add(key);
             result.push(candidate);
         };
+        if (customRoot) {
+            add(customRoot);
+            return result;
+        }
         add(getDefaultLocationPath(folders));
         for (const folder of folders) add(folder.path);
         return result;
-    }, [folders]);
+    }, [customRoot, folders]);
 
     /* Preload-backed reader; depth and error handling live in the pure scan helper. */
     const scanIo = useMemo<VideoScanIo>(
@@ -691,15 +704,43 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         setRefreshToken((token) => token + 1);
     };
 
+    const applyCustomRoot = (path: string) => {
+        setCustomRoot(path);
+        try {
+            window.localStorage.setItem(CUSTOM_ROOT_KEY, path);
+        } catch {
+            /* storage unavailable; keep it for this session */
+        }
+        setRefreshToken((token) => token + 1);
+    };
+
+    const handleChooseFolder = () => {
+        void promptSelectDir((selected) => {
+            const path = Array.isArray(selected) ? selected[0] : selected;
+            if (path) applyCustomRoot(path);
+        });
+    };
+
+    const handleUseLibraryFolders = () => {
+        setCustomRoot("");
+        try {
+            window.localStorage.removeItem(CUSTOM_ROOT_KEY);
+        } catch {
+            /* ignore */
+        }
+        setRefreshToken((token) => token + 1);
+    };
+
     const handleClose = () => {
         flushPosition();
         onClose();
     };
 
-    const scanNote =
-        roots.length === 0
-            ? "No library folder is configured."
-            : `Scanning ${roots.length} folder${roots.length === 1 ? "" : "s"} · ${DEFAULT_SCAN_MAX_DEPTH} levels deep`;
+    const scanNote = customRoot
+        ? `Custom folder · ${DEFAULT_SCAN_MAX_DEPTH} levels deep`
+        : roots.length === 0
+          ? "No library folder is configured."
+          : `Scanning ${roots.length} folder${roots.length === 1 ? "" : "s"} · ${DEFAULT_SCAN_MAX_DEPTH} levels deep`;
 
     const videoSrc = useMemo(() => (selected ? absolutePathToFileUrl(selected.path) : ""), [selected]);
 
@@ -777,6 +818,31 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                         </button>
                     </div>
                 </header>
+
+                <div className="mediaPanelSourceBar">
+                    <span className="mediaPanelSourcePath" title={customRoot || "Configured library folders"}>
+                        <FontAwesomeIcon icon={faFolderOpen} aria-hidden />
+                        <span>{customRoot || "Library folders"}</span>
+                    </span>
+                    <button
+                        type="button"
+                        className="mediaPanelSourceButton"
+                        title="Choose a media folder"
+                        onClick={handleChooseFolder}
+                    >
+                        Choose folder
+                    </button>
+                    {customRoot ? (
+                        <button
+                            type="button"
+                            className="mediaPanelSourceButton"
+                            title="Scan the configured library folders instead"
+                            onClick={handleUseLibraryFolders}
+                        >
+                            Use library
+                        </button>
+                    ) : null}
+                </div>
 
                 <div className="mediaPanelBody">
                     <main className="mediaPanelMain">

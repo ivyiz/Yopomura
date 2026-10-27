@@ -31,7 +31,7 @@ import LibraryScanStatusButton from "./components/LibraryScanStatusButton";
 const TopBar = (): ReactElement => {
     const { t } = useTranslation("common");
     const [title, setTitle] = useState<string>("Yokomura");
-    const { pageNumberInputRef, bookProgressRef, closeReader, openDownloader, openMedia, openTrash } =
+    const { pageNumberInputRef, bookProgressRef, closeReader, openDownloader, openMedia, openTrash, mediaOpen } =
         useAppContext();
     const [isMaximized, setMaximized] = useState(window.electron.currentWindow.isMaximized() || false);
     const [pageNumberChangeDisabled, setPageNumberChangeDisabled] = useState(false);
@@ -199,7 +199,7 @@ const TopBar = (): ReactElement => {
                 </button>
                 <button
                     type="button"
-                    className="mediaToggle"
+                    className={`mediaToggle${mediaOpen ? " is-active" : ""}`}
                     tabIndex={-1}
                     onFocus={(e) => e.currentTarget.blur()}
                     onClick={openMedia}

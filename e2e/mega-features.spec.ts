@@ -60,6 +60,12 @@ test("mega features smoke", async () => {
                 filePath: destination,
             });
         }, backupPath);
+        await app.evaluate(({ dialog }, folder) => {
+            (dialog as unknown as { showOpenDialog: unknown }).showOpenDialog = async () => ({
+                canceled: false,
+                filePaths: [folder],
+            });
+        }, libraryDir);
         const page = await app.firstWindow();
         page.on("pageerror", (err) => errors.push(err.message));
         await page.waitForSelector(".locationRow", { timeout: 90_000 });
@@ -107,6 +113,23 @@ test("mega features smoke", async () => {
         // Dedicated YouTube-style media panel (Media icon on the TopBar).
         await page.locator(".mediaToggle").click();
         await page.waitForSelector(".mediaPanelOverlay", { timeout: 15_000 });
+        const mediaTop = await page
+            .locator(".mediaPanelOverlay")
+            .evaluate((el) => Number.parseFloat(window.getComputedStyle(el).top));
+        expect(mediaTop).toBeGreaterThan(0);
+        // Choose a custom media folder, then go back to library folders.
+        await page.locator(".mediaPanelSourceButton", { hasText: "Choose folder" }).click();
+        await expect
+            .poll(async () => (await page.locator(".mediaPanelSourcePath").innerText()).trim(), {
+                timeout: 10_000,
+            })
+            .toContain("yokomura-mega-test");
+        await page.locator(".mediaPanelSourceButton", { hasText: "Use library" }).click();
+        await expect
+            .poll(async () => (await page.locator(".mediaPanelSourcePath").innerText()).trim(), {
+                timeout: 10_000,
+            })
+            .toBe("Library folders");
         await page.waitForSelector(".mediaPanelVideo, .mediaPanelList li", { timeout: 20_000 });
         const mediaItem = page.locator(".mediaPanelList li", { hasText: "sample" }).first();
         if (await mediaItem.count()) await mediaItem.click();

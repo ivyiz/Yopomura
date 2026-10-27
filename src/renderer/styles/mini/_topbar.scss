@@ -90,6 +90,10 @@
         .bookmarkToggle {
             position: relative;
         }
+        .mediaToggle.is-active {
+            color: var(--btn-color-focus);
+            background: var(--topBar-btn-hover);
+        }
     }
 
     .bookmarkToggleCount {

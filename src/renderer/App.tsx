@@ -149,7 +149,8 @@ const App = (): ReactElement => {
     const [trashOpen, setTrashOpen] = useState(false);
     const openTrash = useCallback(() => setTrashOpen(true), []);
     const [mediaOpen, setMediaOpen] = useState(false);
-    const openMedia = useCallback(() => setMediaOpen(true), []);
+    /** TopBar Media icon toggles the panel. */
+    const openMedia = useCallback(() => setMediaOpen((open) => !open), []);
     const importedDownloadJobs = useRef(new Set<string>());
 
     useEffect(() => {
