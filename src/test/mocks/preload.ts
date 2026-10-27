@@ -287,9 +287,11 @@ export const installPreloadMocks = (): void => {
     onInvoke("downloader:remove", () => undefined);
     onInvoke("downloader:clearFinished", () => undefined);
     onInvoke("trash:list", () => []);
-    onInvoke("trash:restore", () => ({ ok: false, message: "not mocked" }));
-    onInvoke("trash:openRecycleBin", () => undefined);
-    onInvoke("trash:removeEntry", () => true);
+    onInvoke("trash:recover", () => ({ ok: false, message: "not mocked" }));
+    onInvoke("trash:delete", () => ({ ok: false, message: "not mocked" }));
+    onInvoke("trash:forget", () => true);
+    onInvoke("trash:openFolder", () => undefined);
+    onInvoke("trash:purgeExpired", () => 0);
     onInvoke("db:library:getAllAndProgress", () => []);
     onInvoke("keymap:nativeAction", () => undefined);
     registerDefaultKeymapHandlers();

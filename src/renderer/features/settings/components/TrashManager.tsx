@@ -1,101 +1,83 @@
-import type { TrashEntry } from "@common/types/trash";
-import { useAppDispatch } from "@store/hooks";
-import dateUtils from "@utils/date";
-import { openRecycleBin, restoreTrashEntry } from "@utils/trash";
+import { TRASH_RETENTION_DAYS, type TrashRetentionDays } from "@common/types/trash";
+import { useAppContext } from "@renderer/App";
+import { setAppSettings } from "@store/appSettings";
+import { useAppDispatch, useAppSelector } from "@store/hooks";
+import { setSettingsOpen } from "@store/ui";
+import { openTrashFolder } from "@utils/trash";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import "./trashManager.scss";
 
-/** Settings section listing files the app moved to the OS recycle bin. */
+/** Settings entry point for Recently Deleted, its retention period and trash folder. */
 const TrashManager = () => {
     const { t } = useTranslation("settings");
     const dispatch = useAppDispatch();
-    const [entries, setEntries] = useState<TrashEntry[]>([]);
-    const [busyId, setBusyId] = useState("");
+    const { openTrash } = useAppContext();
+    const retentionDays = useAppSelector((state) => state.appSettings.trashRetentionDays);
+    const [count, setCount] = useState(0);
     const [message, setMessage] = useState("");
 
     const load = useCallback(async () => {
-        const rows = await window.electron.invoke("trash:list", { limit: 100 });
-        setEntries(rows);
+        const rows = await window.electron.invoke("trash:list", { limit: 500 });
+        setCount(rows.length);
     }, []);
 
     useEffect(() => {
         void load();
+        const onChange = () => void load();
+        window.addEventListener("yokomura:trash-changed", onChange);
+        return () => window.removeEventListener("yokomura:trash-changed", onChange);
     }, [load]);
 
-    const restore = async (entry: TrashEntry) => {
-        setBusyId(entry.id);
-        setMessage("");
-        const result = await restoreTrashEntry(dispatch, entry);
-        setBusyId("");
-        if (result.ok) {
-            setMessage(t("trash.restored"));
-            await load();
-        } else {
-            setMessage(result.message || t("trash.restoreFailed"));
+    const openFolder = async () => {
+        try {
+            await openTrashFolder();
+            setMessage("");
+        } catch (err) {
+            setMessage(err instanceof Error ? err.message : String(err));
         }
+    };
+
+    const openPanel = () => {
+        dispatch(setSettingsOpen(false));
+        openTrash();
     };
 
     return (
         <div className="settingItem2" id="settings-recentlyDeleted">
             <h3>{t("trash.title")}</h3>
             <div className="desc">{t("trash.desc")}</div>
+            <div className="main row trashSettingsRow">
+                <label className="trashSettingsField">
+                    <span>{t("trash.retention")}</span>
+                    <select
+                        value={retentionDays}
+                        onChange={(event) =>
+                            dispatch(
+                                setAppSettings({
+                                    trashRetentionDays: Number(event.currentTarget.value) as TrashRetentionDays,
+                                }),
+                            )
+                        }
+                    >
+                        {TRASH_RETENTION_DAYS.map((days) => (
+                            <option key={days} value={days}>
+                                {t("trash.daysOption", { count: days })}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+                <span className="trashSettingsHint">{t("trash.retentionHint")}</span>
+            </div>
             <div className="main row">
-                <button type="button" onClick={() => void openRecycleBin()}>
-                    {t("trash.openBin")}
+                <button type="button" onClick={openPanel}>
+                    {t("trash.openPanel", { count })}
                 </button>
-                <button type="button" onClick={() => void load()}>
-                    {t("trash.refresh")}
+                <button type="button" onClick={() => void openFolder()}>
+                    {t("trash.openFolder")}
                 </button>
             </div>
             {message ? <div className="trashManagerMessage">{message}</div> : null}
-            <div className="trashManagerList">
-                {entries.length === 0 ? (
-                    <p className="trashManagerEmpty">{t("trash.empty")}</p>
-                ) : (
-                    entries.map((entry) => (
-                        <div className={`trashManagerRow is-${entry.status}`} key={entry.id}>
-                            <div className="trashManagerInfo">
-                                <strong title={entry.originalPath}>{entry.name}</strong>
-                                <span>
-                                    {entry.status === "restored"
-                                        ? t("trash.restored")
-                                        : entry.status === "missing"
-                                          ? t("trash.missing")
-                                          : t("trash.inBin")}
-                                    {" · "}
-                                    {dateUtils.format(entry.deletedAt, {
-                                        format: dateUtils.presets.dateTime,
-                                    })}
-                                </span>
-                            </div>
-                            <div className="trashManagerActions">
-                                {entry.status === "trashed" ? (
-                                    <button
-                                        type="button"
-                                        disabled={busyId === entry.id}
-                                        onClick={() => void restore(entry)}
-                                    >
-                                        {t("trash.restore")}
-                                    </button>
-                                ) : null}
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        void window.electron
-                                            .invoke("trash:removeEntry", {
-                                                id: entry.id,
-                                            })
-                                            .then(load)
-                                    }
-                                >
-                                    {t("trash.forget")}
-                                </button>
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
         </div>
     );
 };

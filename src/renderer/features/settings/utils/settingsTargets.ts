@@ -215,7 +215,7 @@ export const SETTINGS_TARGETS_STATIC: readonly SettingsTarget[] = [
         contentPath: "viewSizes.galleryTitleDesc",
     }),
     setting("setting:recently-deleted", "#settings-recentlyDeleted", "trash.title", {
-        keywords: ["recycle bin", "trash", "undo", "deleted"],
+        keywords: ["recently deleted", "trash", "undo", "deleted", "recover", "retention", "countdown"],
         contentPath: "trash",
     }),
     setting("setting:copy-theme", "#settings-copyTheme", "theme.copyCurrent", {

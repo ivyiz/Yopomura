@@ -1,4 +1,4 @@
-import { openBrowser } from "@features/browser/browserEvents";
+import { toggleBrowser } from "@features/browser/browserEvents";
 import BookmarkToggle from "@features/home/classic/components/BookmarkToggle";
 import {
     faCog,
@@ -189,7 +189,7 @@ const TopBar = (): ReactElement => {
                     className="browserToggle"
                     tabIndex={-1}
                     onFocus={(e) => e.currentTarget.blur()}
-                    onClick={() => openBrowser("full")}
+                    onClick={() => toggleBrowser("full")}
                     data-tooltip={t("topBar.browser")}
                 >
                     <FontAwesomeIcon icon={faGlobe} />

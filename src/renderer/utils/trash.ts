@@ -6,26 +6,34 @@ import { createRendererLogger } from "@utils/logger";
 
 const log = createRendererLogger("utils/trash");
 
-export type RestoreTrashOutcome = { ok: true; entry: TrashEntry } | { ok: false; message: string };
+export type RecoverTrashOutcome =
+    | { ok: true; entry: TrashEntry; recoveredPath: string }
+    | { ok: false; message: string };
 
 /**
- * Restores one journal entry from the OS recycle bin. If the entry was a catalogue
- * title, the library row and thumbnail are rebuilt after the file returns.
+ * Moves one Recently Deleted entry back to its original folder. If the old name
+ * is occupied, the main process keeps both files under a `(recovered)` name.
+ * Catalogue rows and thumbnails are rebuilt at the recovered path.
  */
-export const restoreTrashEntry = async (
+export const recoverTrashEntry = async (
     dispatch: AppDispatch,
     entry: TrashEntry,
-): Promise<RestoreTrashOutcome> => {
-    const result = await window.electron.invoke("trash:restore", { id: entry.id });
+): Promise<RecoverTrashOutcome> => {
+    const result = await window.electron.invoke("trash:recover", { id: entry.id });
     if (!result.ok) return result;
+
+    window.dispatchEvent(
+        new CustomEvent("yokomura:trash-changed", { detail: { kind: "recovered", entry: result.entry } }),
+    );
 
     const itemType = entry.itemType;
     if (itemType) {
         try {
-            const existing = await window.electron.invoke("db:library:getItem", {
-                link: result.entry.originalPath,
-            });
+            const link = result.recoveredPath;
+            const existing = await window.electron.invoke("db:library:getItem", { link });
             if (!existing) {
+                const title =
+                    entry.title || window.path.basename(link, window.path.extname(link)) || result.entry.name;
                 const added =
                     itemType === "manga"
                         ? await dispatch(
@@ -33,8 +41,8 @@ export const restoreTrashEntry = async (
                                   type: "manga",
                                   data: {
                                       type: "manga",
-                                      link: result.entry.originalPath,
-                                      title: entry.title || result.entry.name,
+                                      link,
+                                      title,
                                       author: null,
                                       cover: null,
                                   },
@@ -45,8 +53,8 @@ export const restoreTrashEntry = async (
                                   type: "book",
                                   data: {
                                       type: "book",
-                                      link: result.entry.originalPath,
-                                      title: entry.title || result.entry.name,
+                                      link,
+                                      title,
                                       author: null,
                                       cover: null,
                                   },
@@ -54,21 +62,33 @@ export const restoreTrashEntry = async (
                           ).unwrap();
                 if (added.id != null) {
                     if (itemType === "manga") {
-                        await materializeMangaLibraryThumbnail(dispatch, added.id, result.entry.originalPath);
+                        await materializeMangaLibraryThumbnail(dispatch, added.id, link);
                     } else {
-                        await materializeBookLibraryThumbnail(dispatch, added.id, result.entry.originalPath);
+                        await materializeBookLibraryThumbnail(dispatch, added.id, link);
                     }
                 }
             }
             await dispatch(fetchAllItemsWithProgress());
         } catch (err) {
-            log.warn("restored file but library re-import failed", { entry }, err);
+            log.warn("recovered file but library re-import failed", { entry }, err);
         }
     }
 
     return result;
 };
 
-export const openRecycleBin = async (): Promise<void> => {
-    await window.electron.invoke("trash:openRecycleBin");
+/** Permanently deletes one app-trash entry. */
+export const deleteTrashEntry = async (
+    entry: TrashEntry,
+): Promise<{ ok: true } | { ok: false; message: string }> => {
+    const result = await window.electron.invoke("trash:delete", { id: entry.id });
+    if (result.ok) {
+        window.dispatchEvent(new CustomEvent("yokomura:trash-changed", { detail: { kind: "deleted", entry } }));
+    }
+    return result;
+};
+
+/** Opens the app-managed trash directory in Finder/Explorer. */
+export const openTrashFolder = async (): Promise<void> => {
+    await window.electron.invoke("trash:openFolder");
 };

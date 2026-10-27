@@ -1,13 +1,12 @@
 import { exec } from "node:child_process";
 import fs from "node:fs/promises";
-import type { TrashEntry } from "@common/types/trash";
 import { mainT } from "@electron/i18n/mainI18n";
-import { appendTrashEntry } from "@electron/trash/journal";
+import { moveToTrash } from "@electron/trash/trashService";
 import { saveFile } from "@electron/util";
 import { extractContentArchive } from "@electron/util/contentSource";
 import { createMainLogger } from "@electron/util/logger";
 import { WindowManager } from "@electron/util/window";
-import { BrowserWindow, dialog, shell } from "electron";
+import { BrowserWindow, dialog } from "electron";
 import { ipc } from "./utils";
 
 const logger = createMainLogger("ipc/fs");
@@ -29,26 +28,13 @@ export const registerFSHandlers = (): void => {
     });
     ipc.handle("fs:trashItem", async (_event, request) => {
         try {
-            const kind =
-                request.kind ??
-                ((await fs
-                    .stat(request.path)
-                    .then((stat) => stat.isDirectory())
-                    .catch(() => false))
-                    ? "folder"
-                    : "file");
-            await shell.trashItem(request.path);
-            let entry: TrashEntry | undefined;
-            try {
-                entry = await appendTrashEntry({
-                    originalPath: request.path,
-                    kind,
-                    title: request.title,
-                    itemType: request.itemType,
-                });
-            } catch (journalError) {
-                logger.warn("trash journal append failed after successful trash", journalError);
-            }
+            const entry = await moveToTrash({
+                path: request.path,
+                kind: request.kind,
+                title: request.title,
+                itemType: request.itemType,
+                retentionDays: request.retentionDays,
+            });
             return { ok: true as const, entry };
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);

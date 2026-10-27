@@ -76,14 +76,9 @@ const DownloaderPanel = ({ onClose, onOpenOutput }: DownloaderPanelProps) => {
             <div className="downloaderPanel">
                 <div className="downloaderHead">
                     <div>
-                        <span className="downloaderEyebrow">MADIUM OBSIDIAN</span>
                         <h2>Downloader</h2>
                     </div>
                     <div className="downloaderHeadActions">
-                        <span className={`downloaderDot ${state.ready ? "ready" : ""}`} />
-                        <span className="downloaderReadyText">
-                            {state.ready ? "Worker ready" : "Worker starting"}
-                        </span>
                         <button type="button" className="downloaderClose" onClick={onClose} title="Close">
                             <FontAwesomeIcon icon={faXmark} />
                         </button>

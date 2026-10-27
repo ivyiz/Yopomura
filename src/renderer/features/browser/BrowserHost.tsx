@@ -21,7 +21,7 @@ import { useAppContext } from "@renderer/App";
 import { useAppSelector } from "@store/hooks";
 import { selectModalOverlayOpen } from "@store/ui";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { BrowserMode, OpenBrowserDetail } from "./browserEvents";
+import type { BrowserMode, ToggleBrowserDetail } from "./browserEvents";
 import "./browserHost.scss";
 
 type ContextMenuState = BrowserContextMenuRequest & {
@@ -74,7 +74,7 @@ const readSavedDisabledHosts = (): string[] => {
  * `.browserContent`; tabs/toolbar/menus stay in the renderer.
  */
 const BrowserHost = () => {
-    const { openDownloader, downloaderOpen, videoOpen } = useAppContext();
+    const { openDownloader, downloaderOpen, videoOpen, trashOpen } = useAppContext();
     const folders = useAppSelector((store) => store.mainSettings.library.folders);
     const defaultOutDir = useAppSelector((store) => {
         const folder = store.mainSettings.library.folders.find((row) => row.isDefaultLocation);
@@ -92,6 +92,7 @@ const BrowserHost = () => {
     const [menu, setMenu] = useState<ContextMenuState | null>(null);
     const [downloads, setDownloads] = useState<BrowserDownload[]>([]);
     const [error, setError] = useState("");
+    const modeRef = useRef<BrowserMode | null>(null);
     const paneRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const lastBounds = useRef("");
@@ -131,11 +132,20 @@ const BrowserHost = () => {
     }, [refreshHosts]);
 
     useEffect(() => {
-        const onOpen = (event: Event) => {
-            const detail = (event as CustomEvent<OpenBrowserDetail>).detail;
+        modeRef.current = mode;
+    }, [mode]);
+
+    useEffect(() => {
+        const onToggle = (event: Event) => {
+            const detail = (event as CustomEvent<ToggleBrowserDetail>).detail;
             if (!detail?.mode) return;
-            setMode(detail.mode);
+            const current = modeRef.current;
+            const next = current === null ? detail.mode : current === detail.mode ? null : detail.mode;
+            modeRef.current = next;
+            setMode(next);
             setMenu(null);
+            if (!next) return;
+
             const saved = readSavedEngine();
             setEngine(saved);
             void window.electron.invoke("browser:setSearchEngine", { engine: saved });
@@ -147,8 +157,8 @@ const BrowserHost = () => {
             }
             void ensureTab();
         };
-        window.addEventListener("yokomura:open-browser", onOpen);
-        return () => window.removeEventListener("yokomura:open-browser", onOpen);
+        window.addEventListener("yokomura:toggle-browser", onToggle);
+        return () => window.removeEventListener("yokomura:toggle-browser", onToggle);
     }, [ensureTab]);
 
     useEffect(() => {
@@ -191,7 +201,14 @@ const BrowserHost = () => {
         void window.electron.invoke("browser:setVisible", { visible: false });
     }, [mode]);
 
-    const visible = Boolean(mode) && !modalOverlayOpen && !readerActive && !menu && !downloaderOpen && !videoOpen;
+    const visible =
+        Boolean(mode) &&
+        !modalOverlayOpen &&
+        !readerActive &&
+        !menu &&
+        !downloaderOpen &&
+        !videoOpen &&
+        !trashOpen;
 
     useEffect(() => {
         void window.electron.invoke("browser:setVisible", { visible });
@@ -223,13 +240,30 @@ const BrowserHost = () => {
     }, [mode, syncBounds]);
 
     useEffect(() => {
-        if (readerActive && mode) setMode(null);
+        if (!readerActive || !mode) return;
+        modeRef.current = null;
+        setMode(null);
     }, [readerActive, mode]);
+
+    useEffect(() => {
+        if (!mode) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== "Escape") return;
+            const target = event.target as HTMLElement | null;
+            if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+            modeRef.current = null;
+            setMode(null);
+            setMenu(null);
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [mode]);
 
     const activeTab = state.tabs.find((tab) => tab.id === state.activeId);
     const currentDisabled = activeTab ? disabledHosts.includes(hostOf(activeTab.url)) : false;
 
     const close = () => {
+        modeRef.current = null;
         setMode(null);
         setMenu(null);
     };

@@ -35,6 +35,7 @@ import { nativeMenuAccelerator, registerKeymapHandlers, runNativeKeymapAction } 
 import { registerLibraryScanHandlers, stopLibraryScan } from "./ipc/libraryScan";
 import { registerTrashHandlers } from "./ipc/trash";
 import { registerUpdateHandlers } from "./ipc/update";
+import { startTrashScheduler, stopTrashScheduler } from "./trash/trashService";
 import {
     backupIfPendingMigrations,
     handleFailedSchemaMigrate,
@@ -231,6 +232,7 @@ app.on("ready", async () => {
         registerErrorReportingHandlers();
         registerDownloaderHandlers();
         registerTrashHandlers();
+        startTrashScheduler();
         registerBrowserHandlers();
 
         WindowManager.createWindow(openFolderOnLaunch);
@@ -251,6 +253,7 @@ app.on("before-quit", (event) => {
     isShuttingDown = true;
     shutdownDownloader();
     destroyBrowserManagers();
+    stopTrashScheduler();
     void (async () => {
         try {
             await stopScheduler();

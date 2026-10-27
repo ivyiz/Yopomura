@@ -1,15 +1,16 @@
 import type { TrashEntry } from "@common/types/trash";
+import { useAppContext } from "@renderer/App";
 import { useAppDispatch } from "@store/hooks";
-import { openRecycleBin, restoreTrashEntry } from "@utils/trash";
+import { recoverTrashEntry } from "@utils/trash";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import "./trashToast.scss";
 import "./trashToast.scss";
 
 /** Bottom-right undo toast fed by the `yokomura:trashed` browser event. */
 const TrashToast = () => {
     const { t } = useTranslation("common");
     const dispatch = useAppDispatch();
+    const { openTrash } = useAppContext();
     const [entry, setEntry] = useState<TrashEntry | null>(null);
     const [message, setMessage] = useState("");
     const [busy, setBusy] = useState(false);
@@ -42,7 +43,7 @@ const TrashToast = () => {
 
     const undo = async () => {
         setBusy(true);
-        const result = await restoreTrashEntry(dispatch, entry);
+        const result = await recoverTrashEntry(dispatch, entry);
         setBusy(false);
         if (result.ok) {
             setMessage(t("contextMenu.undoRestored", { defaultValue: "Restored" }));
@@ -52,10 +53,15 @@ const TrashToast = () => {
         }
     };
 
+    const view = () => {
+        openTrash();
+        dismiss();
+    };
+
     return (
         <output className="trashToast">
             <div className="trashToastBody">
-                <strong>{t("contextMenu.moveToTrashDone", { defaultValue: "Moved to Recycle Bin" })}</strong>
+                <strong>{t("contextMenu.moveToTrashDone", { defaultValue: "Moved to Recently Deleted" })}</strong>
                 <span title={entry.originalPath}>{entry.name}</span>
                 {message ? <em>{message}</em> : null}
             </div>
@@ -63,8 +69,8 @@ const TrashToast = () => {
                 <button type="button" onClick={() => void undo()} disabled={busy}>
                     {t("contextMenu.undo", { defaultValue: "Undo" })}
                 </button>
-                <button type="button" onClick={() => void openRecycleBin()}>
-                    {t("contextMenu.openRecycleBin", { defaultValue: "Recycle Bin" })}
+                <button type="button" onClick={view}>
+                    {t("contextMenu.viewTrash", { defaultValue: "View" })}
                 </button>
                 <button type="button" className="trashToastClose" onClick={dismiss} aria-label="Close">
                     ×

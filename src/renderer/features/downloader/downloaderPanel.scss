@@ -75,30 +75,12 @@
     }
 }
 
-.downloaderEyebrow {
-    font-size: 0.65rem;
-    letter-spacing: 0.16em;
-    color: var(--font-color-secondary);
-}
-
 .downloaderHeadActions {
     display: flex;
     align-items: center;
     gap: 8px;
     color: var(--font-color-secondary);
     font-size: 0.78rem;
-}
-
-.downloaderDot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #e8c07a;
-
-    &.ready {
-        background: #7ee787;
-        box-shadow: 0 0 10px rgba(126, 231, 135, 0.55);
-    }
 }
 
 .downloaderClose {

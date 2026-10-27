@@ -359,6 +359,38 @@
     }
 }
 
+/*
+ * Location tab: keep the toolbar fixed and give the virtual list its own
+ * always-visible draggable scrollbar. The scrollbar has a wider hit area than
+ * the global 10px one so long libraries are easy to drag.
+ */
+#locationTab.listCont {
+    overflow-y: hidden;
+
+    .location-cont {
+        overflow-y: scroll;
+        scrollbar-gutter: stable;
+        padding-right: 2px;
+
+        &::-webkit-scrollbar {
+            width: 14px;
+        }
+        &::-webkit-scrollbar-track {
+            background: var(--scrollbar-track-color);
+            border-radius: 7px;
+        }
+        &::-webkit-scrollbar-thumb {
+            min-height: 56px;
+            background: var(--scrollbar-thumb-color);
+            border: 3px solid var(--scrollbar-track-color);
+            border-radius: 7px;
+        }
+        &::-webkit-scrollbar-thumb:hover {
+            background: var(--scrollbar-thumb-color-hover);
+        }
+    }
+}
+
 // 3 tabs of home page
 .tabCont {    flex-direction: row;
     --divider-width: 25px;

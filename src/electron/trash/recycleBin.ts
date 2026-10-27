@@ -49,39 +49,6 @@ export const restoreFromRecycleBin = async (originalPath: string): Promise<Resto
     };
 };
 
-/**
- * Opens the Windows Recycle Bin in Explorer. A no-op outside Windows so a
- * caller cannot crash on another platform.
- */
-export const openRecycleBin = async (): Promise<void> => {
-    if (process.platform !== "win32") {
-        logger.warn("openRecycleBin ignored on unsupported platform", { platform: process.platform });
-        return;
-    }
-
-    await new Promise<void>((resolve, reject) => {
-        execFile(
-            "explorer.exe",
-            ["shell:RecycleBinFolder"],
-            { windowsHide: true },
-            (error: ExecFileException | null) => {
-                /* Explorer exits non-zero after handing the folder to the shell; only a spawn failure matters. */
-                if (error && (error as NodeJS.ErrnoException).code === "ENOENT") {
-                    logger.error("failed to launch explorer.exe", { error: error.message });
-                    reject(new Error(`Could not open the Recycle Bin: ${error.message}`));
-                    return;
-                }
-                if (error)
-                    logger.warn("explorer.exe exited with an error after opening the Recycle Bin", error.message);
-                resolve();
-            },
-        );
-    });
-};
-
-/** True when the host can use the Windows Recycle Bin restore helper. */
-export const isRecycleBinRestoreSupported = (): boolean => process.platform === "win32";
-
 type PowerShellOutcome = {
     stdout: string;
     stderr: string;

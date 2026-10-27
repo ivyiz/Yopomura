@@ -52,6 +52,7 @@ import UiBlockOverlay from "./components/UiBlockOverlay";
 import BrowserHost from "./features/browser/BrowserHost";
 import DownloaderPanel from "./features/downloader/DownloaderPanel";
 import VideoPlayer from "./features/media/VideoPlayer";
+import TrashPanel from "./features/trash/TrashPanel";
 import TrashToast from "./features/trash/TrashToast";
 import i18n from "./i18n";
 import Main from "./Main";
@@ -86,6 +87,10 @@ interface AppContext {
     openDownloader: () => void;
     /** True while the downloader panel is mounted. */
     downloaderOpen: boolean;
+    /** Open the Recently Deleted panel. */
+    openTrash: () => void;
+    /** True while the Recently Deleted panel is mounted. */
+    trashOpen: boolean;
     /** True while the video player overlay is mounted. */
     videoOpen: boolean;
     contextMenuData: Menu.ContextMenuData | null;
@@ -136,6 +141,8 @@ const App = (): ReactElement => {
 
     const [downloaderOpen, setDownloaderOpen] = useState(false);
     const openDownloader = useCallback(() => setDownloaderOpen(true), []);
+    const [trashOpen, setTrashOpen] = useState(false);
+    const openTrash = useCallback(() => setTrashOpen(true), []);
     const importedDownloadJobs = useRef(new Set<string>());
 
     useEffect(() => {
@@ -568,6 +575,7 @@ const App = (): ReactElement => {
                                         entry = await window.electron.trashItem(url, {
                                             title: libraryItem?.title ?? name,
                                             itemType: libraryItem?.type,
+                                            retentionDays: appSettings.trashRetentionDays,
                                         });
                                     } catch (err) {
                                         log.error("move to trash failed", { url }, err);
@@ -825,6 +833,8 @@ const App = (): ReactElement => {
                 openVideo,
                 openDownloader,
                 downloaderOpen,
+                openTrash,
+                trashOpen,
                 videoOpen: Boolean(videoLink),
                 validateDirectory,
                 contextMenuData,
@@ -851,6 +861,7 @@ const App = (): ReactElement => {
                     onOpenOutput={(path) => void openInReaderIfValid(path)}
                 />
             ) : null}
+            {trashOpen ? <TrashPanel onClose={() => setTrashOpen(false)} /> : null}
             <BrowserHost />
             <TrashToast />
             <UiBlockOverlay />

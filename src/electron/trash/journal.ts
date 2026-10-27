@@ -1,6 +1,14 @@
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import {
+    isTrashRetentionDays,
+    type TrashEntry,
+    type TrashEntryKind,
+    type TrashEntryStatus,
+    type TrashItemType,
+    type TrashStorage,
+} from "@common/types/trash";
 import { createMainLogger } from "@electron/util/logger";
 import { app } from "electron";
 
@@ -8,29 +16,6 @@ const logger = createMainLogger("trash/journal");
 
 /** Journal filename inside a base directory (normally `app.getPath("userData")`). */
 export const TRASH_JOURNAL_FILE = "trash-journal.json";
-
-/** What was moved to the OS trash. */
-export type TrashEntryKind = "file" | "folder";
-
-/** Lifecycle of a journal entry. `missing` means the trash item could not be found again. */
-export type TrashEntryStatus = "trashed" | "restored" | "missing";
-
-/** Library classification captured at delete time, when known. */
-export type TrashItemType = "manga" | "book";
-
-/** One file or folder the app moved to the OS recycle bin / trash. */
-export type TrashEntry = {
-    id: string;
-    originalPath: string;
-    name: string;
-    kind: TrashEntryKind;
-    deletedAt: number;
-    title?: string;
-    itemType?: TrashItemType;
-    status: TrashEntryStatus;
-    restoredAt?: number;
-    error?: string;
-};
 
 /** Fields accepted by {@link TrashJournal.appendTrashEntry}. */
 export type AppendTrashEntryInput = {
@@ -46,6 +31,14 @@ export type AppendTrashEntryInput = {
     status?: TrashEntryStatus;
     restoredAt?: number;
     error?: string;
+    /** Absolute path inside the app trash. */
+    trashPath?: string;
+    /** Absolute timestamp when the item is permanently removed. */
+    expiresAt?: number;
+    retentionDays?: number;
+    /** Defaults to `"recycle-bin"` so old journals keep working. */
+    storage?: TrashStorage;
+    recoveredPath?: string;
     /** Mostly for re-importing an existing journal; defaults to a random UUID. */
     id?: string;
 };
@@ -124,6 +117,7 @@ const parseJournal = (raw: string): TrashEntry[] | null => {
             kind: isKind(row.kind) ? row.kind : "file",
             deletedAt: row.deletedAt,
             status: isStatus(row.status) ? row.status : "trashed",
+            storage: row.storage === "app" || typeof row.trashPath === "string" ? "app" : "recycle-bin",
         };
         const title = optionalString(row.title);
         if (title !== undefined) entry.title = title;
@@ -132,6 +126,12 @@ const parseJournal = (raw: string): TrashEntry[] | null => {
             entry.restoredAt = row.restoredAt;
         const error = optionalString(row.error);
         if (error !== undefined) entry.error = error;
+        const trashPath = optionalString(row.trashPath);
+        if (trashPath !== undefined) entry.trashPath = trashPath;
+        if (typeof row.expiresAt === "number" && Number.isFinite(row.expiresAt)) entry.expiresAt = row.expiresAt;
+        if (isTrashRetentionDays(row.retentionDays)) entry.retentionDays = row.retentionDays;
+        const recoveredPath = optionalString(row.recoveredPath);
+        if (recoveredPath !== undefined) entry.recoveredPath = recoveredPath;
         entries.push(entry);
     }
     return entries;
@@ -248,6 +248,7 @@ export const createTrashJournal = (baseDir: string): TrashJournal => {
                         ? input.deletedAt
                         : now,
                 status: isStatus(input.status) ? input.status : "trashed",
+                storage: input.storage === "app" ? "app" : "recycle-bin",
             };
             if (typeof input.title === "string") entry.title = input.title;
             if (isItemType(input.itemType)) entry.itemType = input.itemType;
@@ -255,6 +256,18 @@ export const createTrashJournal = (baseDir: string): TrashJournal => {
                 entry.restoredAt = input.restoredAt;
             }
             if (typeof input.error === "string") entry.error = input.error;
+            if (typeof input.trashPath === "string" && input.trashPath.length > 0) {
+                entry.trashPath = input.trashPath;
+            }
+            if (typeof input.expiresAt === "number" && Number.isFinite(input.expiresAt)) {
+                entry.expiresAt = input.expiresAt;
+            }
+            if (isTrashRetentionDays(input.retentionDays)) {
+                entry.retentionDays = input.retentionDays;
+            }
+            if (typeof input.recoveredPath === "string" && input.recoveredPath.length > 0) {
+                entry.recoveredPath = input.recoveredPath;
+            }
 
             const entries = await readEntries();
             entries.push(entry);

@@ -14,7 +14,13 @@ import type {
     LibraryScanStartResult,
     LibraryScanStatus,
 } from "@common/types/libraryScan";
-import type { RestoreTrashResult, TrashEntry, TrashEntryKind, TrashItemType } from "@common/types/trash";
+import type {
+    PurgeTrashResult,
+    RestoreTrashResult,
+    TrashEntry,
+    TrashEntryKind,
+    TrashItemType,
+} from "@common/types/trash";
 import type {
     AddBookBookmarkData,
     AddBookNoteData,
@@ -211,15 +217,17 @@ export type FileSystemChannels = {
           }
     >;
     "fs:showInExplorer": ChannelDefinition<string, void>;
-    /** Moves one file/folder to the OS recycle bin/trash and records a metadata journal entry. */
+    /** Moves one file/folder into the app trash and starts its retention countdown. */
     "fs:trashItem": ChannelDefinition<
         {
             path: string;
             kind?: TrashEntryKind;
             title?: string;
             itemType?: TrashItemType;
+            /** Days to keep the item; defaults to 7. */
+            retentionDays?: number;
         },
-        { ok: true; entry?: TrashEntry } | { ok: false; message: string }
+        { ok: true; entry: TrashEntry } | { ok: false; message: string }
     >;
     "fs:saveFile": ChannelDefinition<{ filePath: string; data: string }, void>;
     "fs:fileChanged": ChannelDefinition<{ filePath: string; sourceWindowId?: number; ts: number }, void, "m2r">;
@@ -388,10 +396,14 @@ export type DownloaderChannels = {
 };
 
 export type TrashChannels = {
-    "trash:list": ChannelDefinition<{ limit?: number } | void, TrashEntry[]>;
-    "trash:restore": ChannelDefinition<{ id: string }, RestoreTrashResult>;
-    "trash:openRecycleBin": ChannelDefinition<void, void>;
-    "trash:removeEntry": ChannelDefinition<{ id: string }, boolean>;
+    "trash:list": ChannelDefinition<{ limit?: number }, TrashEntry[]>;
+    "trash:recover": ChannelDefinition<{ id: string }, RestoreTrashResult>;
+    /** Permanently removes an app-trash entry. */
+    "trash:delete": ChannelDefinition<{ id: string }, PurgeTrashResult>;
+    /** Drops a legacy Recycle Bin journal row without touching the file. */
+    "trash:forget": ChannelDefinition<{ id: string }, boolean>;
+    "trash:openFolder": ChannelDefinition<void, void>;
+    "trash:purgeExpired": ChannelDefinition<void, number>;
 };
 
 export type BrowserChannels = {

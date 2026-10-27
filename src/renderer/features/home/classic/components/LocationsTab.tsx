@@ -1,5 +1,5 @@
 import { getDefaultLocationPath, planLocationsListLoad } from "@common/library/folders";
-import { openBrowser } from "@features/browser/browserEvents";
+import { toggleBrowser } from "@features/browser/browserEvents";
 import LocationListItem, {
     LOCATION_ROW_GAP_PX,
     locationRowHeight,
@@ -360,7 +360,7 @@ const LocationsTab = (): ReactElement => {
                         >
                             <FontAwesomeIcon icon={faAngleUp} />
                         </button>
-                        <button data-tooltip={t("classic.location.browser")} onClick={() => openBrowser("side")}>
+                        <button data-tooltip={t("classic.location.browser")} onClick={() => toggleBrowser("side")}>
                             <FontAwesomeIcon icon={faGlobe} />
                         </button>
                         <ListNavigator.SearchInput

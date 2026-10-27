@@ -73,6 +73,31 @@ describe("createTrashJournal", () => {
         expect(tempFiles(path.dirname(filePath))).toEqual([]);
     });
 
+    it("persists app-trash countdown fields", async () => {
+        const { journal } = makeJournal();
+        const entry = await journal.appendTrashEntry({
+            originalPath: path.join("C:\\library", "One Piece.zip"),
+            kind: "file",
+            title: "One Piece",
+            itemType: "manga",
+            storage: "app",
+            trashPath: path.join("C:\\userdata", "trash", "abc", "One Piece.zip"),
+            deletedAt: 1_000,
+            expiresAt: 1_000 + 7 * 24 * 60 * 60 * 1000,
+            retentionDays: 7,
+        });
+
+        expect(entry.storage).toBe("app");
+        expect(entry.trashPath).toContain("trash");
+        expect(entry.retentionDays).toBe(7);
+        expect(entry.expiresAt).toBe(1_000 + 7 * 24 * 60 * 60 * 1000);
+        expect(await journal.getEntry(entry.id)).toEqual(entry);
+
+        const legacy = await append(journal, "legacy.cbz");
+        expect(legacy.storage).toBe("recycle-bin");
+        expect(legacy.expiresAt).toBeUndefined();
+    });
+
     it("serializes concurrent appends so every entry survives", async () => {
         const { journal, filePath } = makeJournal();
         const entries = await Promise.all(

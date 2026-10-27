@@ -1,3 +1,4 @@
+import { DEFAULT_TRASH_RETENTION_DAYS } from "@common/types/trash";
 import { z } from "zod";
 import { dialogUtils } from "./dialog";
 import { saveJSONfile, settingsPath } from "./file";
@@ -115,6 +116,10 @@ const settingSchema = z
         useCanvasBasedReader: z.boolean(),
         /** Require double-click to open items in classic lists. False = single-click opens. */
         openOnDblClick: z.boolean(),
+        /** Days a story stays in Recently Deleted before it is permanently removed. */
+        trashRetentionDays: z
+            .union([z.literal(1), z.literal(3), z.literal(7), z.literal(15), z.literal(30)])
+            .default(DEFAULT_TRASH_RETENTION_DAYS),
         /** Hide the numeric row-index prefix on classic list items. */
         disableListNumbering: z.boolean(),
         /** Show the search input bar in classic History and Bookmark lists. */
@@ -200,6 +205,7 @@ const settingSchema = z
         },
         useCanvasBasedReader: false,
         openOnDblClick: true,
+        trashRetentionDays: 7,
         disableListNumbering: true,
         showSearch: true,
         enableClassicListCheckboxes: true,
