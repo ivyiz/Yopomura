@@ -132,6 +132,11 @@ const installContextMenuTemplate = (): void => {
             disabled: !url,
             action: vi.fn(),
         }),
+        trashItem: (url: string) => ({
+            label: common.contextMenu.moveToTrash,
+            disabled: !url,
+            action: vi.fn(),
+        }),
     };
 };
 
