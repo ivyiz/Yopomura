@@ -1,4 +1,5 @@
 import type { BookBookmark, MangaBookmark } from "@common/types/db";
+import { useAppContext } from "@renderer/App";
 import { ItemDisplayTitle } from "@renderer/components/ItemDisplayTitle";
 import ListItem from "@renderer/components/ListItem";
 import SelectionCheckbox from "@renderer/components/ui/SelectionCheckbox";
@@ -18,7 +19,6 @@ import {
 import { resolveMangaChapterPath } from "@utils/mangaChapterPath";
 import { type CSSProperties, forwardRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppContext } from "src/renderer/App";
 import { bookmarkLibraryItemsAtProgress } from "../listSelectionActions";
 
 /**

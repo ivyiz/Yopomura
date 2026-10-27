@@ -264,6 +264,7 @@ export const installPreloadMocks = (): void => {
     onInvoke("covers:releasePdfRender", () => undefined);
     onInvoke("covers:materializeFromLibraryPath", () => ({ ok: true }));
     onInvoke("covers:materializeFromUrl", () => ({ ok: true }));
+    onInvoke("covers:previewForPath", () => ({ ok: false, message: "not mocked" }));
     onInvoke("covers:claimPost0001ThumbnailPrompt", () => false);
     onInvoke("db:library:getAllAndProgress", () => []);
     onInvoke("keymap:nativeAction", () => undefined);

@@ -1,6 +1,6 @@
 {
     "name": "yomikiru",
-    "productName": "Yomikiru",
+    "productName": "Yokomura",
     "version": "2.25.1",
     "description": "An offline desktop reader for manga, comics, and novels. Offers a customizable reading experience with extensive settings, shortcuts, themes and layouts.",
     "main": ".webpack/main",

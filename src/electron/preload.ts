@@ -134,6 +134,11 @@ const electronAPI = {
     getPathForFile: (file: File) => webUtils.getPathForFile(file),
     openExternal: (url: string) => shell.openExternal(url),
     showItemInFolder: (path: string) => shell.showItemInFolder(path),
+    /** Move a file or folder to the OS recycle bin / trash. */
+    trashItem: async (path: string) => {
+        const result = await ipcRenderer.invoke("fs:trashItem", { path });
+        if (!result.ok) throw new Error(result.message);
+    },
     webFrame: {
         getZoomFactor: () => webFrame.getZoomFactor(),
         setZoomFactor: (factor: number) => webFrame.setZoomFactor(factor),

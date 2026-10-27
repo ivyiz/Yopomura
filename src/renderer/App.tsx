@@ -436,6 +436,56 @@ const App = (): ReactElement => {
                     },
                 };
             },
+            trashItem(url, onDeleted?) {
+                const name = window.path.basename(window.path.normalize(url)) || url;
+                return {
+                    label: i18n.t("contextMenu.moveToTrash", { ns: "common" }),
+                    disabled: !url,
+                    style: { color: "var(--error-color)" },
+                    action() {
+                        void dialogUtils
+                            .warn({
+                                title: i18n.t("contextMenu.moveToTrash", { ns: "common" }),
+                                message: i18n.t("contextMenu.moveToTrashMessage", {
+                                    ns: "common",
+                                    name,
+                                }),
+                                detail: i18n.t("contextMenu.moveToTrashDetail", { ns: "common" }),
+                                noOption: false,
+                                buttons: [
+                                    i18n.t("actions.cancel", { ns: "common" }),
+                                    i18n.t("contextMenu.moveToTrash", { ns: "common" }),
+                                ],
+                                defaultId: 0,
+                            })
+                            .then(({ response }) => {
+                                if (!response) return;
+                                void (async () => {
+                                    try {
+                                        await window.electron.trashItem(url);
+                                    } catch (err) {
+                                        log.error("move to trash failed", { url }, err);
+                                        await dialogUtils.customError({
+                                            message: i18n.t("contextMenu.moveToTrashFailed", {
+                                                ns: "common",
+                                            }),
+                                            detail: err instanceof Error ? err.message : String(err),
+                                        });
+                                        return;
+                                    }
+                                    if (store.getState().library.items[url]) {
+                                        try {
+                                            await dispatch(deleteLibraryItem({ link: url }));
+                                        } catch (err) {
+                                            log.error("remove trashed library item failed", { url }, err);
+                                        }
+                                    }
+                                    onDeleted?.();
+                                })();
+                            });
+                    },
+                };
+            },
             removeHistory(url, isInSideList = false, onRemoved?) {
                 return {
                     label: i18n.t("contextMenu.removeFromLibrary", { ns: "common" }),

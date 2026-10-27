@@ -593,7 +593,7 @@ const downloadUpdates = (latestVersion: string, windowId: number, silent = false
             const installWithSudo = (command: string): Promise<void> =>
                 new Promise((resolve, reject) => {
                     logger.log("Linux update: running package manager via sudo", command);
-                    execSudo(command, { name: "Yomikiru" }, (err) => {
+                    execSudo(command, { name: "Yokomura" }, (err) => {
                         if (err) {
                             logger.error("Linux update: sudo package install failed", err);
                             reject(err);

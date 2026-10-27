@@ -192,7 +192,7 @@ const GalleryView: React.FC = () => {
     const galleryEstimatedRowSize = useMemo(() => {
         if (appSettings.galleryDisplayMode === "list") {
             /* keep in sync with `.galleryList.list .galleryItem` height */
-            return 6.6 * rootFontSizePx;
+            return appSettings.galleryListCoverWidth * 1.5 + rootFontSizePx;
         }
         if (!containerWidth || !galleryColumnCount) return 300;
         const cols = galleryColumnCount;
@@ -209,9 +209,16 @@ const GalleryView: React.FC = () => {
             return coverHeightPx;
         }
         /* title under cover: padding + up to two clamped lines (`.mangaTitle`) */
-        const titleBlockPx = 2.4 * rootFontSizePx;
+        const titleBlockPx = 2.4 * rootFontSizePx * appSettings.galleryTitleFontSize;
         return coverHeightPx + titleBlockPx;
-    }, [appSettings.galleryDisplayMode, containerWidth, galleryColumnCount, rootFontSizePx]);
+    }, [
+        appSettings.galleryDisplayMode,
+        appSettings.galleryListCoverWidth,
+        appSettings.galleryTitleFontSize,
+        containerWidth,
+        galleryColumnCount,
+        rootFontSizePx,
+    ]);
 
     /**
      * Library slice for `galleryActiveTab`. `continue-reading` uses a fixed
@@ -356,6 +363,13 @@ const GalleryView: React.FC = () => {
             if (activeTab !== "favourites") {
                 items.push(window.contextMenu.template.removeHistory(item.link));
             }
+            items.push(
+                window.contextMenu.template.divider(),
+                window.contextMenu.template.trashItem(item.link, () => {
+                    if (selectedManga === item.link) setSelectedManga(null);
+                    if (selectedBook === item.link) setSelectedBook(null);
+                }),
+            );
 
             setContextMenuData({
                 clickX: e.clientX,
@@ -364,7 +378,17 @@ const GalleryView: React.FC = () => {
                 focusBackElem: e.currentTarget,
             });
         },
-        [activeTab, anilistToken, dispatch, displayByLink, setContextMenuData, handleContinueReading, t],
+        [
+            activeTab,
+            anilistToken,
+            dispatch,
+            displayByLink,
+            setContextMenuData,
+            handleContinueReading,
+            selectedManga,
+            selectedBook,
+            t,
+        ],
     );
 
     const filterManga = useCallback(
@@ -694,6 +718,7 @@ const GalleryView: React.FC = () => {
                             className={`galleryList ${appSettings.galleryDisplayMode === "list" ? "list" : ""}`}
                             scrollContainerRef={libraryGridRef as RefObject<HTMLElement>}
                             estimatedItemSize={galleryEstimatedRowSize}
+                            key={`gallery-${appSettings.galleryDisplayMode}-${galleryEstimatedRowSize}`}
                             columnCount={galleryColumnCount}
                             rowGapPx={appSettings.galleryDisplayMode === "list" ? 0 : GALLERY_GRID_GAP_PX}
                             /*

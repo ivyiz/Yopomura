@@ -1,14 +1,21 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs";
+import path from "node:path";
 import type { Readable } from "node:stream";
 import { decodePercentEncodedDataUrl, http, isAbsoluteHttpUrl } from "@common/http";
-import type { CoverChannels, CoverOpResult } from "@common/types/ipc";
-import { withEpubArchivePackage, withResolvedMangaLibraryCover } from "@electron/util/contentSource";
+import type { CoverChannels, CoverOpResult, CoverPreviewResult } from "@common/types/ipc";
+import {
+    withEpubArchivePackage,
+    withResolvedFirstImage,
+    withResolvedMangaLibraryCover,
+} from "@electron/util/contentSource";
 import {
     coverFilePathForLibraryId,
     getCoversDirectoryAbsolute,
     materializeCoverFromBuffer,
     materializeCoverFromSourcePath,
     materializeCoverFromStream,
+    materializePreviewCover,
 } from "@electron/util/coverMaterialize";
 import { createMainLogger } from "@electron/util/logger";
 import { ipcMain } from "electron";
@@ -127,6 +134,44 @@ const runCoverOp = async (label: string, work: () => Promise<CoverOpResult>): Pr
     }
 };
 
+/** In-flight path-keyed previews so concurrent list rows share one extraction. */
+const previewsInFlight = new Map<string, Promise<CoverPreviewResult>>();
+
+/**
+ * Writes (or reuses) a cached list-view cover under `userData/covers/preview`.
+ * The cache key includes mtime and size so a replaced archive gets a fresh image.
+ */
+const materializePreviewForPath = async (filePath: string): Promise<CoverPreviewResult> => {
+    const abs = path.resolve(filePath);
+    if (!fs.existsSync(abs)) return { ok: false, message: "path missing" };
+    let stat: fs.Stats;
+    try {
+        stat = fs.statSync(abs);
+    } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : String(e) };
+    }
+    const identity = process.platform === "win32" ? abs.toLowerCase() : abs;
+    const key = createHash("sha1").update(`${identity}\0${stat.mtimeMs}\0${stat.size}`).digest("hex");
+    const out = path.join(getCoversDirectoryAbsolute(), "preview", `${key}.webp`);
+    if (fs.existsSync(out)) return { ok: true, filePath: out };
+
+    const pending = previewsInFlight.get(key);
+    if (pending) return pending;
+
+    const work = (async (): Promise<CoverPreviewResult> => {
+        const result = await withResolvedFirstImage(abs, (source) => materializePreviewCover(source, out));
+        if (!result) return { ok: false, message: "cover source not found" };
+        if (!result.ok) return { ok: false, message: result.message };
+        return { ok: true, filePath: out };
+    })();
+    previewsInFlight.set(key, work);
+    try {
+        return await work;
+    } finally {
+        previewsInFlight.delete(key);
+    }
+};
+
 /** Resolves a library item's cover source and materializes archive entries without temp extraction. */
 const materializeFromLibraryPath = async (
     request: CoverChannels["covers:materializeFromLibraryPath"]["request"],
@@ -219,6 +264,19 @@ export const registerCoverHandlers = (): void => {
             logger.log("covers:clearCache removed userData/covers and recreated empty directory");
             return { ok: true };
         }),
+    );
+
+    ipcMain.handle(
+        "covers:previewForPath",
+        async (_, request: CoverChannels["covers:previewForPath"]["request"]) => {
+            try {
+                return await materializePreviewForPath(request.path);
+            } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e);
+                logger.error("covers:previewForPath threw", msg);
+                return { ok: false, message: msg };
+            }
+        },
     );
 
     /*

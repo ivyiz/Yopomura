@@ -109,6 +109,22 @@
         "readerSettingsCheckboxDesc": "Show checkbox instead of toggle in reader settings.",
         "showPageCountInSideList": "Show Page Count in Side-List"
     },
+    "viewSizes": {
+        "title": "Location & Gallery Sizes",
+        "desc": "Adjust the cover image and story title size in the Location list and Gallery view.",
+        "location": "Location list",
+        "locationCover": "Cover size",
+        "locationCoverDesc": "Cover image width in the Location list. Height follows the 2:3 cover ratio.",
+        "locationTitle": "Title size",
+        "locationTitleDesc": "Font size of the story title in the Location list.",
+        "gallery": "Gallery view",
+        "galleryCover": "Grid cover / tile size",
+        "galleryCoverDesc": "Width of gallery tiles. Larger values show fewer, larger covers per row.",
+        "galleryListCover": "List cover size",
+        "galleryListCoverDesc": "Cover image width in Gallery list mode. Height follows the 2:3 cover ratio.",
+        "galleryTitle": "Title size",
+        "galleryTitleDesc": "Font size of the story title under each gallery cover."
+    },
     "dbBackup": {
         "title": "Library Database Backup",
         "desc": "Automatically backs up the library database (bookmarks, history, progress). Choose how many newest backups to keep after each backup. A schema update also snapshots the library even when automatic backups are off.",

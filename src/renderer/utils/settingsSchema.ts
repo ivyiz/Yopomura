@@ -33,6 +33,10 @@ const settingSchema = z
         locationListSortType: sortTypeEnum,
         /** Sort field for the classic Locations list. */
         locationListSortBy: sortByEnum,
+        /** Cover image width (px) in the classic Locations list. Height follows 2:3. */
+        locationCoverWidth: z.number().min(48).max(160).default(80),
+        /** Story title font size (rem) in the classic Locations list. */
+        locationTitleFontSize: z.number().min(0.85).max(2).default(1.12),
         /** Sort direction for the classic Book list. */
         bookListSortType: sortTypeEnum,
         /** Sort field for the classic Book list. */
@@ -82,6 +86,10 @@ const settingSchema = z
         ]),
         /** Card width in em. */
         galleryItemWidth: z.number().min(10).max(30),
+        /** Story title font size (rem) in the Gallery grid/list. */
+        galleryTitleFontSize: z.number().min(0.8).max(2).default(1),
+        /** Cover width (px) for Gallery list mode rows. Height follows 2:3. */
+        galleryListCoverWidth: z.number().min(48).max(160).default(56),
         /** Details hero composition shared by manga and book gallery pages. */
         galleryDetailsHeroLayout: detailsHeroLayoutEnum.default("vertical"),
         /** Pixel width of the gallery details hero in horizontal view; zero selects automatic sizing. */
@@ -178,9 +186,13 @@ const settingSchema = z
         galleryTrackingFilter: "all",
         galleryDisplayMode: "compact",
         galleryItemWidth: 16,
+        galleryTitleFontSize: 1,
+        galleryListCoverWidth: 56,
         galleryDetailsHeroLayout: "vertical",
         galleryDetailsHeroWidth: 0,
         galleryDetailsHeroHeight: 0,
+        locationCoverWidth: 80,
+        locationTitleFontSize: 1.12,
         openDirectlyFromManga: false,
         showTabs: {
             bookmark: true,

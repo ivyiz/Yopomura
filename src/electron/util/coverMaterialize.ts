@@ -53,18 +53,12 @@ export const coverFilePathForLibraryId = (libraryId: number, slot: ManagedCoverS
 };
 
 /**
- * Resizes to fit within {@link MAX_EDGE} (preserving aspect), encodes WebP, and writes the slot file.
- *
- * TODO: offload to a dedicated main-process worker thread when batch or large-library work becomes noticeable.
+ * Resizes `input` to fit within {@link MAX_EDGE} (preserving aspect), encodes WebP, and writes it.
+ * Shared by managed library/tracker slots and path-keyed list previews.
  */
-const writeManagedCover = async (
-    libraryId: number,
-    input: string | Buffer | Readable,
-    slot: ManagedCoverSlot,
-): Promise<CoverOpResult> => {
+const writeCoverFile = async (input: string | Buffer | Readable, outAbs: string): Promise<CoverOpResult> => {
     try {
-        fs.mkdirSync(getCoversDirectoryAbsolute(), { recursive: true });
-        const outAbs = coverFilePathForLibraryId(libraryId, slot);
+        fs.mkdirSync(path.dirname(outAbs), { recursive: true });
         const applyWebp = (instance: ReturnType<typeof sharp>) =>
             instance
                 .rotate()
@@ -86,9 +80,39 @@ const writeManagedCover = async (
         return { ok: true };
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        logger.error(`materializeCover failed libraryId=${libraryId} slot=${slot}`, msg);
+        logger.error(`writeCoverFile failed path=${outAbs}`, msg);
         return { ok: false, message: msg };
     }
+};
+
+/**
+ * Resizes to fit within {@link MAX_EDGE} (preserving aspect), encodes WebP, and writes the slot file.
+ *
+ * TODO: offload to a dedicated main-process worker thread when batch or large-library work becomes noticeable.
+ */
+const writeManagedCover = async (
+    libraryId: number,
+    input: string | Buffer | Readable,
+    slot: ManagedCoverSlot,
+): Promise<CoverOpResult> => {
+    const outAbs = coverFilePathForLibraryId(libraryId, slot);
+    const result = await writeCoverFile(input, outAbs);
+    if (!result.ok) {
+        logger.error(`materializeCover failed libraryId=${libraryId} slot=${slot}`, result.message);
+    }
+    return result;
+};
+
+/**
+ * Writes a path-keyed list-view preview to `outAbsolutePath`.
+ * Does not touch library or tracker cover slots.
+ */
+export const materializePreviewCover = async (
+    input: string | Buffer | Readable,
+    outAbsolutePath: string,
+): Promise<CoverOpResult> => {
+    if (!outAbsolutePath.trim()) return { ok: false, message: "empty preview path" };
+    return writeCoverFile(input, outAbsolutePath);
 };
 
 /**

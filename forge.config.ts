@@ -251,7 +251,7 @@ const config: ForgeConfig = {
                 options: {
                     maintainer: "mienaiyami",
                     homepage: "https://github.com/mienaiyami/yomikiru",
-                    bin: "./Yomikiru",
+                    bin: "./Yokomura",
                     depends: ["xdg-utils"],
                 },
             },

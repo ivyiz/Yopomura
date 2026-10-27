@@ -23,16 +23,16 @@ Entry point: [`src/renderer/features/home/index.tsx`](index.tsx).
 
 Entry: [`classic/ClassicView.tsx`](classic/ClassicView.tsx).
 
-Three resizable vertical panels separated by collapsible dividers:
+Two resizable vertical panels separated by a collapsible divider:
 
 ```
-┌──────────────────┬─────────────┬──────────────────┐
-│  LocationsTab    │  BookmarkTab│   HistoryTab     │
-│  (file browser)  │  (bookmarks)│   (read history) │
-└──────────────────┴─────────────┴──────────────────┘
+┌──────────────────┬──────────────────┐
+│  LocationsTab    │   HistoryTab     │
+│  (file browser)  │   (read history) │
+└──────────────────┴──────────────────┘
 ```
 
-Clicking a divider toggles the adjacent panel collapsed/expanded (stored in `appSettings.showTabs`).
+Bookmarks are opened from the top-bar bookmark toggle (`Ctrl/Cmd+Shift+B`) as a scrollable popover, so they no longer take a home panel. Clicking the divider toggles the History panel collapsed/expanded (stored in `appSettings.showTabs`).
 
 ### LocationsTab
 
@@ -42,28 +42,28 @@ Browsable file tree rooted at Default Location (`mainSettings.library.folders` f
 
 Features:
 
+- Cover-style rows: each entry shows a lazily generated cover, its title (archive extension hidden), and the file's download time (`mtime`). Covers use the catalogue thumbnail (`userData/covers/<id>.webp`) when the path is in the library, otherwise a path-keyed preview (`userData/covers/preview/*.webp`).
 - Sort by name or date (`locationListSortBy` / `locationListSortType`).
 - `openDirectlyFromManga`: when enabled, single-clicking a manga series root opens the first chapter directly, skipping the sub-folder list.
 - Double-click (or single-click when `openOnDblClick = false`) opens the item in the reader.
-- Context menu: Open, Open in New Window, Show in File Explorer, Copy Path, Remove from Library, Mark All Read/Unread.
+- Context menu: Open, Open in New Window, Show in File Explorer, Copy Path, Move to Recycle Bin, Remove from Library, Mark All Read/Unread.
 - Missing on-disk path (History/Bookmark open): dialog with **Locate on disk...** (`db:library:relocateItem`) or Remove.
 - List numbering can be disabled via `disableListNumbering`.
-- Multi-select with `enableClassicListCheckboxes` (on by default) — checkboxes on Bookmark / History rows; bulk operations via a toolbar.
+- Multi-select with `enableClassicListCheckboxes` (on by default) — checkboxes on History rows; bulk operations via a toolbar.
 
-### BookmarkTab
+### Bookmark toggle (top bar)
 
-[`classic/components/BookmarkTab.tsx`](classic/components/BookmarkTab.tsx)
+[`classic/components/BookmarkToggle.tsx`](classic/components/BookmarkToggle.tsx)
 
-All manga and book bookmarks from the Redux `bookmarks` slice.
+All manga and book bookmarks from the Redux `bookmarks` slice, opened from the title-bar bookmark button (count badge) or `Ctrl/Cmd+Shift+B`.
 
 Features:
 
-- Grouped/sorted by manga/book, then by chapter and page.
-- Each row: thumbnail, title, chapter name, page number, optional note.
-- Context menu: Open (resumes at bookmarked page/position), Remove Bookmark.
-- Search filter.
-- Multi-select with bulk remove.
+- Newest-first list inside a popover; the list scrolls independently when there are many bookmarks.
+- Each row reuses the classic bookmark row: click resumes at the bookmarked page/position.
+- Context menu: Open, Open in New Window, Show in File Explorer, Copy Path, Add Bookmark, Remove Bookmark.
 - `showMoreDataOnItemHover`: shows extended tooltip (date, note) on hover.
+- Escape or an outside click closes the popover.
 
 ### HistoryTab
 
@@ -267,6 +267,7 @@ The global `window.contextMenu.template` factory (defined in `App.tsx`) provides
 | `openInNewWindow(url)` | Sends `window:openLinkInNewWindow` IPC |
 | `showInExplorer(url)` | `shell.showItemInFolder` |
 | `copyPath(url)` | Clipboard write |
+| `trashItem(url, onDeleted?)` | Confirms, then moves the file/folder to the OS Recycle Bin (`shell.trashItem`); removes the matching library row |
 | `copyImage(url)` | Clipboard write image |
 | `removeHistory(url)` | Remove from library (with confirmation; files on disk stay) |
 | `removeProgress(url)` | Drop reading progress (with confirmation; catalogue row, bookmarks, and notes stay) |

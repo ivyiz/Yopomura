@@ -5,7 +5,7 @@ import { saveFile } from "@electron/util";
 import { extractContentArchive } from "@electron/util/contentSource";
 import { createMainLogger } from "@electron/util/logger";
 import { WindowManager } from "@electron/util/window";
-import { BrowserWindow, dialog } from "electron";
+import { BrowserWindow, dialog, shell } from "electron";
 import { ipc } from "./utils";
 
 const logger = createMainLogger("ipc/fs");
@@ -23,6 +23,16 @@ export const registerFSHandlers = (): void => {
             }
         } catch (err) {
             if (err instanceof Error) dialog.showErrorBox(mainT("titles.error", { ns: "dialogs" }), err.message);
+        }
+    });
+    ipc.handle("fs:trashItem", async (_event, { path }) => {
+        try {
+            await shell.trashItem(path);
+            return { ok: true as const };
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            logger.error("fs:trashItem failed", { path }, message);
+            return { ok: false as const, message };
         }
     });
     ipc.handle("fs:saveFile", async (_event, { filePath, data }) => {

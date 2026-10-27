@@ -56,6 +56,9 @@ type ChannelDefinition<Req = unknown, Res = unknown, Dir extends "m2r" | "r2m" =
  */
 export type CoverOpResult = { ok: true } | { ok: false; message: string };
 
+/** Result for path-keyed cover previews; `filePath` is an absolute WebP path. */
+export type CoverPreviewResult = { ok: true; filePath: string } | { ok: false; message: string };
+
 export type CoverChannels = {
     "covers:materialize": ChannelDefinition<{ libraryId: number; sourceAbsolutePath: string }, CoverOpResult>;
     /** Claims the process-wide renderer canvas slot for one lazy PDF thumbnail. */
@@ -75,6 +78,11 @@ export type CoverChannels = {
     "covers:materializeFromUrl": ChannelDefinition<{ libraryId: number; url: string }, CoverOpResult>;
     /** Removes all files under `userData/covers` and recreates the directory. */
     "covers:clearCache": ChannelDefinition<void, CoverOpResult>;
+    /**
+     * Materializes a small cached WebP for any manga file/folder path, keyed by path + mtime + size.
+     * Used by list views that show covers before an item exists in the library catalogue.
+     */
+    "covers:previewForPath": ChannelDefinition<{ path: string }, CoverPreviewResult>;
     /**
      * Once per process: true when migration 0001 ran this launch and this window may show the
      * post-upgrade generate-thumbnails prompt. Other windows get false.
@@ -194,6 +202,8 @@ export type FileSystemChannels = {
           }
     >;
     "fs:showInExplorer": ChannelDefinition<string, void>;
+    /** Moves one file/folder to the OS recycle bin/trash. */
+    "fs:trashItem": ChannelDefinition<{ path: string }, { ok: true } | { ok: false; message: string }>;
     "fs:saveFile": ChannelDefinition<{ filePath: string; data: string }, void>;
     "fs:fileChanged": ChannelDefinition<{ filePath: string; sourceWindowId?: number; ts: number }, void, "m2r">;
 };

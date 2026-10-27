@@ -1734,3 +1734,30 @@ html{
         }
     }
 }
+
+/* Location & Gallery size controls (Settings → Style). */
+#settings .viewSizeRow {
+    align-items: center;
+    gap: 0.75em;
+
+    label {
+        min-width: 11em;
+        font-size: 1.05em;
+        color: var(--font-color);
+    }
+
+    input[type="range"] {
+        flex: 1 1 auto;
+        min-width: 8em;
+        max-width: 32em;
+        accent-color: var(--btn-color);
+        cursor: pointer;
+    }
+
+    .viewSizeValue {
+        min-width: 4.4em;
+        text-align: right;
+        color: var(--font-color-secondary);
+        font-variant-numeric: tabular-nums;
+    }
+}

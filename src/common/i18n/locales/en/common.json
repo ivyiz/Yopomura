@@ -16,10 +16,10 @@
         "export": "Export",
         "change": "Change"
     },
-    "appName": "Yomikiru",
+    "appName": "Yokomura",
     "app": {
         "initialLibraryRootTitle": "Choose your Home library root",
-        "initialLibraryRootMessage": "Select the folder Yomikiru should use as your Home library root.",
+        "initialLibraryRootMessage": "Select the folder Yokomura should use as your Home library root.",
         "initialLibraryRootDetail": "This folder appears in Locations and can be scanned for manga and books. Choose later to use your system home folder for now. You can change it at any time in Library settings.",
         "chooseLibraryRootNow": "Choose now",
         "chooseLibraryRootLater": "Choose later",
@@ -37,6 +37,8 @@
     "topBar": {
         "home": "Home",
         "settings": "Settings",
+        "bookmarks": "Bookmarks",
+        "bookmarksTooltip": "Bookmarks (Ctrl+Shift+B)",
         "listView": "List View",
         "galleryView": "Gallery View (Experimental)",
         "navigateToPage": "Navigate To Page Number",
@@ -77,6 +79,10 @@
         "showCoverInExplorer": "Show cover in File Explorer",
         "copyPath": "Copy Path",
         "copyImage": "Copy Image",
+        "moveToTrash": "Move to Recycle Bin",
+        "moveToTrashMessage": "Move \"{{name}}\" to the Recycle Bin?",
+        "moveToTrashDetail": "The item can be restored from the Recycle Bin. If it is in your library, its library entry and bookmarks are removed too.",
+        "moveToTrashFailed": "Could not move the item to the Recycle Bin.",
         "removeFromLibrary": "Remove from Library",
         "removeFromLibraryMessage": "Remove this item from library? Related bookmarks will also be removed. Files on disk are not deleted.",
         "removeProgress": "Remove Progress",

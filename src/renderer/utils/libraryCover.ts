@@ -4,7 +4,7 @@ import type { DetailsCoverSource, ItemTracker, LibraryItem, LibraryItemExtra } f
 /**
  * Builds a `file://` URL for gallery/detail `<img src>`, with `#` escaped for Electron.
  */
-const absolutePathToFileUrl = (absPath: string): string => {
+export const absolutePathToFileUrl = (absPath: string): string => {
     return `file://${absPath.replaceAll("#", "%23")}`;
 };
 

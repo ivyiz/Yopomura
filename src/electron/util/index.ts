@@ -16,6 +16,53 @@ if (IS_PORTABLE) {
     app.setPath("userData", folderPath);
 }
 
+/**
+ * One-time carry-over when the product name changes (Yomikiru -> Yokomura).
+ * Copies the catalogue, settings, and cached covers into the new userData folder
+ * without overwriting anything already there. Portable builds land beside the exe;
+ * installed builds land under appData/Yokomura.
+ */
+const migrateLegacyUserData = (): void => {
+    const target = app.getPath("userData");
+    const legacy = path.join(app.getPath("appData"), "Yomikiru");
+    if (path.resolve(target).toLowerCase() === path.resolve(legacy).toLowerCase()) return;
+    if (!fs.existsSync(legacy) || fs.existsSync(path.join(target, "data.db"))) return;
+
+    try {
+        fs.mkdirSync(target, { recursive: true });
+        const files = [
+            "data.db",
+            "data.db-wal",
+            "data.db-shm",
+            "main-settings.json",
+            "settings.json",
+            "reader-presets.json",
+            "shortcuts.json",
+            "themes.json",
+            "announcements.txt",
+        ];
+        for (const name of files) {
+            const source = path.join(legacy, name);
+            if (!fs.existsSync(source)) continue;
+            fs.cpSync(source, path.join(target, name), { force: false });
+        }
+        for (const name of ["covers", "i18n-packs"]) {
+            const source = path.join(legacy, name);
+            if (!fs.existsSync(source)) continue;
+            fs.cpSync(source, path.join(target, name), {
+                recursive: true,
+                force: false,
+                errorOnExist: false,
+            });
+        }
+        console.log(`[Yokomura] carried over existing data from ${legacy}`);
+    } catch (error) {
+        console.error("[Yokomura] legacy data migration failed", error);
+    }
+};
+
+if (!IS_PORTABLE) migrateLegacyUserData();
+
 // change path in `settings.tsx` as well if changing log path
 //! This needs to be called after new `userData` is set
 setupMainProcessLogging(() => app.getPath("userData"));

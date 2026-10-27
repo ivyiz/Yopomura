@@ -1,15 +1,18 @@
 import { getDefaultLocationPath, planLocationsListLoad } from "@common/library/folders";
-import LocationListItem from "@features/home/classic/components/LocationListItem";
+import LocationListItem, {
+    LOCATION_ROW_GAP_PX,
+    locationRowHeight,
+} from "@features/home/classic/components/LocationListItem";
 import { useCommandOwner } from "@features/keybindings";
 import { faAngleUp, faSort } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { LIST_ITEM_ROW_PX } from "@renderer/components/ListItem";
 import ListNavigator from "@renderer/components/ListNavigator";
 import { PAGE_SEARCH_PRIORITY } from "@renderer/hooks/usePageSearchFocus";
 import { setAppSettings } from "@store/appSettings";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { dialogUtils } from "@utils/dialog";
 import { formatUtils } from "@utils/file";
+import { indexLibraryItemsByLink, locationLinkKey } from "@utils/locationCover";
 import { createRendererLogger } from "@utils/logger";
 import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -23,7 +26,12 @@ const LocationsTab = (): ReactElement => {
     const { t } = useTranslation("home");
     const { openInReader, setContextMenuData } = useAppContext();
     const library = useAppSelector((store) => store.library.items);
+    const libraryByLink = useMemo(() => indexLibraryItemsByLink(library), [library]);
     const appSettings = useAppSelector((storeState) => storeState.appSettings);
+    const locationRowSize = useMemo(
+        () => locationRowHeight(appSettings.locationCoverWidth, appSettings.locationTitleFontSize),
+        [appSettings.locationCoverWidth, appSettings.locationTitleFontSize],
+    );
     const libraryFolders = useAppSelector((storeState) => storeState.mainSettings.library.folders);
     const defaultLocationPath = getDefaultLocationPath(libraryFolders);
     const dispatch = useAppDispatch();
@@ -149,6 +157,12 @@ const LocationsTab = (): ReactElement => {
             }
             items.push(window.contextMenu.template.showInExplorer(link));
             items.push(window.contextMenu.template.copyPath(link));
+            items.push(
+                window.contextMenu.template.divider(),
+                window.contextMenu.template.trashItem(link, () => {
+                    setLocations((prev) => prev.filter((row) => row.link !== link));
+                }),
+            );
             setContextMenuData({
                 clickX: e.clientX,
                 clickY: e.clientY,
@@ -165,10 +179,13 @@ const LocationsTab = (): ReactElement => {
 
     const renderLocationItem = useCallback(
         (location: LocationData, _index: number, isSelected: boolean) => {
+            const libraryItem = libraryByLink.get(locationLinkKey(location.link));
             return (
                 <LocationListItem
                     name={location.name}
                     link={location.link}
+                    dateModified={location.dateModified}
+                    libraryItem={libraryItem}
                     focused={isSelected}
                     inHistory={
                         item?.type === "manga"
@@ -181,7 +198,7 @@ const LocationsTab = (): ReactElement => {
                 />
             );
         },
-        [item, onContextMenu, setCurrentLink],
+        [item, libraryByLink, onContextMenu, setCurrentLink],
     );
 
     const handleContextMenu = useCallback((elem: HTMLElement) => {
@@ -363,10 +380,12 @@ const LocationsTab = (): ReactElement => {
                         <p>{t("classic.location.folderImageCount", { count: imageCount })}</p>
                     ) : (
                         <ListNavigator.VirtualList
+                            className="list-container locationCoverList"
                             scrollContainerRef={locationContRef}
-                            estimatedItemSize={LIST_ITEM_ROW_PX}
+                            estimatedItemSize={locationRowSize}
                             hostRowElement={false}
-                            rowGapPx={0}
+                            rowGapPx={LOCATION_ROW_GAP_PX}
+                            key={`location-rows-${locationRowSize}`}
                         />
                     )}
                 </div>

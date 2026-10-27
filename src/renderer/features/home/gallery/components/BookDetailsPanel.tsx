@@ -514,6 +514,8 @@ const BookDetailsPanel = ({ bookLink, onClose, onRelocated, initialTab = "bookma
                     window.contextMenu.template.divider(),
                     window.contextMenu.template.removeProgress(bookLink),
                     window.contextMenu.template.removeHistory(bookLink, false, onClose),
+                    window.contextMenu.template.divider(),
+                    window.contextMenu.template.trashItem(bookLink, onClose),
                 ],
                 focusBackElem: e.currentTarget,
             });

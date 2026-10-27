@@ -59,6 +59,7 @@
             "directoryUp": "Directory Up",
             "folderImageCount": "0 Folders, {{count}} Images",
             "imagesTooltip": "{{count}} Images",
+            "downloadedAt": "Downloaded {{date}}",
             "pathMissing": "Directory/File doesn't exist."
         },
         "bookmarks": {

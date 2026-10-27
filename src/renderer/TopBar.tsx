@@ -1,3 +1,4 @@
+import BookmarkToggle from "@features/home/classic/components/BookmarkToggle";
 import {
     faCog,
     faGrip,
@@ -24,7 +25,7 @@ import LibraryScanStatusButton from "./components/LibraryScanStatusButton";
 
 const TopBar = (): ReactElement => {
     const { t } = useTranslation("common");
-    const [title, setTitle] = useState<string>("Yomikiru");
+    const [title, setTitle] = useState<string>("Yokomura");
     const { pageNumberInputRef, bookProgressRef, closeReader } = useAppContext();
     const [isMaximized, setMaximized] = useState(window.electron.currentWindow.isMaximized() || false);
     const [pageNumberChangeDisabled, setPageNumberChangeDisabled] = useState(false);
@@ -180,6 +181,7 @@ const TopBar = (): ReactElement => {
                         </button>
                     )}
                 </div>
+                <BookmarkToggle />
                 <LibraryScanStatusButton />
             </div>
             <div className="mainTitleCont">

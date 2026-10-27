@@ -10,7 +10,7 @@ import { useAppSelector } from "@store/hooks";
 import { selectLiveBookReaderSettings } from "@store/reader";
 import InputColorReal from "@ui/InputColorReal";
 import MenuList from "@ui/MenuList";
-import type { ReactElement } from "react";
+import type { CSSProperties, ReactElement } from "react";
 import { shallowEqual } from "react-redux";
 import ContextMenu from "./components/ContextMenu";
 import LoadingScreen from "./components/LoadingScreen";
@@ -36,8 +36,15 @@ const Main = (): ReactElement => {
 
     const { contextMenuData, optSelectData, colorSelectData } = useAppContext();
 
+    const sizesStyle = {
+        "--location-cover-width": `${appSettings.locationCoverWidth}px`,
+        "--location-title-font-size": `${appSettings.locationTitleFontSize}rem`,
+        "--gallery-title-font-size": `${appSettings.galleryTitleFontSize}rem`,
+        "--gallery-list-cover-width": `${appSettings.galleryListCoverWidth}px`,
+    } as CSSProperties;
+
     return (
-        <div id="app" className={appSettings.disableListNumbering ? "noListNumbering " : ""}>
+        <div id="app" className={appSettings.disableListNumbering ? "noListNumbering " : ""} style={sizesStyle}>
             <HomeView />
             <Settings />
             <LoadingScreen />

@@ -18,6 +18,7 @@ import GeneralReaderPresetsSettings from "./GeneralReaderPresetsSettings";
 import GeneralThemeSettings from "./GeneralThemeSettings";
 import LanguageSettings from "./LanguageSettings";
 import LibrarySettings from "./LibrarySettings";
+import ViewSizeSettings from "./ViewSizeSettings";
 
 const GeneralSettings: React.FC = () => {
     const { t } = useTranslation("settings");
@@ -29,6 +30,7 @@ const GeneralSettings: React.FC = () => {
         <div className="content2">
             <LibrarySettings />
             <GeneralThemeSettings />
+            <ViewSizeSettings />
             <LanguageSettings />
             <GeneralReaderPresetsSettings />
             {process.platform === "win32" && <FileExplorerOptions />}

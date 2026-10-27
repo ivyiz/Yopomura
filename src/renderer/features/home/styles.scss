@@ -415,8 +415,9 @@
                     flex-direction: column;
                     padding-inline: 4em;
                     .galleryItem {
-                        /* 10% taller than the previous 6em row */
-                        height: 6.6em;
+                        /* Cover height (2:3) plus 1em vertical padding; keep in sync
+                         * with `galleryEstimatedRowSize` in GalleryView. */
+                        height: calc(var(--gallery-list-cover-width, 56px) * 1.5 + 1em);
                         box-sizing: border-box;
                         display: grid;
                         grid-template-columns: auto auto 1fr;
@@ -471,7 +472,7 @@
                         }
                         .mangaTitle {
                             align-items: center;
-                            font-size: 1.2em;
+                            font-size: var(--gallery-title-font-size, 1.2em);
                             justify-content: start;
                             -webkit-line-clamp: 1;
                             padding: 0;
@@ -644,6 +645,7 @@
                     align-items: end;
                     text-align: center;
                     justify-content: center;
+                    font-size: var(--gallery-title-font-size, 1rem);
                     &.compact {
                         position: absolute;
                         bottom: 0;

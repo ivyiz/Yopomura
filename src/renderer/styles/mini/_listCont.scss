@@ -244,9 +244,123 @@
         }
     }
 }
+/*
+ * Cover-style Location rows (Classic list view).
+ * Height/gap are also declared in LocationListItem (`LOCATION_ROW_PX`, `LOCATION_ROW_GAP_PX`).
+ */
+.listCont .location-cont li.locationRow {
+    height: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--divider-color);
+    /* Translucent tint layers over the theme row colour (and already-read tint)
+       without replacing them. */
+    background-image: linear-gradient(rgba(127, 127, 127, 0.09), rgba(127, 127, 127, 0.09));
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    transition:
+        background-color 0.12s ease,
+        border-color 0.12s ease,
+        box-shadow 0.12s ease;
+
+    &:hover,
+    &:active,
+    &[data-focused="true"],
+    &.focused {
+        border-color: var(--btn-color-focus);
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+    }
+
+    > a {
+        height: 100%;
+        box-sizing: border-box;
+        /* Flex (not grid) keeps the row stable when `noListNumbering` rewrites grid columns. */
+        display: flex;
+        flex-direction: row;
+        gap: 14px;
+        /* Title/date start at the cover's top edge. */
+        align-items: flex-start;
+        padding: 8px 14px 8px 8px;
+        overflow: hidden;
+
+        &::before {
+            flex: 0 0 1.9em;
+            align-self: flex-start;
+            font-size: 0.85em;
+            color: var(--font-color-secondary);
+            opacity: 0.65;
+        }
+    }
+
+    .locationCover {
+        width: var(--location-cover-width, 80px);
+        height: auto;
+        aspect-ratio: 2 / 3;
+        border-radius: 8px;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        background: var(--listItem-bg-color-hover);
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+        flex-shrink: 0;
+
+        img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        svg {
+            font-size: 1.8rem;
+            color: var(--font-color-secondary);
+            opacity: 0.8;
+        }
+    }
+
+    .locationCoverLetter {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--font-color-secondary);
+        opacity: 0.75;
+        text-transform: uppercase;
+    }
+
+    .locationInfo {
+        min-width: 0;
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        gap: 8px;
+        overflow: hidden;
+    }
+
+    .locationTitle {
+        font-size: var(--location-title-font-size, 1.12rem);
+        font-weight: 600;
+        line-height: 1.32;
+        color: var(--font-color);
+        -webkit-line-clamp: 2;
+        word-break: break-word;
+    }
+
+    .locationDate {
+        font-size: 0.8rem;
+        color: var(--font-color-secondary);
+        opacity: 0.85;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        letter-spacing: 0.01em;
+    }
+
+    &.alreadyRead .locationCover img {
+        filter: saturate(0.8) brightness(0.92);
+    }
+}
+
 // 3 tabs of home page
-.tabCont {
-    flex-direction: row;
+.tabCont {    flex-direction: row;
     --divider-width: 25px;
     display: flex;
     position: relative;

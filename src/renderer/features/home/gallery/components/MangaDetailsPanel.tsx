@@ -666,6 +666,8 @@ const MangaDetailsPanel = ({
                     window.contextMenu.template.divider(),
                     window.contextMenu.template.removeProgress(mangaLink),
                     window.contextMenu.template.removeHistory(mangaLink, false, onClose),
+                    window.contextMenu.template.divider(),
+                    window.contextMenu.template.trashItem(mangaLink, onClose),
                 ],
                 focusBackElem: e.currentTarget,
             });

@@ -190,6 +190,30 @@ export const SETTINGS_TARGETS_STATIC: readonly SettingsTarget[] = [
         },
     ),
     setting("setting:theme", "#settings-theme", "theme.title", { contentPath: "theme" }),
+    setting("setting:view-sizes", "#settings-viewSizes", "viewSizes.title", {
+        keywords: ["cover size", "title size", "location", "gallery", "tile size"],
+        contentPath: "viewSizes",
+    }),
+    setting("setting:location-cover-size", "#settings-locationCoverSize", "viewSizes.locationCover", {
+        groupLabelKey: "viewSizes.title",
+        contentPath: "viewSizes.locationCoverDesc",
+    }),
+    setting("setting:location-title-size", "#settings-locationTitleSize", "viewSizes.locationTitle", {
+        groupLabelKey: "viewSizes.title",
+        contentPath: "viewSizes.locationTitleDesc",
+    }),
+    setting("setting:gallery-cover-size", "#settings-galleryCoverSize", "viewSizes.galleryCover", {
+        groupLabelKey: "viewSizes.title",
+        contentPath: "viewSizes.galleryCoverDesc",
+    }),
+    setting("setting:gallery-list-cover-size", "#settings-galleryListCoverSize", "viewSizes.galleryListCover", {
+        groupLabelKey: "viewSizes.title",
+        contentPath: "viewSizes.galleryListCoverDesc",
+    }),
+    setting("setting:gallery-title-size", "#settings-galleryTitleSize", "viewSizes.galleryTitle", {
+        groupLabelKey: "viewSizes.title",
+        contentPath: "viewSizes.galleryTitleDesc",
+    }),
     setting("setting:copy-theme", "#settings-copyTheme", "theme.copyCurrent", {
         keywords: ["clipboard", "share theme"],
     }),
