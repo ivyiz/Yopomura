@@ -214,6 +214,10 @@ export const SETTINGS_TARGETS_STATIC: readonly SettingsTarget[] = [
         groupLabelKey: "viewSizes.title",
         contentPath: "viewSizes.galleryTitleDesc",
     }),
+    setting("setting:recently-deleted", "#settings-recentlyDeleted", "trash.title", {
+        keywords: ["recycle bin", "trash", "undo", "deleted"],
+        contentPath: "trash",
+    }),
     setting("setting:copy-theme", "#settings-copyTheme", "theme.copyCurrent", {
         keywords: ["clipboard", "share theme"],
     }),

@@ -18,6 +18,7 @@ import GeneralReaderPresetsSettings from "./GeneralReaderPresetsSettings";
 import GeneralThemeSettings from "./GeneralThemeSettings";
 import LanguageSettings from "./LanguageSettings";
 import LibrarySettings from "./LibrarySettings";
+import TrashManager from "./TrashManager";
 import ViewSizeSettings from "./ViewSizeSettings";
 
 const GeneralSettings: React.FC = () => {
@@ -31,6 +32,7 @@ const GeneralSettings: React.FC = () => {
             <LibrarySettings />
             <GeneralThemeSettings />
             <ViewSizeSettings />
+            <TrashManager />
             <LanguageSettings />
             <GeneralReaderPresetsSettings />
             {process.platform === "win32" && <FileExplorerOptions />}

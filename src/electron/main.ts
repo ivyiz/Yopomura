@@ -21,16 +21,19 @@ import { DatabaseService } from "./db";
 import { DRIZZLE_TAG_LIBRARY_ITEM_IDS } from "./db/migrations";
 import { registerI18nHandlers, setApplicationMenuRebuild } from "./i18n/ipc";
 import { initMainI18n, mainT } from "./i18n/mainI18n";
+import { destroyBrowserManagers, registerBrowserHandlers } from "./ipc/browser";
 import { registerClipboardHandlers } from "./ipc/clipboard";
 import { noteLibraryItemIdMigrationAppliedThisLaunch, registerCoverHandlers } from "./ipc/covers";
 import { setupDatabaseHandlers } from "./ipc/database";
 import { registerDbBackupHandlers, runDbBackupStartupBeforeOpen } from "./ipc/dbBackup";
 import { registerDialogHandlers } from "./ipc/dialog";
+import { registerDownloaderHandlers, shutdownDownloader } from "./ipc/downloader";
 import { registerErrorReportingHandlers } from "./ipc/errorReporting";
 import { registerExplorerHandlers } from "./ipc/explorer";
 import { registerFSHandlers } from "./ipc/fs";
 import { nativeMenuAccelerator, registerKeymapHandlers, runNativeKeymapAction } from "./ipc/keymap";
 import { registerLibraryScanHandlers, stopLibraryScan } from "./ipc/libraryScan";
+import { registerTrashHandlers } from "./ipc/trash";
 import { registerUpdateHandlers } from "./ipc/update";
 import {
     backupIfPendingMigrations,
@@ -226,6 +229,9 @@ app.on("ready", async () => {
         registerClipboardHandlers();
         registerDialogHandlers();
         registerErrorReportingHandlers();
+        registerDownloaderHandlers();
+        registerTrashHandlers();
+        registerBrowserHandlers();
 
         WindowManager.createWindow(openFolderOnLaunch);
         TrayManager.initialize();
@@ -243,6 +249,8 @@ app.on("before-quit", (event) => {
     if (isShuttingDown) return;
     event.preventDefault();
     isShuttingDown = true;
+    shutdownDownloader();
+    destroyBrowserManagers();
     void (async () => {
         try {
             await stopScheduler();

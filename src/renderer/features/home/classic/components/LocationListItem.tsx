@@ -77,15 +77,16 @@ const LocationListItem = forwardRef<HTMLLIElement, LocationListItemProps>(
         forwardedRef,
     ) => {
         const { t } = useTranslation("home");
-        const { openInReader } = useAppContext();
+        const { openInReader, openVideo } = useAppContext();
         const dispatch = useAppDispatch();
         const appSettings = useAppSelector((store) => store.appSettings);
         const defaultLocationPath = getDefaultLocationPath(
             useAppSelector((store) => store.mainSettings.library.folders),
         );
 
-        const isFile = formatUtils.files.test(name);
-        const title = formatUtils.files.getName(name);
+        const isVideo = formatUtils.video.test(name);
+        const isFile = formatUtils.files.test(name) || isVideo;
+        const title = isVideo ? formatUtils.video.getName(name) : formatUtils.files.getName(name);
         const dateLabel = dateUtils.format(dateModified, {
             format: DOWNLOADED_DATE_FORMAT,
             fallback: "",
@@ -123,6 +124,10 @@ const LocationListItem = forwardRef<HTMLLIElement, LocationListItemProps>(
                 dialogUtils.customError({ message: t("classic.location.pathMissing") });
                 return;
             }
+            if (isVideo) {
+                openVideo(link);
+                return;
+            }
             if (isFile) {
                 openInReader(link);
                 return;
@@ -154,7 +159,7 @@ const LocationListItem = forwardRef<HTMLLIElement, LocationListItemProps>(
                     }, 250);
                 } else {
                     elem.removeAttribute("data-dblClick");
-                    openInReader(link);
+                    onClickHandle();
                 }
             } else onClickHandle();
         };

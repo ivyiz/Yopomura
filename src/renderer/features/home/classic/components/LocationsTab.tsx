@@ -1,10 +1,11 @@
 import { getDefaultLocationPath, planLocationsListLoad } from "@common/library/folders";
+import { openBrowser } from "@features/browser/browserEvents";
 import LocationListItem, {
     LOCATION_ROW_GAP_PX,
     locationRowHeight,
 } from "@features/home/classic/components/LocationListItem";
 import { useCommandOwner } from "@features/keybindings";
-import { faAngleUp, faSort } from "@fortawesome/free-solid-svg-icons";
+import { faAngleUp, faGlobe, faSort } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import ListNavigator from "@renderer/components/ListNavigator";
 import { PAGE_SEARCH_PRIORITY } from "@renderer/hooks/usePageSearchFocus";
@@ -24,7 +25,7 @@ type LocationData = { name: string; link: string; dateModified: number };
 
 const LocationsTab = (): ReactElement => {
     const { t } = useTranslation("home");
-    const { openInReader, setContextMenuData } = useAppContext();
+    const { openInReader, openVideo, setContextMenuData } = useAppContext();
     const library = useAppSelector((store) => store.library.items);
     const libraryByLink = useMemo(() => indexLibraryItemsByLink(library), [library]);
     const appSettings = useAppSelector((storeState) => storeState.appSettings);
@@ -80,7 +81,11 @@ const LocationsTab = (): ReactElement => {
                                 imgCount++;
                                 return;
                             }
-                            if (stat.isDir || (stat.isFile && formatUtils.files.test(fileName))) {
+                            if (
+                                stat.isDir ||
+                                (stat.isFile &&
+                                    (formatUtils.files.test(fileName) || formatUtils.video.test(fileName)))
+                            ) {
                                 dirNames.push({
                                     name: fileName,
                                     link: filePath,
@@ -149,6 +154,9 @@ const LocationsTab = (): ReactElement => {
                 window.contextMenu.template.open(link),
                 window.contextMenu.template.openInNewWindow(link),
             ];
+            if (formatUtils.video.test(link)) {
+                items[0].action = () => openVideo(link);
+            }
             if (inHistory) {
                 items.push(
                     window.contextMenu.template.unreadChapter(currentLink, formatUtils.files.getName(link)),
@@ -170,7 +178,7 @@ const LocationsTab = (): ReactElement => {
                 focusBackElem: e.nativeEvent.relatedTarget,
             });
         },
-        [currentLink],
+        [currentLink, openVideo],
     );
 
     const filterLocation = useCallback((filter: string, location: LocationData) => {
@@ -351,6 +359,9 @@ const LocationsTab = (): ReactElement => {
                             }}
                         >
                             <FontAwesomeIcon icon={faAngleUp} />
+                        </button>
+                        <button data-tooltip={t("classic.location.browser")} onClick={() => openBrowser("side")}>
+                            <FontAwesomeIcon icon={faGlobe} />
                         </button>
                         <ListNavigator.SearchInput
                             runOriginalOnChange={true}

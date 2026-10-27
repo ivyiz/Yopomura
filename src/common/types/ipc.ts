@@ -2,10 +2,19 @@ import type { I18nChangedPayload, I18nState, LanguageSource } from "@common/i18n
 import type { KeymapEditIpcResult, KeymapEditOp, KeymapSnapshot, NativeKeymapAction } from "@common/keybindings";
 import type { MainSettingsType } from "@common/mainSettings";
 import type {
+    BrowserBounds,
+    BrowserContextMenuRequest,
+    BrowserDownload,
+    BrowserSearchEngine,
+    BrowserState,
+} from "@common/types/browser";
+import type { AddDownloaderJobInput, DownloaderJob, DownloaderState } from "@common/types/downloader";
+import type {
     LibraryScanStartRequest,
     LibraryScanStartResult,
     LibraryScanStatus,
 } from "@common/types/libraryScan";
+import type { RestoreTrashResult, TrashEntry, TrashEntryKind, TrashItemType } from "@common/types/trash";
 import type {
     AddBookBookmarkData,
     AddBookNoteData,
@@ -202,8 +211,16 @@ export type FileSystemChannels = {
           }
     >;
     "fs:showInExplorer": ChannelDefinition<string, void>;
-    /** Moves one file/folder to the OS recycle bin/trash. */
-    "fs:trashItem": ChannelDefinition<{ path: string }, { ok: true } | { ok: false; message: string }>;
+    /** Moves one file/folder to the OS recycle bin/trash and records a metadata journal entry. */
+    "fs:trashItem": ChannelDefinition<
+        {
+            path: string;
+            kind?: TrashEntryKind;
+            title?: string;
+            itemType?: TrashItemType;
+        },
+        { ok: true; entry?: TrashEntry } | { ok: false; message: string }
+    >;
     "fs:saveFile": ChannelDefinition<{ filePath: string; data: string }, void>;
     "fs:fileChanged": ChannelDefinition<{ filePath: string; sourceWindowId?: number; ts: number }, void, "m2r">;
 };
@@ -361,6 +378,44 @@ export type KeymapChannels = {
     "keymap:nativeAction": ChannelDefinition<{ action: NativeKeymapAction }, void>;
 };
 
+export type DownloaderChannels = {
+    "downloader:getState": ChannelDefinition<void, DownloaderState>;
+    "downloader:add": ChannelDefinition<AddDownloaderJobInput, DownloaderJob>;
+    "downloader:cancel": ChannelDefinition<{ id: string }, void>;
+    "downloader:remove": ChannelDefinition<{ id: string }, void>;
+    "downloader:clearFinished": ChannelDefinition<void, void>;
+    "downloader:state": ChannelDefinition<DownloaderState, void, "m2r">;
+};
+
+export type TrashChannels = {
+    "trash:list": ChannelDefinition<{ limit?: number } | void, TrashEntry[]>;
+    "trash:restore": ChannelDefinition<{ id: string }, RestoreTrashResult>;
+    "trash:openRecycleBin": ChannelDefinition<void, void>;
+    "trash:removeEntry": ChannelDefinition<{ id: string }, boolean>;
+};
+
+export type BrowserChannels = {
+    "browser:getState": ChannelDefinition<void, BrowserState>;
+    "browser:createTab": ChannelDefinition<{ url?: string; activate?: boolean }, { id: string }>;
+    "browser:closeTab": ChannelDefinition<{ id: string }, boolean>;
+    "browser:activateTab": ChannelDefinition<{ id: string }, boolean>;
+    "browser:navigate": ChannelDefinition<{ id: string; input: string }, boolean>;
+    "browser:back": ChannelDefinition<{ id?: string }, boolean>;
+    "browser:forward": ChannelDefinition<{ id?: string }, boolean>;
+    "browser:reload": ChannelDefinition<{ id?: string }, boolean>;
+    "browser:stop": ChannelDefinition<{ id?: string }, boolean>;
+    "browser:setBounds": ChannelDefinition<BrowserBounds, void>;
+    "browser:setVisible": ChannelDefinition<{ visible: boolean }, void>;
+    "browser:setForceDark": ChannelDefinition<{ enabled: boolean }, void>;
+    "browser:setHostForceDark": ChannelDefinition<{ hostOrUrl: string; enabled: boolean }, boolean>;
+    "browser:getDisabledHosts": ChannelDefinition<void, string[]>;
+    "browser:setSearchEngine": ChannelDefinition<{ engine: BrowserSearchEngine }, void>;
+    "browser:setDownloadDir": ChannelDefinition<{ dir: string | null }, void>;
+    "browser:state": ChannelDefinition<BrowserState, void, "m2r">;
+    "browser:download": ChannelDefinition<BrowserDownload, void, "m2r">;
+    "browser:contextMenu": ChannelDefinition<BrowserContextMenuRequest, void, "m2r">;
+};
+
 export type IPCChannels = DatabaseChannels &
     DatabaseChangeChannels &
     WindowManagementChannels &
@@ -376,7 +431,10 @@ export type IPCChannels = DatabaseChannels &
     CoverChannels &
     LibraryScanChannels &
     I18nChannels &
-    KeymapChannels;
+    KeymapChannels &
+    DownloaderChannels &
+    TrashChannels &
+    BrowserChannels;
 
 export type MainToRendererChannels = {
     [K in keyof IPCChannels as IPCChannels[K] extends ChannelDefinition<unknown, unknown, "m2r">

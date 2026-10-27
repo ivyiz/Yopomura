@@ -1,0 +1,70 @@
+.trashManagerList {
+    margin: 8px 1em 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.trashManagerRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    border: 1px solid var(--divider-color);
+    border-radius: 8px;
+    background: rgba(127, 127, 127, 0.06);
+
+    &.is-restored {
+        opacity: 0.65;
+    }
+    &.is-missing {
+        border-color: rgba(255, 138, 154, 0.35);
+    }
+}
+
+.trashManagerInfo {
+    min-width: 0;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    strong {
+        font-size: 0.9rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    span {
+        font-size: 0.75rem;
+        color: var(--font-color-secondary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.trashManagerActions {
+    display: flex;
+    gap: 6px;
+    flex: 0 0 auto;
+
+    button {
+        padding: 4px 9px;
+        font-size: 0.75rem;
+    }
+}
+
+.trashManagerEmpty,
+.trashManagerMessage {
+    margin: 8px 1em;
+    color: var(--font-color-secondary);
+    font-size: 0.85rem;
+}
+
+.trashManagerMessage {
+    color: var(--font-color);
+}

@@ -57,6 +57,7 @@
             "loading": "Loading...",
             "open": "Open",
             "directoryUp": "Directory Up",
+            "browser": "Browser",
             "folderImageCount": "0 Folders, {{count}} Images",
             "imagesTooltip": "{{count}} Images",
             "downloadedAt": "Downloaded {{date}}",

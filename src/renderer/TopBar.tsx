@@ -1,6 +1,9 @@
+import { openBrowser } from "@features/browser/browserEvents";
 import BookmarkToggle from "@features/home/classic/components/BookmarkToggle";
 import {
     faCog,
+    faDownload,
+    faGlobe,
     faGrip,
     faHome,
     faList,
@@ -26,7 +29,7 @@ import LibraryScanStatusButton from "./components/LibraryScanStatusButton";
 const TopBar = (): ReactElement => {
     const { t } = useTranslation("common");
     const [title, setTitle] = useState<string>("Yokomura");
-    const { pageNumberInputRef, bookProgressRef, closeReader } = useAppContext();
+    const { pageNumberInputRef, bookProgressRef, closeReader, openDownloader } = useAppContext();
     const [isMaximized, setMaximized] = useState(window.electron.currentWindow.isMaximized() || false);
     const [pageNumberChangeDisabled, setPageNumberChangeDisabled] = useState(false);
     const readerContentLink = useAppSelector((store) => store.reader.content?.link ?? "");
@@ -52,7 +55,6 @@ const TopBar = (): ReactElement => {
         }
         return 1;
     });
-    const appSettings = useAppSelector((store) => store.appSettings);
 
     const [pageScrollTimeoutID, setTimeoutID] = useState<NodeJS.Timeout | null>(null);
 
@@ -182,6 +184,26 @@ const TopBar = (): ReactElement => {
                     )}
                 </div>
                 <BookmarkToggle />
+                <button
+                    type="button"
+                    className="browserToggle"
+                    tabIndex={-1}
+                    onFocus={(e) => e.currentTarget.blur()}
+                    onClick={() => openBrowser("full")}
+                    data-tooltip={t("topBar.browser")}
+                >
+                    <FontAwesomeIcon icon={faGlobe} />
+                </button>
+                <button
+                    type="button"
+                    className="downloaderToggle"
+                    tabIndex={-1}
+                    onFocus={(e) => e.currentTarget.blur()}
+                    onClick={openDownloader}
+                    data-tooltip={t("topBar.downloader")}
+                >
+                    <FontAwesomeIcon icon={faDownload} />
+                </button>
                 <LibraryScanStatusButton />
             </div>
             <div className="mainTitleCont">

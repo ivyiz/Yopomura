@@ -201,7 +201,7 @@ const config: ForgeConfig = {
          * 7-Zip must live outside ASAR because Electron cannot execute bundled binaries.
          * The packaging hook copies only the current target's executable and companion files.
          */
-        extraResource: ["./drizzle", "./public/app.ico"],
+        extraResource: ["./drizzle", "./public/app.ico", "./downloader"],
         afterCopyExtraResources: [copyPackagedRuntimes],
         executableName: process.platform === "win32" ? appName : appName.toLowerCase(),
     },

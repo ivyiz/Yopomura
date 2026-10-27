@@ -126,6 +126,8 @@
         justify-content: center;
         width: calc(100% - (var(--button-width) * 10));
         color: inherit;
+        /* Decorative title; never block clicks on the top-bar buttons underneath. */
+        pointer-events: none;
         .title {
             position: relative;
             max-width: 100%;

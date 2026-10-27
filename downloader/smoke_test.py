@@ -1,0 +1,371 @@
+#!/usr/bin/env python3
+"""End-to-end smoke test for downloader/worker.py.
+
+Starts a local HTTP server with three generated PNGs and a fake extractor,
+then drives the worker over its JSON-lines protocol. No external network.
+"""
+
+from __future__ import annotations
+
+import http.server
+import json
+import os
+import queue
+import random
+import shutil
+import struct
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+import zipfile
+import zlib
+from functools import partial
+from pathlib import Path
+
+DOWNLOADER_DIR = Path(__file__).resolve().parent
+REPO_ROOT = DOWNLOADER_DIR.parent
+TERMINAL = {"done", "error", "cancelled"}
+JOB_KEYS = {
+    "event", "id", "status", "title", "progress",
+    "downloaded", "total", "outputPath", "message", "error",
+}
+
+FAKE_EXTRACTOR = '''\
+import os
+import time
+from urllib.parse import urlparse
+
+BASE_URL = os.environ["SMOKE_BASE_URL"].rstrip("/")
+
+
+def _images():
+    return [f"{BASE_URL}/img/{index}.png" for index in (1, 2, 3)]
+
+
+def extract_manga_info(url):
+    path = urlparse(url).path
+    headers = {"User-Agent": "yomikiru-smoke"}
+    if path == "/boom":
+        raise RuntimeError("fake extractor failure")
+    if path == "/slow":
+        time.sleep(2.0)
+        return "Slow Manga", _images(), headers
+    if path == "/keep":
+        return "Smoke Manga Keep", _images(), headers
+    return "Smoke Manga", _images(), headers
+'''
+
+
+def make_png(seed):
+    width = height = 64
+    rng = random.Random(seed)
+    raw = bytearray()
+    for _ in range(height):
+        raw.append(0)
+        raw.extend(rng.randbytes(width * 3))
+
+    def chunk(tag, data):
+        crc = zlib.crc32(tag + data) & 0xFFFFFFFF
+        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", crc)
+
+    header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", header)
+        + chunk(b"IDAT", zlib.compress(bytes(raw), 9))
+        + chunk(b"IEND", b"")
+    )
+
+
+class QuietHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass
+
+
+class LocalServer:
+    def __init__(self, directory):
+        handler = partial(QuietHandler, directory=str(directory))
+        self.httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+
+    @property
+    def base_url(self):
+        host, port = self.httpd.server_address[:2]
+        return f"http://{host}:{port}"
+
+    def __enter__(self):
+        self.thread.start()
+        return self
+
+    def __exit__(self, *exc_info):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+        self.thread.join(timeout=5)
+
+
+class WorkerProcess:
+    def __init__(self, env):
+        self.proc = subprocess.Popen(
+            [sys.executable, "-u", str(DOWNLOADER_DIR / "worker.py")],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            bufsize=1,
+            cwd=str(REPO_ROOT),
+            env=env,
+        )
+        self.events = queue.Queue()
+        self.seen = []
+        self.protocol_errors = []
+        self.stderr = []
+        threading.Thread(target=self._read_stdout, daemon=True).start()
+        threading.Thread(target=self._read_stderr, daemon=True).start()
+
+    def _read_stdout(self):
+        for line in self.proc.stdout:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError as exc:
+                self.protocol_errors.append((line, str(exc)))
+                continue
+            self.seen.append(event)
+            self.events.put(event)
+        self.events.put(None)
+
+    def _read_stderr(self):
+        for line in self.proc.stderr:
+            self.stderr.append(line.rstrip())
+
+    def send(self, command):
+        self.proc.stdin.write(json.dumps(command, ensure_ascii=False) + "\n")
+        self.proc.stdin.flush()
+
+    def next_event(self, timeout):
+        try:
+            event = self.events.get(timeout=timeout)
+        except queue.Empty:
+            raise AssertionError(f"timed out waiting for worker event\nstderr:\n{self._stderr_text()}") from None
+        if event is None:
+            raise AssertionError(f"worker stdout closed\nstderr:\n{self._stderr_text()}")
+        return event
+
+    def wait_for(self, predicate, timeout, what):
+        deadline = time.monotonic() + timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise AssertionError(f"timed out waiting for {what}\nstderr:\n{self._stderr_text()}")
+            event = self.next_event(remaining)
+            if predicate(event):
+                return event
+
+    def _stderr_text(self):
+        return "\n".join(self.stderr[-50:])
+
+    def close(self):
+        try:
+            if self.proc.poll() is None:
+                self.send({"cmd": "shutdown"})
+                self.proc.wait(timeout=5)
+        except (OSError, subprocess.TimeoutExpired):
+            self.proc.kill()
+            self.proc.wait(timeout=5)
+        finally:
+            for stream in (self.proc.stdin, self.proc.stdout, self.proc.stderr):
+                try:
+                    stream.close()
+                except Exception:
+                    pass
+
+
+def validate_event(event, progress_by_job):
+    assert isinstance(event, dict), event
+    assert "event" in event, event
+    kind = event["event"]
+    assert kind in {"ready", "pong", "job", "log"}, event
+    if kind == "job":
+        missing = JOB_KEYS - set(event)
+        assert not missing, f"job event missing {sorted(missing)}: {event}"
+        assert isinstance(event["id"], str) and event["id"], event
+        assert event["status"] in {"resolving", "downloading", "packing", "done", "error", "cancelled"}, event
+        assert isinstance(event["progress"], int) and 0 <= event["progress"] <= 100, event
+        assert isinstance(event["downloaded"], int) and event["downloaded"] >= 0, event
+        assert isinstance(event["total"], int) and event["total"] >= 0, event
+        assert event["title"] is None or isinstance(event["title"], str), event
+        assert event["outputPath"] is None or isinstance(event["outputPath"], str), event
+        assert event["message"] is None or isinstance(event["message"], str), event
+        assert event["error"] is None or isinstance(event["error"], str), event
+        previous = progress_by_job.get(event["id"], 0)
+        assert event["progress"] >= previous, f"progress went backwards: {event}"
+        progress_by_job[event["id"]] = event["progress"]
+    elif kind == "log":
+        assert event.get("level") in {"info", "warn", "error"}, event
+        assert isinstance(event.get("message"), str), event
+    elif kind == "pong":
+        assert "queued" in event, event
+
+
+def wait_terminal(worker, job_id, timeout=40):
+    progress_by_job = {}
+    collected = []
+
+    def matches(event):
+        if event.get("event") != "job" or event.get("id") != job_id:
+            return False
+        validate_event(event, progress_by_job)
+        return event.get("status") in TERMINAL
+
+    while True:
+        event = worker.next_event(timeout)
+        collected.append(event)
+        if matches(event):
+            return event, collected
+
+
+def check_zip(zip_path, source_images, expected_names):
+    path = Path(zip_path)
+    assert path.is_file(), f"missing ZIP: {path}"
+    with zipfile.ZipFile(path) as archive:
+        assert archive.testzip() is None, f"corrupt ZIP: {path}"
+        names = sorted(archive.namelist())
+        assert names == expected_names, (names, expected_names)
+        for name, source in zip(expected_names, source_images):
+            assert archive.read(name) == source.read_bytes(), f"content mismatch in {name}"
+
+
+def assert_inside(path, parent):
+    path = Path(path).resolve()
+    parent = Path(parent).resolve()
+    assert path == parent or parent in path.parents, f"{path} is outside {parent}"
+
+
+def main():
+    random.seed(1234)
+    temp_root = Path(tempfile.mkdtemp(prefix="yomikiru-smoke-"))
+    www = temp_root / "www"
+    images_dir = www / "img"
+    images_dir.mkdir(parents=True)
+    images = []
+    for index in (1, 2, 3):
+        data = make_png(index)
+        (images_dir / f"{index}.png").write_bytes(data)
+        images.append(images_dir / f"{index}.png")
+
+    (temp_root / "fake_extractor.py").write_text(FAKE_EXTRACTOR, encoding="utf-8")
+
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(temp_root) + os.pathsep + env.get("PYTHONPATH", "")
+    env["YOMIKIRU_DOWNLOADER_EXTRACTOR_MODULE"] = "fake_extractor"
+
+    worker = None
+    try:
+        with LocalServer(www) as server:
+            env["SMOKE_BASE_URL"] = server.base_url
+            worker = WorkerProcess(env)
+
+            ready = worker.next_event(10)
+            assert ready == {"event": "ready"}, ready
+
+            worker.send({"cmd": "ping"})
+            pong = worker.wait_for(lambda e: e.get("event") == "pong", 5, "pong")
+            assert pong.get("queued") == 0, pong
+            assert pong.get("active") is None, pong
+
+            out_main = temp_root / "out-main"
+            worker.send({
+                "cmd": "add",
+                "id": "job-main",
+                "url": server.base_url + "/plain",
+                "outDir": str(out_main),
+                "keepFolder": False,
+            })
+            done, events = wait_terminal(worker, "job-main")
+            statuses = [e["status"] for e in events if e.get("event") == "job" and e.get("id") == "job-main"]
+            assert statuses[0] == "resolving", statuses
+            assert "downloading" in statuses and "packing" in statuses, statuses
+            assert done["status"] == "done", done
+            assert done["downloaded"] == 3 and done["total"] == 3, done
+            assert done["progress"] == 100 and done["title"] == "Smoke Manga", done
+            assert done["outputPath"], done
+            assert_inside(done["outputPath"], out_main)
+            check_zip(done["outputPath"], images, ["001.png", "002.png", "003.png"])
+            assert not list(out_main.glob("_temp_*")), "temporary folder left behind"
+            assert not list(out_main.glob("*.part")), "partial file left behind"
+            print("PASS job-main: ZIP downloaded, packed and verified")
+
+            out_keep = temp_root / "out-keep"
+            worker.send({
+                "cmd": "add",
+                "id": "job-keep",
+                "url": server.base_url + "/keep",
+                "outDir": str(out_keep),
+                "keepFolder": True,
+            })
+            done_keep, _ = wait_terminal(worker, "job-keep")
+            assert done_keep["status"] == "done", done_keep
+            assert done_keep["title"] == "Smoke Manga Keep", done_keep
+            assert_inside(done_keep["outputPath"], out_keep)
+            check_zip(done_keep["outputPath"], images, ["001.png", "002.png", "003.png"])
+            folder = out_keep / "Smoke Manga Keep"
+            assert folder.is_dir(), f"keepFolder image folder missing: {folder}"
+            assert sorted(p.name for p in folder.iterdir()) == ["001.png", "002.png", "003.png"]
+            print("PASS job-keep: keepFolder preserved the image folder")
+
+            out_cancel = temp_root / "out-cancel"
+            worker.send({
+                "cmd": "add",
+                "id": "job-cancel",
+                "url": server.base_url + "/slow",
+                "outDir": str(out_cancel),
+                "keepFolder": False,
+            })
+            worker.send({"cmd": "cancel", "id": "job-cancel"})
+            cancelled, _ = wait_terminal(worker, "job-cancel")
+            assert cancelled["status"] == "cancelled", cancelled
+            if out_cancel.exists():
+                assert not list(out_cancel.glob("*.part")), "partial file left behind"
+                assert not list(out_cancel.glob("_temp_*")), "temporary folder left behind"
+            print("PASS job-cancel: cancellation produced a cancelled terminal event")
+
+            out_error = temp_root / "out-error"
+            worker.send({
+                "cmd": "add",
+                "id": "job-error",
+                "url": server.base_url + "/boom",
+                "outDir": str(out_error),
+                "keepFolder": False,
+            })
+            failed, _ = wait_terminal(worker, "job-error")
+            assert failed["status"] == "error", failed
+            assert failed["error"], failed
+            assert not out_error.exists() or not list(out_error.iterdir()), "error job left files behind"
+            print("PASS job-error: extractor failure produced an error event")
+
+            worker.send({"cmd": "ping"})
+            pong = worker.wait_for(lambda e: e.get("event") == "pong", 5, "final pong")
+            assert pong.get("queued") == 0 and pong.get("active") is None, pong
+
+        assert not worker.protocol_errors, worker.protocol_errors
+        print(f"PASS protocol: {len(worker.seen)} worker events were valid JSON lines")
+        print("SMOKE TEST PASSED")
+        return 0
+    finally:
+        if worker is not None:
+            worker.close()
+        shutil.rmtree(temp_root, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except AssertionError as exc:
+        print(f"SMOKE TEST FAILED: {exc}", file=sys.stderr)
+        sys.exit(1)

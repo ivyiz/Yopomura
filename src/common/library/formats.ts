@@ -18,6 +18,9 @@ export const PDF_EXTS = [".pdf"] as const;
 /** Standalone book files the book reader can open. */
 export const BOOK_EXTS = [".epub"] as const;
 
+/** Video files the in-app media player can open (no library/reader classification). */
+export const VIDEO_EXTS = [".mp4", ".webm"] as const;
+
 /** Packed manga, PDF, and EPUB — Locations / drop treat these as openable files. */
 export const OPENABLE_FILE_EXTS = [...PACKED_MANGA_EXTS, ...PDF_EXTS, ...BOOK_EXTS] as const;
 
@@ -65,6 +68,10 @@ export const isMangaFileName = (str: string, extname: (filePath: string) => stri
 /** True when `str` is a standalone book file. */
 export const isBookFileName = (str: string, extname: (filePath: string) => string = extnameFromIo): boolean =>
     hasListedExt(str, BOOK_EXTS, extname);
+
+/** True when `str` is a video the in-app media player can open. */
+export const isVideoFileName = (str: string, extname: (filePath: string) => string = extnameFromIo): boolean =>
+    hasListedExt(str, VIDEO_EXTS, extname);
 
 /**
  * Electron `FileFilter.extensions` values (no leading dot) from an extension list.
@@ -128,6 +135,15 @@ export const formatUtils = {
     book: {
         list: BOOK_EXTS,
         test: (str: string): boolean => isBookFileName(str),
+    },
+    /** Video files handled by the in-app media player rather than a reader. */
+    video: {
+        list: VIDEO_EXTS,
+        test: (str: string): boolean => isVideoFileName(str),
+        getName: (str: string): string => {
+            const ext = extnameFromIo(str);
+            return hasListedExt(str, VIDEO_EXTS) ? basenameFromIo(str, ext) : str;
+        },
     },
     /**
      * Single-file manga the image reader can open (packed archives + PDF).

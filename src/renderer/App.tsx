@@ -13,6 +13,7 @@ import { fetchAllNotes } from "@store/bookNotes";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import store from "@store/index";
 import {
+    addLibraryItem,
     deleteLibraryItem,
     fetchAllItemsWithProgress,
     fetchAllMetadata,
@@ -30,13 +31,17 @@ import { fetchAllTrackers } from "@store/trackers";
 import { setAnilistEditOpen, setAnilistLoginOpen, setAnilistSearchOpen, setLibraryScanStatus } from "@store/ui";
 import { hydrateAnilistClientFromStorage } from "@utils/anilist";
 import { dialogUtils } from "@utils/dialog";
-import { maybePromptPost0001LibraryThumbnails } from "@utils/libraryCoverService";
+import {
+    materializeMangaLibraryThumbnail,
+    maybePromptPost0001LibraryThumbnails,
+} from "@utils/libraryCoverService";
 import { resolveMissingOpenPath } from "@utils/libraryMissingPath";
 import { getExistingBaseDir, promptForInitialDefaultLocation } from "@utils/librarySettingsImport";
 import {
     createContext,
     createRef,
     type ReactElement,
+    useCallback,
     useContext,
     useEffect,
     useLayoutEffect,
@@ -44,6 +49,10 @@ import {
     useState,
 } from "react";
 import UiBlockOverlay from "./components/UiBlockOverlay";
+import BrowserHost from "./features/browser/BrowserHost";
+import DownloaderPanel from "./features/downloader/DownloaderPanel";
+import VideoPlayer from "./features/media/VideoPlayer";
+import TrashToast from "./features/trash/TrashToast";
 import i18n from "./i18n";
 import Main from "./Main";
 import TopBar from "./TopBar";
@@ -71,6 +80,14 @@ interface AppContext {
     closeReader: () => void;
     // updateLastHistoryPageNumber: () => void;
     openInNewWindow: (link: string) => void;
+    /** Open an MP4/WebM in the built-in media player overlay. */
+    openVideo: (link: string) => void;
+    /** Open the downloader queue overlay. */
+    openDownloader: () => void;
+    /** True while the downloader panel is mounted. */
+    downloaderOpen: boolean;
+    /** True while the video player overlay is mounted. */
+    videoOpen: boolean;
     contextMenuData: Menu.ContextMenuData | null;
     setContextMenuData: React.Dispatch<React.SetStateAction<Menu.ContextMenuData | null>>;
     optSelectData: Menu.OptSelectData | null;
@@ -106,10 +123,94 @@ const App = (): ReactElement => {
     const [contextMenuData, setContextMenuData] = useState<Menu.ContextMenuData | null>(null);
     const [optSelectData, setOptSelectData] = useState<Menu.OptSelectData | null>(null);
     const [colorSelectData, setColorSelectData] = useState<Menu.ColorSelectData | null>(null);
+    const [videoLink, setVideoLink] = useState<string | null>(null);
+    const [videoPlaylist, setVideoPlaylist] = useState<{ path: string; title: string }[]>([]);
 
     const dispatch = useAppDispatch();
 
     const { openInReaderIfValid, validateDirectory } = useDirectoryValidator();
+
+    const openVideo = useCallback((link: string) => {
+        setVideoLink(window.path.normalize(link));
+    }, []);
+
+    const [downloaderOpen, setDownloaderOpen] = useState(false);
+    const openDownloader = useCallback(() => setDownloaderOpen(true), []);
+    const importedDownloadJobs = useRef(new Set<string>());
+
+    useEffect(() => {
+        const off = window.electron.on("downloader:state", (state) => {
+            for (const job of state.jobs) {
+                if (job.status !== "done" || !job.outputPath || importedDownloadJobs.current.has(job.id)) {
+                    continue;
+                }
+                if (!window.fs.existsSync(job.outputPath)) continue;
+                importedDownloadJobs.current.add(job.id);
+                void (async () => {
+                    try {
+                        if (!store.getState().library.items[job.outputPath]) {
+                            const added = await dispatch(
+                                addLibraryItem({
+                                    type: "manga",
+                                    data: {
+                                        type: "manga",
+                                        link: job.outputPath,
+                                        title:
+                                            job.title ||
+                                            window.path.basename(
+                                                job.outputPath,
+                                                window.path.extname(job.outputPath),
+                                            ),
+                                        author: null,
+                                        cover: null,
+                                    },
+                                }),
+                            ).unwrap();
+                            if (added.id != null) {
+                                await materializeMangaLibraryThumbnail(dispatch, added.id, job.outputPath);
+                            }
+                        }
+                        await dispatch(fetchAllItemsWithProgress());
+                    } catch (err) {
+                        log.error("auto-import downloaded archive failed", { job }, err);
+                    }
+                })();
+            }
+        });
+        return off;
+    }, [dispatch]);
+
+    useEffect(() => {
+        if (!videoLink) {
+            setVideoPlaylist([]);
+            return;
+        }
+        let cancelled = false;
+        const dir = window.path.dirname(videoLink);
+        const currentItem = {
+            path: videoLink,
+            title: window.path.basename(videoLink, window.path.extname(videoLink)),
+        };
+        void window.fs
+            .readdir(dir)
+            .then((names) => {
+                if (cancelled) return;
+                const items = names
+                    .filter((name) => formatUtils.video.test(name))
+                    .sort((a, b) => window.app.betterSortOrder(a, b))
+                    .map((name) => ({
+                        path: window.path.join(dir, name),
+                        title: window.path.basename(name, window.path.extname(name)),
+                    }));
+                setVideoPlaylist(items.length > 0 ? items : [currentItem]);
+            })
+            .catch(() => {
+                if (!cancelled) setVideoPlaylist([currentItem]);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [videoLink]);
 
     useEffect(() => {
         if (firstRendered) {
@@ -461,8 +562,13 @@ const App = (): ReactElement => {
                             .then(({ response }) => {
                                 if (!response) return;
                                 void (async () => {
+                                    const libraryItem = store.getState().library.items[url];
+                                    let entry = null;
                                     try {
-                                        await window.electron.trashItem(url);
+                                        entry = await window.electron.trashItem(url, {
+                                            title: libraryItem?.title ?? name,
+                                            itemType: libraryItem?.type,
+                                        });
                                     } catch (err) {
                                         log.error("move to trash failed", { url }, err);
                                         await dialogUtils.customError({
@@ -473,7 +579,12 @@ const App = (): ReactElement => {
                                         });
                                         return;
                                     }
-                                    if (store.getState().library.items[url]) {
+                                    if (entry) {
+                                        window.dispatchEvent(
+                                            new CustomEvent("yokomura:trashed", { detail: entry }),
+                                        );
+                                    }
+                                    if (libraryItem) {
                                         try {
                                             await dispatch(deleteLibraryItem({ link: url }));
                                         } catch (err) {
@@ -711,6 +822,10 @@ const App = (): ReactElement => {
                 openInReader: openInReaderIfValid,
                 closeReader,
                 openInNewWindow,
+                openVideo,
+                openDownloader,
+                downloaderOpen,
+                videoOpen: Boolean(videoLink),
                 validateDirectory,
                 contextMenuData,
                 setContextMenuData,
@@ -722,6 +837,22 @@ const App = (): ReactElement => {
         >
             <TopBar />
             <Main />
+            {videoLink ? (
+                <VideoPlayer
+                    link={videoLink}
+                    playlist={videoPlaylist}
+                    onClose={() => setVideoLink(null)}
+                    onNavigate={openVideo}
+                />
+            ) : null}
+            {downloaderOpen ? (
+                <DownloaderPanel
+                    onClose={() => setDownloaderOpen(false)}
+                    onOpenOutput={(path) => void openInReaderIfValid(path)}
+                />
+            ) : null}
+            <BrowserHost />
+            <TrashToast />
             <UiBlockOverlay />
         </AppContext.Provider>
     );

@@ -134,10 +134,14 @@ const electronAPI = {
     getPathForFile: (file: File) => webUtils.getPathForFile(file),
     openExternal: (url: string) => shell.openExternal(url),
     showItemInFolder: (path: string) => shell.showItemInFolder(path),
-    /** Move a file or folder to the OS recycle bin / trash. */
-    trashItem: async (path: string) => {
-        const result = await ipcRenderer.invoke("fs:trashItem", { path });
+    /** Move a file/folder to the OS recycle bin, recording a journal entry when possible. */
+    trashItem: async (
+        path: string,
+        meta?: { kind?: "file" | "folder"; title?: string; itemType?: "manga" | "book" },
+    ) => {
+        const result = await ipcRenderer.invoke("fs:trashItem", { path, ...meta });
         if (!result.ok) throw new Error(result.message);
+        return result.entry ?? null;
     },
     webFrame: {
         getZoomFactor: () => webFrame.getZoomFactor(),

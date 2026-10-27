@@ -1,6 +1,8 @@
 import { exec } from "node:child_process";
 import fs from "node:fs/promises";
+import type { TrashEntry } from "@common/types/trash";
 import { mainT } from "@electron/i18n/mainI18n";
+import { appendTrashEntry } from "@electron/trash/journal";
 import { saveFile } from "@electron/util";
 import { extractContentArchive } from "@electron/util/contentSource";
 import { createMainLogger } from "@electron/util/logger";
@@ -25,13 +27,32 @@ export const registerFSHandlers = (): void => {
             if (err instanceof Error) dialog.showErrorBox(mainT("titles.error", { ns: "dialogs" }), err.message);
         }
     });
-    ipc.handle("fs:trashItem", async (_event, { path }) => {
+    ipc.handle("fs:trashItem", async (_event, request) => {
         try {
-            await shell.trashItem(path);
-            return { ok: true as const };
+            const kind =
+                request.kind ??
+                ((await fs
+                    .stat(request.path)
+                    .then((stat) => stat.isDirectory())
+                    .catch(() => false))
+                    ? "folder"
+                    : "file");
+            await shell.trashItem(request.path);
+            let entry: TrashEntry | undefined;
+            try {
+                entry = await appendTrashEntry({
+                    originalPath: request.path,
+                    kind,
+                    title: request.title,
+                    itemType: request.itemType,
+                });
+            } catch (journalError) {
+                logger.warn("trash journal append failed after successful trash", journalError);
+            }
+            return { ok: true as const, entry };
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
-            logger.error("fs:trashItem failed", { path }, message);
+            logger.error("fs:trashItem failed", { path: request.path }, message);
             return { ok: false as const, message };
         }
     });

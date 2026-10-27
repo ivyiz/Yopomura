@@ -125,6 +125,19 @@
         "galleryTitle": "Title size",
         "galleryTitleDesc": "Font size of the story title under each gallery cover."
     },
+    "trash": {
+        "title": "Recently Deleted",
+        "desc": "Files moved to the Windows Recycle Bin are listed here. The app stores only metadata; the files stay in the Recycle Bin.",
+        "openBin": "Open Recycle Bin",
+        "refresh": "Refresh",
+        "empty": "No deleted items yet.",
+        "restore": "Restore",
+        "forget": "Remove from list",
+        "restored": "Restored",
+        "restoreFailed": "Could not restore this item.",
+        "inBin": "In Recycle Bin",
+        "missing": "Not found in Recycle Bin"
+    },
     "dbBackup": {
         "title": "Library Database Backup",
         "desc": "Automatically backs up the library database (bookmarks, history, progress). Choose how many newest backups to keep after each backup. A schema update also snapshots the library even when automatic backups are off.",

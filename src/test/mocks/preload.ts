@@ -266,6 +266,30 @@ export const installPreloadMocks = (): void => {
     onInvoke("covers:materializeFromUrl", () => ({ ok: true }));
     onInvoke("covers:previewForPath", () => ({ ok: false, message: "not mocked" }));
     onInvoke("covers:claimPost0001ThumbnailPrompt", () => false);
+    onInvoke("downloader:getState", () => ({ ready: false, activeId: null, jobs: [] }));
+    onInvoke("downloader:add", (request) => ({
+        id: request.url,
+        url: request.url,
+        outDir: request.outDir,
+        keepFolder: Boolean(request.keepFolder),
+        status: "queued",
+        title: "",
+        progress: 0,
+        downloaded: 0,
+        total: 0,
+        outputPath: "",
+        message: "",
+        error: "",
+        createdAt: 0,
+        updatedAt: 0,
+    }));
+    onInvoke("downloader:cancel", () => undefined);
+    onInvoke("downloader:remove", () => undefined);
+    onInvoke("downloader:clearFinished", () => undefined);
+    onInvoke("trash:list", () => []);
+    onInvoke("trash:restore", () => ({ ok: false, message: "not mocked" }));
+    onInvoke("trash:openRecycleBin", () => undefined);
+    onInvoke("trash:removeEntry", () => true);
     onInvoke("db:library:getAllAndProgress", () => []);
     onInvoke("keymap:nativeAction", () => undefined);
     registerDefaultKeymapHandlers();

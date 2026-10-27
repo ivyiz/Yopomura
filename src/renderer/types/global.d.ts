@@ -26,8 +26,7 @@ declare global {
                 copyPath: (url: string) => Menu.ListItem;
                 copyImage: (url: string) => Menu.ListItem;
                 /** Confirms, then moves the file/folder to the OS recycle bin. */
-                trashItem: (url: string, onDeleted?: () => void) => Menu.ListItem;
-                addToBookmark: (args: Parameters<typeof addBookmark>["0"]) => Menu.ListItem;
+                trashItem: (url: string, onDeleted?: () => void) => Menu.ListItem;                addToBookmark: (args: Parameters<typeof addBookmark>["0"]) => Menu.ListItem;
                 /**
                  * Confirm and delete a library item (progress, bookmarks, notes).
                  * Files on disk are left alone. Optional `onRemoved` runs after dispatch.

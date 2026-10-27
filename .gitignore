@@ -18,3 +18,10 @@ test-results
 # Dev-only demo library (populated by `pnpm demo:setup`; never ship)
 /demo/**
 !/demo/.gitkeep
+
+# Local build / test output
+/build/
+/build-artifacts/
+*.log
+__pycache__/
+downloader/MangaDownloaderWorker.exe

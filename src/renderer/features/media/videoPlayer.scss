@@ -1,0 +1,568 @@
+/*
+ * True-dark, self-contained video overlay.
+ *
+ * The player starts from the app theme but mixes it into a near-black base: a light app
+ * theme would otherwise wash out the video. Local custom properties keep every surface,
+ * border, and text tone in one place while the component stays scoped to `.videoPlayerOverlay`.
+ *
+ * The overlay is rendered beside `Main` (not inside its `#app` node), so it does not
+ * inherit the global `#app button` chrome and can own all of its controls directly.
+ */
+.videoPlayerOverlay {
+    /*
+     * Theme variables tint the chrome by a few percent but are mixed into a near-black base,
+     * so even a light app theme cannot turn the player into a light overlay.
+     */
+    --videoPlayer-bg: color-mix(in srgb, var(--body-bg-color, #0b0c0f) 5%, #05060a);
+    --videoPlayer-chrome: color-mix(in srgb, var(--body-bg-color, #0b0c0f) 9%, #0a0c11);
+    --videoPlayer-surface: color-mix(in srgb, var(--btn-color, #151821) 7%, #11141b);
+    --videoPlayer-surface-hover: color-mix(in srgb, var(--btn-color, #151821) 13%, #171b24);
+    --videoPlayer-border: color-mix(in srgb, var(--divider-color, #282d39) 18%, #222733);
+    --videoPlayer-text: #f3f5f9;
+    --videoPlayer-muted: #98a1b2;
+    --videoPlayer-accent: #7aa2f7;
+    --videoPlayer-danger: #ff8a9b;
+    --videoPlayer-radius: 10px;
+
+    position: fixed;
+    inset: 0;
+    /* Above the top bar (1,000,000), below the app's blocking overlay (2,000,000). */
+    z-index: 1500000;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+    color-scheme: dark;
+    color: var(--videoPlayer-text);
+    background:
+        radial-gradient(
+            1100px 560px at 50% -10%,
+            color-mix(in srgb, var(--videoPlayer-accent) 9%, transparent),
+            transparent 70%
+        ),
+        var(--videoPlayer-bg);
+    outline: none;
+    user-select: none;
+    -webkit-app-region: no-drag;
+
+    &::backdrop {
+        background: var(--videoPlayer-bg);
+    }
+
+    &:fullscreen {
+        background: var(--videoPlayer-bg);
+    }
+
+    button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 38px;
+        padding: 0 13px;
+        border: 1px solid var(--videoPlayer-border);
+        border-radius: 8px;
+        appearance: none;
+        background: var(--videoPlayer-surface);
+        color: var(--videoPlayer-text);
+        font-family: inherit;
+        font-size: 0.84rem;
+        font-weight: 500;
+        line-height: 1;
+        white-space: nowrap;
+        cursor: pointer;
+        transition:
+            background-color 0.15s ease,
+            border-color 0.15s ease,
+            color 0.15s ease,
+            opacity 0.15s ease;
+        -webkit-app-region: no-drag;
+
+        svg {
+            flex: 0 0 auto;
+            font-size: 0.95em;
+        }
+
+        &:hover:not(:disabled) {
+            background: var(--videoPlayer-surface-hover);
+            border-color: color-mix(in srgb, var(--videoPlayer-text) 22%, var(--videoPlayer-border));
+        }
+
+        &:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        &:focus {
+            box-shadow: none;
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--videoPlayer-accent);
+            outline-offset: 2px;
+            box-shadow: none;
+        }
+
+        &:disabled {
+            opacity: 0.35;
+            cursor: default;
+        }
+
+        &.is-active {
+            background: color-mix(in srgb, var(--videoPlayer-accent) 20%, var(--videoPlayer-surface));
+            border-color: color-mix(in srgb, var(--videoPlayer-accent) 46%, var(--videoPlayer-border));
+            color: var(--videoPlayer-text);
+        }
+
+        &.videoPlayerIconButton {
+            width: 38px;
+            padding: 0;
+        }
+    }
+
+    .videoPlayerHeader {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 13px 18px;
+        border-bottom: 1px solid var(--videoPlayer-border);
+        background: color-mix(in srgb, var(--videoPlayer-chrome) 90%, transparent);
+        backdrop-filter: blur(14px);
+        -webkit-app-region: no-drag;
+    }
+
+    .videoPlayerTitleBlock {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        min-width: 0;
+    }
+
+    .videoPlayerEyebrow {
+        color: var(--videoPlayer-muted);
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        line-height: 1.2;
+        text-transform: uppercase;
+    }
+
+    .videoPlayerTitle {
+        min-width: 0;
+        margin: 0;
+        overflow: hidden;
+        color: var(--videoPlayer-text);
+        font-size: 1.05rem;
+        font-weight: 600;
+        line-height: 1.25;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .videoPlayerActions {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+    }
+
+    .videoPlayerBody {
+        flex: 1 1 auto;
+        display: flex;
+        min-height: 0;
+    }
+
+    .videoPlayerStage {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-width: 0;
+        min-height: 0;
+        padding: 14px 16px 16px;
+    }
+
+    .videoPlayerFrame {
+        position: relative;
+        flex: 1 1 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 0;
+        overflow: hidden;
+        border: 1px solid var(--videoPlayer-border);
+        border-radius: var(--videoPlayer-radius);
+        background: #000;
+    }
+
+    .videoPlayerVideo {
+        display: block;
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+        background: #000;
+        object-fit: contain;
+    }
+
+    .videoPlayerState {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 24px;
+        text-align: center;
+        background: color-mix(in srgb, #000 82%, transparent);
+
+        &.is-error .videoPlayerStateTitle {
+            color: var(--videoPlayer-danger);
+        }
+    }
+
+    .videoPlayerSpinner {
+        width: 34px;
+        height: 34px;
+        border: 3px solid color-mix(in srgb, var(--videoPlayer-text) 18%, transparent);
+        border-top-color: var(--videoPlayer-accent);
+        border-radius: 50%;
+        animation: videoPlayerSpin 0.8s linear infinite;
+    }
+
+    .videoPlayerStateTitle {
+        color: var(--videoPlayer-text);
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1.35;
+    }
+
+    .videoPlayerStateText {
+        max-width: 42ch;
+        color: var(--videoPlayer-muted);
+        font-size: 0.86rem;
+        line-height: 1.55;
+    }
+
+    .videoPlayerFooter {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 38px;
+    }
+
+    .videoPlayerPosition {
+        min-width: 4.2em;
+        color: var(--videoPlayer-muted);
+        font-size: 0.8rem;
+        font-variant-numeric: tabular-nums;
+        text-align: center;
+    }
+
+    .videoPlayerSpacer {
+        flex: 1 1 auto;
+        min-width: 8px;
+    }
+
+    /* Also cancels the app-wide `label` chrome (surface, padding, hover, focus ring). */
+    .videoPlayerRate {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0;
+        border-radius: 0;
+        background: transparent;
+        color: var(--videoPlayer-muted);
+        cursor: default;
+        font-size: 0.8rem;
+        white-space: nowrap;
+
+        &:hover {
+            background: transparent;
+        }
+
+        &:focus,
+        &:active {
+            box-shadow: none;
+        }
+    }
+
+    .videoPlayerSelectWrap {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+
+        &::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            right: 11px;
+            width: 6px;
+            height: 6px;
+            border-right: 1.5px solid var(--videoPlayer-muted);
+            border-bottom: 1.5px solid var(--videoPlayer-muted);
+            pointer-events: none;
+            transform: translateY(-70%) rotate(45deg);
+        }
+
+        select {
+            min-width: 4.6em;
+            height: 34px;
+            padding: 0 27px 0 10px;
+            border: 1px solid var(--videoPlayer-border);
+            border-radius: 8px;
+            appearance: none;
+            background: var(--videoPlayer-surface);
+            color: var(--videoPlayer-text);
+            font-family: inherit;
+            font-size: 0.82rem;
+            line-height: 1;
+            cursor: pointer;
+            outline: none;
+
+            &:hover {
+                background: var(--videoPlayer-surface-hover);
+            }
+
+            &:focus-visible {
+                outline: 2px solid var(--videoPlayer-accent);
+                outline-offset: 2px;
+            }
+
+            option {
+                background: var(--videoPlayer-surface);
+                color: var(--videoPlayer-text);
+            }
+        }
+    }
+
+    .videoPlayerHint {
+        max-width: 44ch;
+        color: var(--videoPlayer-muted);
+        font-size: 0.72rem;
+        line-height: 1.4;
+        opacity: 0.8;
+        text-align: right;
+    }
+
+    .videoPlayerPlaylist {
+        flex: 0 0 clamp(250px, 22vw, 340px);
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        border-left: 1px solid var(--videoPlayer-border);
+        background: var(--videoPlayer-chrome);
+    }
+
+    .videoPlayerPlaylistHead {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--videoPlayer-border);
+    }
+
+    .videoPlayerPlaylistTitle {
+        color: var(--videoPlayer-muted);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .videoPlayerPlaylistCount {
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--videoPlayer-surface);
+        color: var(--videoPlayer-muted);
+        font-size: 0.7rem;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .videoPlayerPlaylistList {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-height: 0;
+        margin: 0;
+        padding: 8px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        list-style: none;
+        scrollbar-color: #3a4150 transparent;
+        scrollbar-width: thin;
+
+        &::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        &::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            border: 3px solid transparent;
+            border-radius: 999px;
+            background: #3a4150;
+            background-clip: content-box;
+        }
+
+        &::-webkit-scrollbar-thumb:hover {
+            background: #4b5466;
+            background-clip: content-box;
+        }
+    }
+
+    .videoPlayerPlaylistItem {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        min-height: 40px;
+        padding: 8px 10px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--videoPlayer-muted);
+        font-size: 0.84rem;
+        font-weight: 400;
+        line-height: 1.2;
+        text-align: left;
+        cursor: pointer;
+        transition:
+            background-color 0.15s ease,
+            border-color 0.15s ease,
+            color 0.15s ease;
+
+        &:hover:not(:disabled) {
+            background: var(--videoPlayer-surface);
+            color: var(--videoPlayer-text);
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--videoPlayer-accent);
+            outline-offset: -2px;
+        }
+
+        &.is-active {
+            border-color: color-mix(in srgb, var(--videoPlayer-accent) 42%, transparent);
+            background: color-mix(in srgb, var(--videoPlayer-accent) 16%, var(--videoPlayer-surface));
+            color: var(--videoPlayer-text);
+        }
+    }
+
+    .videoPlayerPlaylistIndex {
+        flex: 0 0 2.1em;
+        opacity: 0.6;
+        font-size: 0.7rem;
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+    }
+
+    .videoPlayerPlaylistName {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .videoPlayerPlaylistPlaying {
+        flex: 0 0 auto;
+        color: var(--videoPlayer-accent);
+        font-size: 0.68rem;
+    }
+}
+
+@keyframes videoPlayerSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 1180px) {
+    .videoPlayerOverlay .videoPlayerHint {
+        display: none;
+    }
+}
+
+@media (max-width: 900px) {
+    .videoPlayerOverlay {
+        .videoPlayerHeader {
+            padding: 10px 12px;
+        }
+
+        .videoPlayerStage {
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .videoPlayerBody {
+            flex-direction: column;
+        }
+
+        .videoPlayerPlaylist {
+            flex: 0 0 auto;
+            max-height: 38vh;
+            border-top: 1px solid var(--videoPlayer-border);
+            border-left: 0;
+        }
+
+        /* Labels stay in the DOM for layout-free hiding; buttons keep aria-label/title. */
+        .videoPlayerButtonLabel {
+            display: none;
+        }
+    }
+}
+
+@media (max-width: 680px) {
+    .videoPlayerOverlay {
+        .videoPlayerEyebrow {
+            display: none;
+        }
+
+        .videoPlayerTitle {
+            font-size: 0.95rem;
+        }
+
+        .videoPlayerFooter {
+            gap: 6px;
+        }
+
+        .videoPlayerPosition {
+            min-width: 3.5em;
+        }
+
+        .videoPlayerRate > span:first-child {
+            display: none;
+        }
+
+        .videoPlayerPlaylist {
+            max-height: 34vh;
+        }
+
+        button {
+            min-height: 34px;
+            padding: 0 10px;
+
+            &.videoPlayerIconButton {
+                width: 34px;
+            }
+        }
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .videoPlayerOverlay,
+    .videoPlayerOverlay * {
+        animation: none !important;
+        transition: none !important;
+    }
+}

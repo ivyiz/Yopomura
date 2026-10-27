@@ -1,0 +1,949 @@
+#!/usr/bin/env python3
+"""Headless manga downloader worker.
+
+Speaks newline-delimited JSON over stdin/stdout. One job runs at a time.
+See README.md for the protocol.
+"""
+
+from __future__ import annotations
+
+import importlib
+import json
+import os
+import re
+import shutil
+import signal
+import sys
+import tempfile
+import threading
+import time
+import unicodedata
+import zipfile
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
+from urllib.parse import urlparse
+
+import requests
+
+try:
+    from curl_cffi import requests as c_requests
+except ImportError:
+    c_requests = None
+
+try:
+    from gallery_dl import job as gdl_job
+except ImportError:
+    gdl_job = None
+
+
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+REQUEST_TIMEOUT = 25
+DOWNLOAD_WORKERS = 6
+RETRY_WORKERS = 3
+MAX_RETRIES = 4
+CHUNK_SIZE = 64 * 1024
+PROGRESS_INTERVAL = 0.15
+IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif"}
+
+_thread_local = threading.local()
+
+
+class JobCancelled(Exception):
+    pass
+
+
+class DownloadFailed(Exception):
+    pass
+
+
+def _new_http_session():
+    if c_requests is not None:
+        try:
+            return c_requests.Session(impersonate="chrome120")
+        except Exception:
+            pass
+    return requests.Session()
+
+
+def get_session():
+    session = getattr(_thread_local, "session", None)
+    if session is None:
+        session = _new_http_session()
+        _thread_local.session = session
+    return session
+
+
+def response_text(resp):
+    content = resp.content
+    encoding = (getattr(resp, "encoding", None) or "").lower()
+    default_encodings = {"", "iso-8859-1", "latin-1", "ascii"}
+    if encoding in default_encodings:
+        try:
+            return content.decode("utf-8")
+        except UnicodeDecodeError:
+            pass
+    try:
+        return content.decode(encoding or "utf-8", errors="replace")
+    except LookupError:
+        return content.decode("utf-8", errors="replace")
+
+
+def fix_mojibake(text: str) -> str:
+    if not text:
+        return text
+    markers = ("Ã", "Â", "á»", "áº", "â€", "à»", "àº")
+    for _ in range(2):
+        if not any(marker in text for marker in markers):
+            break
+        repaired = None
+        for source_encoding in ("cp1252", "latin-1"):
+            try:
+                repaired = text.encode(source_encoding).decode("utf-8")
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                continue
+            break
+        if repaired is None or repaired == text:
+            break
+        text = repaired
+    return text
+
+
+def sanitize_filename(name, fallback="download"):
+    text = fix_mojibake(str(name or ""))
+    text = unicodedata.normalize("NFC", text)
+    text = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", text)
+    text = re.sub(r"\s+", " ", text).strip(" .")
+    if not text:
+        text = fallback
+    if text.split(".")[0].upper() in {
+        "CON", "PRN", "AUX", "NUL",
+        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    }:
+        text = "_" + text
+    text = text[:120].strip(" .")
+    return text or fallback
+
+
+def safe_child(base, name):
+    base_abs = os.path.abspath(base)
+    target = os.path.abspath(os.path.join(base_abs, name))
+    try:
+        common = os.path.commonpath([base_abs, target])
+    except ValueError as exc:
+        raise DownloadFailed(f"Invalid output path: {name}") from exc
+    if os.path.normcase(common) != os.path.normcase(base_abs):
+        raise DownloadFailed(f"Output path escapes destination: {name}")
+    return target
+
+
+def image_extension(url):
+    ext = os.path.splitext(urlparse(url).path)[1].lower()
+    if ext == ".jpeg":
+        return ".jpeg"
+    return ext if ext in IMAGE_EXTS else ".jpg"
+
+
+def unlink(path):
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+    except OSError:
+        pass
+
+
+def download_image(url, dest, headers, cancel: threading.Event):
+    if cancel.is_set():
+        raise JobCancelled
+    part = dest + ".part"
+    session = get_session()
+    last_error = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        if cancel.is_set():
+            raise JobCancelled
+        retry_after = None
+        try:
+            resp = session.get(url, headers=headers, timeout=REQUEST_TIMEOUT, stream=True)
+            try:
+                status = resp.status_code
+                if status != 200:
+                    if 400 <= status < 500 and status != 429:
+                        raise DownloadFailed(f"HTTP {status} for {url}")
+                    retry_after = _retry_after_seconds(resp)
+                    raise RuntimeError(f"HTTP {status}")
+                expected = resp.headers.get("Content-Length")
+                content_encoding = (resp.headers.get("Content-Encoding") or "identity").lower()
+                if content_encoding not in ("", "identity"):
+                    expected = None
+                expected = int(expected) if expected and expected.isdigit() else None
+                written = 0
+                with open(part, "wb") as handle:
+                    for chunk in resp.iter_content(CHUNK_SIZE):
+                        if cancel.is_set():
+                            raise JobCancelled
+                        if chunk:
+                            handle.write(chunk)
+                            written += len(chunk)
+                if written == 0:
+                    raise RuntimeError("empty response body")
+                if expected is not None and written != expected:
+                    raise RuntimeError(f"truncated download ({written}/{expected} bytes)")
+            finally:
+                close = getattr(resp, "close", None)
+                if close is not None:
+                    close()
+            os.replace(part, dest)
+            return
+        except JobCancelled:
+            unlink(part)
+            raise
+        except DownloadFailed:
+            unlink(part)
+            raise
+        except Exception as exc:
+            unlink(part)
+            last_error = exc
+            if attempt >= MAX_RETRIES:
+                break
+            delay = min(10.0, 0.75 * (2 ** (attempt - 1)))
+            if retry_after is not None:
+                delay = min(30.0, retry_after)
+            if cancel.wait(delay):
+                raise JobCancelled
+    raise DownloadFailed(f"{url}: {last_error}")
+
+
+def _retry_after_seconds(resp):
+    value = resp.headers.get("Retry-After")
+    if value and value.isdigit():
+        return max(0, int(value))
+    return None
+
+
+def _get(session, url, headers, **kwargs):
+    kwargs.setdefault("timeout", 15)
+    return session.get(url, headers=headers, **kwargs)
+
+
+def extract_hitomi(target_url):
+    id_match = re.search(r"(?:/reader/|/galleries/|-)(\d+)\.html", target_url)
+    if not id_match:
+        id_match = re.search(r"(\d+)", target_url)
+    if not id_match:
+        raise DownloadFailed("Could not find a hitomi.la gallery id")
+    gallery_id = id_match.group(1)
+
+    headers = {"User-Agent": USER_AGENT, "Referer": "https://hitomi.la/"}
+    session = _new_http_session()
+
+    res_gal = _get(
+        session,
+        f"https://ltn.gold-usergeneratedcontent.net/galleries/{gallery_id}.js",
+        headers,
+    )
+    if res_gal.status_code != 200:
+        raise DownloadFailed(f"Hitomi gallery not found (id {gallery_id})")
+    gal_json = re.sub(r"^\s*var\s+galleryinfo\s*=\s*", "", response_text(res_gal)).strip().rstrip(";")
+    gal_data = json.loads(gal_json)
+
+    title = sanitize_filename(gal_data.get("title") or f"hitomi_{gallery_id}")
+    files = gal_data.get("files") or []
+
+    res_gg = _get(session, "https://ltn.gold-usergeneratedcontent.net/gg.js", headers)
+    gg_text = response_text(res_gg)
+    b_match = re.search(r"b:\s*['\"]([^'\"]+)", gg_text)
+    base = b_match.group(1) if b_match else "1793091602/"
+    cases = {int(x) for x in re.findall(r"case\s+(\d+):", gg_text)}
+
+    urls = []
+    for item in files:
+        digest = item.get("hash")
+        if not digest:
+            continue
+        value = int(digest[-1] + digest[-3:-1], 16)
+        sub = f"w{1 + (0 if value in cases else 1)}"
+        urls.append(f"https://{sub}.gold-usergeneratedcontent.net/{base}{value}/{digest}.webp")
+    return title, urls, headers
+
+
+def extract_imhentai(target_url):
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Referer": "https://imhentai.xxx/",
+        "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+    }
+    gal_match = re.search(r"/(?:gallery|view)/(\d+)", target_url)
+    if not gal_match:
+        raise DownloadFailed("Could not find an imhentai gallery id")
+    gal_id = gal_match.group(1)
+    session = _new_http_session()
+
+    html_gal = response_text(_get(session, f"https://imhentai.xxx/gallery/{gal_id}/", headers))
+    title_match = re.search(r'id="gallery_title"\s+value="([^"]+)"', html_gal)
+    if title_match:
+        title = sanitize_filename(title_match.group(1))
+    else:
+        t_match = re.search(r"<title>(.*?)</title>", html_gal, re.S)
+        raw = t_match.group(1).replace("- IMHentai", "") if t_match else ""
+        title = sanitize_filename(raw or f"imhentai_{gal_id}")
+
+    server_match = re.search(r'id="load_server"\s+value="(\d+)"', html_gal)
+    dir_match = re.search(r'id="load_dir"\s+value="([^"]+)"', html_gal)
+    gid_match = re.search(r'id="load_id"\s+value="([^"]+)"', html_gal)
+    pages_match = re.search(r'id="load_pages"\s+value="(\d+)"', html_gal)
+    if not dir_match or not gid_match:
+        raise DownloadFailed("Could not read image metadata from imhentai")
+    server = server_match.group(1) if server_match else "9"
+    image_dir = dir_match.group(1)
+    load_id = gid_match.group(1)
+    total_pages = int(pages_match.group(1)) if pages_match else 0
+
+    html_view = response_text(_get(session, f"https://imhentai.xxx/view/{gal_id}/1/", headers))
+    match = re.search(r"var\s+g_th\s*=\s*\$\.parseJSON\('([^']+)'\);", html_view)
+    if not match:
+        raise DownloadFailed("Could not find the imhentai image list")
+    g_th = json.loads(match.group(1))
+    ext_map = {"w": ".webp", "j": ".jpg", "p": ".png", "b": ".bmp", "g": ".gif"}
+
+    urls = []
+    page_count = total_pages if total_pages > 0 else len(g_th)
+    for page in range(1, page_count + 1):
+        entry = g_th.get(str(page))
+        ext = ext_map.get(entry.split(",")[0], ".jpg") if entry else ".webp"
+        urls.append(f"https://m{server}.imhentai.xxx/{image_dir}/{load_id}/{page}{ext}")
+    return title, urls, headers
+
+
+def extract_nhentai(target_url):
+    gid_match = re.search(r"/g/(\d+)", target_url)
+    if not gid_match:
+        raise DownloadFailed("Could not find an nhentai gallery id")
+    gid = gid_match.group(1)
+    headers = {"User-Agent": USER_AGENT, "Referer": "https://nhentai.net/"}
+    session = _new_http_session()
+
+    res = _get(session, f"https://nhentai.net/api/gallery/{gid}", headers)
+    if res.status_code != 200:
+        raise DownloadFailed(f"Cannot reach nhentai (HTTP {res.status_code})")
+    data = res.json()
+    title_data = data.get("title") or {}
+    title = sanitize_filename(
+        title_data.get("pretty") or title_data.get("english") or f"nhentai_{gid}"
+    )
+    media_id = data.get("media_id")
+    ext_map = {"j": "jpg", "p": "png", "w": "webp", "g": "gif"}
+    urls = []
+    pages = (data.get("images") or {}).get("pages") or []
+    for index, page in enumerate(pages, 1):
+        ext = ext_map.get((page or {}).get("t"), "jpg")
+        urls.append(f"https://i.nhentai.net/galleries/{media_id}/{index}.{ext}")
+    return title, urls, headers
+
+
+def get_chapters_from_series(session, series_url, headers):
+    html = response_text(_get(session, series_url, headers))
+    chapters = []
+    itemlist_match = re.search(r'ItemList",\s*"itemListElement":\s*(\[[^\]]+\])', html)
+    if itemlist_match:
+        try:
+            for item in json.loads(itemlist_match.group(1)):
+                chapters.append({"name": item.get("name", "").strip(), "url": item.get("url", "").strip()})
+        except (ValueError, TypeError):
+            chapters = []
+    if not chapters:
+        pattern = r'<div class="col-xs-5 chapter">\s*<a href="([^"]+)"[^>]*>\s*([^<]+)\s*</a>'
+        for url, name in re.findall(pattern, html):
+            chapters.append({"name": name.strip(), "url": url.strip()})
+    chapters.reverse()
+    return chapters
+
+
+def get_images_from_chapter(session, chapter_url, headers):
+    html = response_text(_get(session, chapter_url, headers))
+    for cdn_var in ("cdn1", "cdn2", "cdn3"):
+        match = re.search(rf"var\s+{cdn_var}\s*=\s*'([^']+)'", html)
+        if not match:
+            continue
+        try:
+            images = json.loads(match.group(1))
+        except ValueError:
+            continue
+        valid = [img.strip() for img in images if isinstance(img, str) and img.strip().startswith("http")]
+        if valid:
+            return valid
+    img_tags = re.findall(
+        r'<div[^>]*class=[\'"][^\'"]*page-chapter[^\'"]*[\'"][^>]*>\s*<img[^>]*src=[\'"]([^\'"]+)[\'"]',
+        html,
+    )
+    return [img.strip() for img in img_tags if img.strip().startswith("http")]
+
+
+def extract_hentaivnx(target_url):
+    headers = {"User-Agent": USER_AGENT, "Referer": "https://www.hentaivnx.com/"}
+    session = _new_http_session()
+    html = response_text(_get(session, target_url, headers))
+    series_match = re.search(
+        r'href="([^"]+)"[^>]*class="itemcrumb active"[^>]*>\s*<span[^>]*itemprop="name">\s*([^<]+)\s*</span>',
+        html,
+    )
+    if series_match:
+        series_url = series_match.group(1)
+        title = sanitize_filename(series_match.group(2))
+    else:
+        title_match = re.search(r"<title>\s*(.*?)\s*</title>", html, re.S)
+        title = sanitize_filename(title_match.group(1)) if title_match else "Downloaded_Manga"
+        series_url = target_url
+
+    chapters = get_chapters_from_series(session, series_url, headers)
+    if not chapters:
+        chapter_name = "Chapter 0"
+        c_match = re.search(r"Chapter\s*(\d+)", target_url, re.I)
+        if c_match:
+            chapter_name = f"Chapter {c_match.group(1)}"
+        chapters = [{"name": chapter_name, "url": target_url}]
+
+    urls = []
+    for chapter in chapters:
+        urls.extend(get_images_from_chapter(session, chapter["url"], headers))
+    return title, urls, headers
+
+
+def decode_vi_hentai_packer(h, u, n, t, e):
+    delimiter = n[e]
+    base_chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/"[:e]
+    out = bytearray()
+    for part in h.split(delimiter):
+        if not part:
+            continue
+        value = part
+        for index, char in enumerate(n):
+            value = value.replace(char, str(index))
+        number = 0
+        for char in value:
+            try:
+                digit = base_chars.index(char)
+            except ValueError:
+                continue
+            number = number * e + digit
+        code = number - t
+        if 0 <= code <= 255:
+            out.append(code)
+    return out.decode("utf-8", errors="replace")
+
+
+def extract_vi_hentai_chapter(session, chapter_url, headers):
+    html = response_text(_get(session, chapter_url, headers))
+    match = re.search(
+        r'\}\(\s*"([^"]+)"\s*,\s*(\d+)\s*,\s*"([^"]+)"\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)\)',
+        html,
+    )
+    if not match:
+        images = re.findall(r'https?://img\.shousetsu\.dev/[^"\'\s]+', html)
+        if images:
+            return images
+        raise DownloadFailed(f"Could not find image data in chapter: {chapter_url}")
+    h, u, n, t, e, _ = match.groups()
+    unpacked = decode_vi_hentai_packer(h, int(u), n, int(t), int(e))
+    urls = []
+    for raw in re.findall(r'https?:\\?/\\?/[^"\']+', unpacked):
+        cleaned = raw.replace(r"\/", "/").replace("\\", "")
+        if any(cleaned.lower().endswith(ext) for ext in IMAGE_EXTS) or "shousetsu.dev" in cleaned:
+            urls.append(cleaned)
+    return urls
+
+
+def extract_vi_hentai(target_url):
+    headers = {"User-Agent": USER_AGENT, "Referer": "https://vi-hentai.moe/"}
+    session = _new_http_session()
+    parts = [p for p in urlparse(target_url).path.split("/") if p]
+
+    if len(parts) >= 3 and parts[0] == "truyen":
+        html = response_text(_get(session, target_url, headers))
+        title_match = re.search(r"<title>(.*?)</title>", html, re.I | re.S)
+        title = sanitize_filename(
+            re.sub(r"\s*-\s*Việt Hentai.*$", "", title_match.group(1), flags=re.I).strip()
+        ) if title_match else sanitize_filename(f"{parts[1]}_{parts[2]}")
+        return title, extract_vi_hentai_chapter(session, target_url, headers), headers
+
+    html = response_text(_get(session, target_url, headers))
+    title_match = re.search(r"<title>(.*?)</title>", html, re.I | re.S)
+    if title_match:
+        title = sanitize_filename(
+            re.sub(r"\s*-\s*Việt Hentai.*$", "", title_match.group(1), flags=re.I).strip()
+        )
+    else:
+        title = sanitize_filename(parts[1] if len(parts) > 1 else "vi_hentai")
+
+    series_key = parts[1] if len(parts) > 1 else ""
+    links = []
+    seen = set()
+    for chapter in re.findall(rf'href=["\'](/truyen/{re.escape(series_key)}/[^/"\']+)["\']', html):
+        if chapter not in seen:
+            seen.add(chapter)
+            links.append(f"https://vi-hentai.moe{chapter}")
+
+    if not links:
+        return title, extract_vi_hentai_chapter(session, target_url, headers), headers
+
+    def chapter_key(url):
+        numbers = re.findall(r"\d+", url.split("/")[-1])
+        return int(numbers[0]) if numbers else 9999
+
+    if all(re.search(r"\d+", link.split("/")[-1]) for link in links):
+        links.sort(key=chapter_key)
+    else:
+        links.reverse()
+
+    urls = []
+    for link in links:
+        urls.extend(extract_vi_hentai_chapter(session, link, headers))
+    return title, urls, headers
+
+
+def extract_gallery_dl(target_url):
+    if gdl_job is None:
+        raise DownloadFailed("gallery-dl is not installed")
+    job = gdl_job.DataJob(target_url, file=None)
+    job.run()
+    if not job.data_urls:
+        raise DownloadFailed("gallery-dl found no images")
+    title = None
+    if job.data_post:
+        for post in job.data_post:
+            if post.get("title"):
+                title = sanitize_filename(post["title"])
+                break
+    if not title:
+        path = urlparse(target_url).path.strip("/").replace("/", "_")
+        title = sanitize_filename(path or "downloaded_manga")
+    if hasattr(job.extractor, "session"):
+        headers = dict(job.extractor.session.headers)
+    else:
+        headers = {"User-Agent": USER_AGENT}
+    return title, job.data_urls, headers
+
+
+def extract_manga_info(target_url):
+    domain = urlparse(target_url).netloc.lower()
+    if "hitomi.la" in domain:
+        return extract_hitomi(target_url)
+    if "vi-hentai" in domain:
+        return extract_vi_hentai(target_url)
+    if "imhentai" in domain:
+        return extract_imhentai(target_url)
+    if "nhentai" in domain:
+        return extract_nhentai(target_url)
+    if "hentaivn" in domain:
+        return extract_hentaivnx(target_url)
+    try:
+        return extract_gallery_dl(target_url)
+    except Exception:
+        return extract_hentaivnx(target_url)
+
+
+_patched_module = os.environ.get("YOMIKIRU_DOWNLOADER_EXTRACTOR_MODULE")
+if _patched_module:
+    try:
+        extract_manga_info = importlib.import_module(_patched_module).extract_manga_info
+    except Exception as exc:
+        print(f"worker: cannot load extractor module {_patched_module}: {exc}", file=sys.stderr)
+        raise SystemExit(2)
+
+
+class Emitter:
+    def __init__(self, stream):
+        self._stream = stream
+        self._lock = threading.Lock()
+
+    def emit(self, event, **fields):
+        payload = {"event": event}
+        payload.update(fields)
+        line = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+        with self._lock:
+            try:
+                self._stream.write(line + "\n")
+                self._stream.flush()
+            except (BrokenPipeError, OSError):
+                pass
+
+
+@dataclass
+class Job:
+    id: str
+    url: str
+    out_dir: str
+    keep_folder: bool = False
+    cancel: threading.Event = field(default_factory=threading.Event)
+    title: str | None = None
+    progress: int = 0
+    downloaded: int = 0
+    total: int = 0
+    output_path: str | None = None
+    status: str = "queued"
+
+
+def job_fields(job: Job, status, message=None, error=None, progress=None, output_path=None):
+    return {
+        "id": job.id,
+        "status": status,
+        "title": job.title,
+        "progress": job.progress if progress is None else progress,
+        "downloaded": job.downloaded,
+        "total": job.total,
+        "outputPath": job.output_path if output_path is None else output_path,
+        "message": message,
+        "error": error,
+    }
+
+
+class ProgressReporter:
+    def __init__(self, job, emit):
+        self.job = job
+        self.emit = emit
+        self._lock = threading.Lock()
+        self._last = 0.0
+        self._published = None
+
+    def advance(self, count=1, force=False):
+        with self._lock:
+            self.job.downloaded += count
+            now = time.monotonic()
+            if force or self.job.total == 0 or self.job.downloaded >= self.job.total or now - self._last >= PROGRESS_INTERVAL:
+                self._last = now
+                self._publish()
+
+    def _publish(self):
+        snapshot = (self.job.downloaded, self.job.total)
+        if snapshot == self._published:
+            return
+        self._published = snapshot
+        total = self.job.total
+        percent = 100 if total and self.job.downloaded >= total else int(self.job.downloaded * 100 / total) if total else 0
+        self.job.progress = max(0, min(100, percent))
+        self.emit("job", **job_fields(self.job, "downloading"))
+
+
+class Downloader:
+    def __init__(self, emit):
+        self.emit = emit
+        self._cond = threading.Condition()
+        self._queue: deque[Job] = deque()
+        self._jobs: dict[str, Job] = {}
+        self._active: Job | None = None
+        self._stopping = False
+        self._thread = threading.Thread(target=self._runner, name="job-runner", daemon=True)
+
+    def start(self):
+        self._thread.start()
+
+    def add(self, job_id, url, out_dir, keep_folder=False):
+        if not isinstance(job_id, str) or not job_id.strip():
+            self._log(None, "error", "add: missing or invalid job id")
+            return
+        if not isinstance(url, str) or urlparse(url).scheme not in ("http", "https"):
+            self._reject(job_id, "add: url must start with http:// or https://")
+            return
+        if not isinstance(out_dir, str) or not out_dir.strip():
+            self._reject(job_id, "add: missing outDir")
+            return
+        out_dir = os.path.abspath(os.path.expanduser(out_dir))
+        job = Job(id=job_id, url=url.strip(), out_dir=out_dir, keep_folder=bool(keep_folder))
+        with self._cond:
+            if job_id in self._jobs:
+                duplicate = True
+            else:
+                duplicate = False
+                self._jobs[job_id] = job
+                self._queue.append(job)
+                self._cond.notify()
+        if duplicate:
+            self._log(job_id, "error", "add: duplicate job id")
+            return
+        self._log(job_id, "info", f"Queued {job.url}")
+
+    def cancel(self, job_id):
+        removed = False
+        with self._cond:
+            job = self._jobs.get(job_id)
+            if job is not None:
+                job.cancel.set()
+                try:
+                    self._queue.remove(job)
+                    removed = True
+                    job.status = "cancelled"
+                except ValueError:
+                    removed = False
+        if job is None:
+            self._log(job_id, "warn", "cancel: unknown job id")
+            return
+        if removed:
+            self._terminal(job, "cancelled", message="Cancelled before start")
+
+    def stop(self):
+        with self._cond:
+            self._stopping = True
+            if self._active is not None:
+                self._active.cancel.set()
+            pending = list(self._queue)
+            self._queue.clear()
+            self._cond.notify_all()
+        for job in pending:
+            job.cancel.set()
+            self._terminal(job, "cancelled", message="Cancelled before start")
+
+    def wait(self, timeout):
+        self._thread.join(timeout)
+        return not self._thread.is_alive()
+
+    def status(self):
+        with self._cond:
+            return (self._active.id if self._active else None, len(self._queue))
+
+    def _reject(self, job_id, message):
+        job = Job(id=job_id, url="", out_dir="")
+        self.emit("job", **job_fields(job, "error", message=message, error=message))
+        self._log(job_id, "error", message)
+
+    def _log(self, job_id, level, message):
+        self.emit("log", id=job_id, level=level, message=message)
+
+    def _terminal(self, job, status, message=None, error=None):
+        with self._cond:
+            job.status = status
+            self._jobs.pop(job.id, None)
+        self.emit("job", **job_fields(job, status, message=message, error=error))
+
+    def _check_cancel(self, job):
+        if job.cancel.is_set():
+            raise JobCancelled
+
+    def _runner(self):
+        while True:
+            with self._cond:
+                while not self._queue and not self._stopping:
+                    self._cond.wait()
+                if self._stopping:
+                    return
+                job = self._queue.popleft()
+                self._active = job
+            try:
+                self._check_cancel(job)
+                self._run(job)
+            except JobCancelled:
+                self._log(job.id, "info", "Job cancelled")
+                self._terminal(job, "cancelled", message="Cancelled")
+            except (Exception, SystemExit) as exc:
+                self._log(job.id, "error", f"Job failed: {exc}")
+                self._terminal(job, "error", message="Download failed", error=str(exc))
+            finally:
+                with self._cond:
+                    if self._active is job:
+                        self._active = None
+
+    def _run(self, job):
+        job.status = "resolving"
+        self.emit("job", **job_fields(job, "resolving", message="Resolving gallery"))
+        self._log(job.id, "info", f"Resolving {job.url}")
+
+        title, urls, headers = extract_manga_info(job.url)
+        self._check_cancel(job)
+
+        urls = [
+            url for url in urls
+            if isinstance(url, str) and url.lower().startswith(("http://", "https://"))
+        ]
+        if not urls:
+            raise DownloadFailed("No downloadable images found")
+        headers = dict(headers or {})
+        headers.setdefault("User-Agent", USER_AGENT)
+
+        job.title = sanitize_filename(title or "download")
+        job.total = len(urls)
+        job.progress = 0
+        os.makedirs(job.out_dir, exist_ok=True)
+        if not os.path.isdir(job.out_dir):
+            raise DownloadFailed(f"Output directory is not usable: {job.out_dir}")
+
+        self._log(job.id, "info", f"Found {job.total} image(s): {job.title}")
+        self.emit("job", **job_fields(job, "downloading", message=f"0/{job.total} images"))
+
+        temp_dir = tempfile.mkdtemp(prefix=f"_temp_{job.title[:48]}_", dir=job.out_dir)
+        zip_path = safe_child(job.out_dir, f"{job.title}.zip")
+        zip_part = zip_path + ".part"
+        keep_temp = False
+        try:
+            completed = self._download_all(job, urls, headers, temp_dir)
+            if not completed:
+                raise DownloadFailed("All image downloads failed")
+            if len(completed) < job.total:
+                self._log(job.id, "warn", f"{job.total - len(completed)} image(s) could not be downloaded")
+
+            self._check_cancel(job)
+            job.status = "packing"
+            self.emit("job", **job_fields(job, "packing", message="Packing ZIP"))
+            self._log(job.id, "info", f"Packing {len(completed)} image(s)")
+
+            with zipfile.ZipFile(zip_part, "w", zipfile.ZIP_DEFLATED) as archive:
+                for path in completed:
+                    self._check_cancel(job)
+                    archive.write(path, arcname=os.path.basename(path))
+            os.replace(zip_part, zip_path)
+
+            if job.keep_folder:
+                folder_path = safe_child(job.out_dir, job.title)
+                if os.path.isdir(folder_path):
+                    shutil.rmtree(folder_path)
+                elif os.path.exists(folder_path):
+                    raise DownloadFailed(f"Cannot keep image folder; file exists: {folder_path}")
+                os.replace(temp_dir, folder_path)
+                keep_temp = True
+                message = "Saved ZIP and image folder"
+            else:
+                shutil.rmtree(temp_dir, ignore_errors=True)
+                keep_temp = True
+                message = "Saved ZIP"
+
+            job.output_path = zip_path
+            job.downloaded = len(completed)
+            job.progress = 100
+            self._log(job.id, "info", f"Saved {zip_path}")
+            self._terminal(job, "done", message=message)
+        except BaseException:
+            if not keep_temp:
+                shutil.rmtree(temp_dir, ignore_errors=True)
+            unlink(zip_part)
+            raise
+
+    def _download_all(self, job, urls, headers, temp_dir):
+        pad = max(3, len(str(len(urls))))
+        tasks = []
+        for index, url in enumerate(urls, 1):
+            dest = os.path.join(temp_dir, f"{index:0{pad}d}{image_extension(url)}")
+            tasks.append((index, url, dest))
+
+        reporter = ProgressReporter(job, self.emit)
+
+        def work(task):
+            index, url, dest = task
+            download_image(url, dest, headers, job.cancel)
+            reporter.advance()
+
+        def run_pass(batch, workers):
+            failures = []
+            executor = ThreadPoolExecutor(max_workers=max(1, min(workers, len(batch))))
+            future_map = {executor.submit(work, task): task for task in batch}
+            try:
+                for future in as_completed(future_map):
+                    if job.cancel.is_set():
+                        raise JobCancelled
+                    task = future_map[future]
+                    try:
+                        future.result()
+                    except JobCancelled:
+                        raise
+                    except Exception as exc:
+                        failures.append(task)
+                        self._log(job.id, "warn", f"Image {task[0]} failed: {exc}")
+            finally:
+                for future in future_map:
+                    future.cancel()
+                executor.shutdown(wait=True, cancel_futures=True)
+            return failures
+
+        failures = run_pass(tasks, DOWNLOAD_WORKERS)
+        reporter.advance(0, force=True)
+        if failures:
+            self._log(job.id, "warn", f"Retrying {len(failures)} image(s)")
+            if job.cancel.wait(1.5):
+                raise JobCancelled
+            failures = run_pass(failures, RETRY_WORKERS)
+            reporter.advance(0, force=True)
+        if failures:
+            self._log(job.id, "warn", f"{len(failures)} image(s) still missing")
+
+        return [
+            task[2] for task in tasks
+            if os.path.isfile(task[2]) and os.path.getsize(task[2]) > 0
+        ]
+
+
+def configure_stdio():
+    for stream in (sys.stdin, sys.stdout):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace", newline="\n")
+        except (AttributeError, ValueError):
+            pass
+
+
+def main():
+    configure_stdio()
+    emit = Emitter(sys.stdout).emit
+    downloader = Downloader(emit)
+    downloader.start()
+    emit("ready")
+
+    def request_stop(signum, frame):
+        raise SystemExit(0)
+
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            signal.signal(sig, request_stop)
+        except (OSError, ValueError):
+            pass
+
+    try:
+        while True:
+            line = sys.stdin.readline()
+            if not line:
+                break
+            line = line.strip()
+            if line.startswith("\ufeff"):
+                line = line.lstrip("\ufeff")
+            if not line:
+                continue
+            try:
+                message = json.loads(line)
+            except ValueError as exc:
+                emit("log", id=None, level="error", message=f"Invalid JSON: {exc}")
+                continue
+            if not isinstance(message, dict):
+                emit("log", id=None, level="error", message="Command must be a JSON object")
+                continue
+
+            cmd = message.get("cmd")
+            if cmd == "add":
+                downloader.add(
+                    message.get("id"),
+                    message.get("url"),
+                    message.get("outDir"),
+                    bool(message.get("keepFolder", False)),
+                )
+            elif cmd == "cancel":
+                downloader.cancel(message.get("id"))
+            elif cmd == "ping":
+                active, queued = downloader.status()
+                emit("pong", id=message.get("id"), active=active, queued=queued)
+            elif cmd == "shutdown":
+                break
+            else:
+                emit("log", id=message.get("id"), level="error", message=f"Unknown command: {cmd!r}")
+    except (KeyboardInterrupt, SystemExit):
+        pass
+    finally:
+        downloader.stop()
+        if not downloader.wait(5.0):
+            try:
+                sys.stdout.flush()
+            except Exception:
+                pass
+            os._exit(0)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
