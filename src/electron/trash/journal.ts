@@ -43,6 +43,9 @@ export type AppendTrashEntryInput = {
     id?: string;
 };
 
+/** Fields that can be changed on an existing journal row. */
+export type UpdateTrashEntryPatch = Partial<Omit<TrashEntry, "id">>;
+
 /** Options for {@link TrashJournal.listTrashEntries}. */
 export type ListTrashEntriesOptions = {
     /** Keep at most this many of the newest entries. */
@@ -68,6 +71,11 @@ export type TrashJournal = {
     pruneOlderThan: (ms: number, now?: number) => Promise<number>;
     /** Returns one entry, or `null` when the id is unknown. */
     getEntry: (id: string) => Promise<TrashEntry | null>;
+    /**
+     * Merges `patch` into one entry and persists it.
+     * @returns the updated entry, or `null` when the id is unknown
+     */
+    updateEntry: (id: string, patch: UpdateTrashEntryPatch) => Promise<TrashEntry | null>;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -139,6 +147,39 @@ const parseJournal = (raw: string): TrashEntry[] | null => {
 
 /** Shortest useful error text for a log line. */
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
+const isFiniteNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
+
+/**
+ * Merges a patch into a row without letting it drop the id or write invalid
+ * values. `undefined` patch fields mean "leave this field alone".
+ */
+const applyUpdate = (current: TrashEntry, patch: UpdateTrashEntryPatch): TrashEntry => {
+    if (!isRecord(patch)) throw new TypeError("updateEntry: patch must be an object");
+    if (patch.retentionDays !== undefined && !isTrashRetentionDays(patch.retentionDays)) {
+        throw new TypeError("updateEntry: retentionDays must be 1, 3, 7, 15, or 30");
+    }
+    if (patch.status !== undefined && !isStatus(patch.status)) {
+        throw new TypeError('updateEntry: status must be "trashed", "restored", or "missing"');
+    }
+    if (patch.kind !== undefined && !isKind(patch.kind)) {
+        throw new TypeError('updateEntry: kind must be "file" or "folder"');
+    }
+    if (patch.deletedAt !== undefined && !isFiniteNumber(patch.deletedAt)) {
+        throw new TypeError("updateEntry: deletedAt must be a finite number");
+    }
+    if (patch.expiresAt !== undefined && !isFiniteNumber(patch.expiresAt)) {
+        throw new TypeError("updateEntry: expiresAt must be a finite number");
+    }
+
+    const next: TrashEntry = { ...current };
+    const mutable = next as unknown as Record<string, unknown>;
+    for (const [key, value] of Object.entries(patch)) {
+        if (key === "id" || value === undefined) continue;
+        mutable[key] = value;
+    }
+    return next;
+};
 
 /**
  * Creates a journal rooted at `baseDir`. All operations on one instance run
@@ -329,6 +370,20 @@ export const createTrashJournal = (baseDir: string): TrashJournal => {
             return entries.find((entry) => entry.id === id) ?? null;
         });
 
+    const updateEntry = (id: string, patch: UpdateTrashEntryPatch): Promise<TrashEntry | null> =>
+        enqueue(async () => {
+            const entries = await readEntries();
+            const index = entries.findIndex((entry) => entry.id === id);
+            if (index === -1) return null;
+
+            const current = entries[index];
+            if (!current) return null;
+            const updated = applyUpdate(current, patch);
+            entries[index] = updated;
+            await writeEntries(entries);
+            return updated;
+        });
+
     return {
         filePath,
         appendTrashEntry,
@@ -337,6 +392,7 @@ export const createTrashJournal = (baseDir: string): TrashJournal => {
         removeEntry,
         pruneOlderThan,
         getEntry,
+        updateEntry,
     };
 };
 
@@ -368,3 +424,7 @@ export const pruneOlderThan = (ms: number, now?: number): Promise<number> =>
 
 /** Default journal single-entry lookup. */
 export const getEntry = (id: string): Promise<TrashEntry | null> => getDefaultTrashJournal().getEntry(id);
+
+/** Default journal single-entry patch update. */
+export const updateEntry = (id: string, patch: UpdateTrashEntryPatch): Promise<TrashEntry | null> =>
+    getDefaultTrashJournal().updateEntry(id, patch);

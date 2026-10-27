@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import path from "node:path";
+import type { BrowserScannedLink } from "@common/types/browser";
 import {
     type BrowserWindow,
     type DownloadItem,
@@ -10,6 +11,8 @@ import {
     WebContentsView,
 } from "electron";
 import { createMainLogger } from "../util/logger";
+import { enableAdblockInSession } from "./adblock";
+import { normalizeScannedLinks } from "./scanLinks";
 import type {
     BrowserBounds,
     BrowserContextMenuRequest,
@@ -40,6 +43,31 @@ export const BROWSER_SESSION_PARTITION = "persist:browser";
 const DARK_BACKGROUND = "#1b1b1f";
 const LIGHT_BACKGROUND = "#ffffff";
 const DEBUGGER_PROTOCOL_VERSION = "1.3";
+
+/** Raw anchor rows collected per scan before dedupe/sort/cap in Node. */
+const LINK_SCAN_RAW_LIMIT = 5000;
+
+/**
+ * Page script used by {@link BrowserManager.scanLinks}. Anchors expose an
+ * already-absolute `href` (resolved against the document base URL); Node still
+ * re-validates every URL before returning it to the renderer.
+ */
+const LINK_SCAN_SCRIPT = `
+(() => {
+    try {
+        const rows = [];
+        for (const anchor of document.querySelectorAll("a[href]")) {
+            if (rows.length >= ${LINK_SCAN_RAW_LIMIT}) break;
+            const href = anchor.href;
+            if (!href) continue;
+            rows.push({ href, text: anchor.textContent || "" });
+        }
+        return rows;
+    } catch (error) {
+        return [];
+    }
+})()
+`;
 
 /** Chromium clipboard permissions are the only ones granted to page content. */
 const CLIPBOARD_PERMISSIONS = new Set([
@@ -410,6 +438,30 @@ export class BrowserManager extends EventEmitter {
         };
     }
 
+    /**
+     * Collects http(s) links from a tab (defaults to the active one). Returns
+     * an empty list for `about:blank`, destroyed/lazy views, and page-script
+     * failures so callers always receive a safe array.
+     */
+    async scanLinks(tabId?: string): Promise<BrowserScannedLink[]> {
+        if (this.destroyed) return [];
+
+        const tab = this.resolveTab(tabId);
+        const view = tab?.view;
+        if (!tab || !view || view.webContents.isDestroyed()) return [];
+
+        const currentUrl = view.webContents.getURL();
+        if (!isAllowedBrowserUrl(currentUrl)) return [];
+
+        try {
+            const raw: unknown = await view.webContents.executeJavaScript(LINK_SCAN_SCRIPT, false);
+            return normalizeScannedLinks(raw, currentUrl);
+        } catch (error) {
+            logger.warn("could not scan links", currentUrl, error);
+            return [];
+        }
+    }
+
     /** Enables or disables force-dark for every tab. */
     setForceDark(enabled: boolean): void {
         if (this.destroyed || this.forceDark === enabled) return;
@@ -539,6 +591,7 @@ export class BrowserManager extends EventEmitter {
             return isClipboardPermission(permission);
         });
         this.session.on("will-download", this.handleWillDownload);
+        enableAdblockInSession(this.session);
     }
 
     private assertUsable(): void {

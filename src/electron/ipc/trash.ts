@@ -1,10 +1,14 @@
 import {
+    emptyTrash,
     forgetTrashEntry,
+    getTrashStats,
     listActiveTrash,
     openTrashFolder,
     purgeExpiredTrash,
     purgeTrashEntry,
     recoverTrashEntry,
+    restoreAllTrash,
+    setTrashRetention,
 } from "@electron/trash/trashService";
 import { ipc } from "./utils";
 
@@ -20,4 +24,8 @@ export const registerTrashHandlers = (): void => {
     ipc.handle("trash:forget", (_event, { id }) => forgetTrashEntry(id));
     ipc.handle("trash:openFolder", () => openTrashFolder());
     ipc.handle("trash:purgeExpired", () => purgeExpiredTrash());
+    ipc.handle("trash:empty", () => emptyTrash());
+    ipc.handle("trash:stats", () => getTrashStats());
+    ipc.handle("trash:setRetention", (_event, { id, days }) => setTrashRetention(id, days));
+    ipc.handle("trash:restoreAll", () => restoreAllTrash());
 };

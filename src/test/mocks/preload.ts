@@ -266,7 +266,7 @@ export const installPreloadMocks = (): void => {
     onInvoke("covers:materializeFromUrl", () => ({ ok: true }));
     onInvoke("covers:previewForPath", () => ({ ok: false, message: "not mocked" }));
     onInvoke("covers:claimPost0001ThumbnailPrompt", () => false);
-    onInvoke("downloader:getState", () => ({ ready: false, activeId: null, jobs: [] }));
+    onInvoke("downloader:getState", () => ({ ready: false, activeId: null, paused: false, jobs: [] }));
     onInvoke("downloader:add", (request) => ({
         id: request.url,
         url: request.url,
@@ -286,12 +286,23 @@ export const installPreloadMocks = (): void => {
     onInvoke("downloader:cancel", () => undefined);
     onInvoke("downloader:remove", () => undefined);
     onInvoke("downloader:clearFinished", () => undefined);
+    onInvoke("downloader:pause", () => undefined);
+    onInvoke("downloader:resume", () => undefined);
     onInvoke("trash:list", () => []);
     onInvoke("trash:recover", () => ({ ok: false, message: "not mocked" }));
     onInvoke("trash:delete", () => ({ ok: false, message: "not mocked" }));
     onInvoke("trash:forget", () => true);
     onInvoke("trash:openFolder", () => undefined);
     onInvoke("trash:purgeExpired", () => 0);
+    onInvoke("trash:empty", () => ({ ok: true, count: 0 }));
+    onInvoke("trash:stats", () => ({ count: 0, totalBytes: 0 }));
+    onInvoke("trash:setRetention", () => ({ ok: false, message: "not mocked" }));
+    onInvoke("trash:restoreAll", () => ({ ok: true, count: 0, failed: 0 }));
+    onInvoke("browser:scanLinks", () => []);
+    onInvoke("browser:getAdblock", () => ({ enabled: true, ready: false }));
+    onInvoke("browser:setAdblock", () => ({ enabled: true, ready: false }));
+    onInvoke("profileBackup:create", () => ({ ok: false, message: "not mocked" }));
+    onInvoke("profileBackup:restore", () => ({ ok: false, message: "not mocked" }));
     onInvoke("db:library:getAllAndProgress", () => []);
     onInvoke("keymap:nativeAction", () => undefined);
     registerDefaultKeymapHandlers();

@@ -32,16 +32,20 @@ one UTF-8 JSON object. The worker flushes stdout after every event.
 ```json
 {"cmd":"add","id":"job-1","url":"https://nhentai.net/g/123456","outDir":"C:\\Users\\me\\Downloads","keepFolder":false}
 {"cmd":"cancel","id":"job-1"}
+{"cmd":"pause"}
+{"cmd":"resume"}
 {"cmd":"ping"}
 {"cmd":"shutdown"}
 ```
 
 | Command | Fields | Description |
 | --- | --- | --- |
-| `add` | `id` (unique string), `url`, `outDir`, `keepFolder` (bool, optional) | Queue a download. `outDir` is created if needed. |
-| `cancel` | `id` | Cancel a queued or active job. Unknown ids produce a warning log. |
+| `add` | `id` (unique string), `url`, `outDir`, `keepFolder` (bool, optional) | Queue a download. `outDir` is created if needed. Allowed while paused: the job is queued, not started. |
+| `cancel` | `id` | Cancel a queued or active job, including a paused one. Unknown ids produce a warning log. |
+| `pause` | - | Pause the active job and hold the queue. Idempotent. |
+| `resume` | - | Resume a paused worker and continue the queue. Idempotent. |
 | `ping` | `id` (optional) | Liveness check; answered with a `pong` event. |
-| `shutdown` | - | Cancel everything and exit. Also happens on stdin EOF. |
+| `shutdown` | - | Cancel everything and exit, also while paused. Also happens on stdin EOF. |
 
 Jobs run one at a time, FIFO. Adding several jobs queues them; only one is
 `downloading` at any moment.
@@ -52,10 +56,11 @@ Jobs run one at a time, FIFO. Adding several jobs queues them; only one is
 {"event":"ready"}
 {"event":"job","id":"job-1","status":"resolving","title":null,"progress":0,"downloaded":0,"total":0,"outputPath":null,"message":"Resolving gallery","error":null}
 {"event":"job","id":"job-1","status":"downloading","title":"Some Title","progress":33,"downloaded":1,"total":3,"outputPath":null,"message":null,"error":null}
+{"event":"job","id":"job-1","status":"paused","title":"Some Title","progress":33,"downloaded":1,"total":3,"outputPath":null,"message":"Paused","error":null}
 {"event":"job","id":"job-1","status":"packing","title":"Some Title","progress":100,"downloaded":3,"total":3,"outputPath":null,"message":"Packing ZIP","error":null}
 {"event":"job","id":"job-1","status":"done","title":"Some Title","progress":100,"downloaded":3,"total":3,"outputPath":"C:\\Users\\me\\Downloads\\Some Title.zip","message":"Saved ZIP","error":null}
 {"event":"log","id":"job-1","level":"info","message":"Found 3 image(s): Some Title"}
-{"event":"pong","id":null,"active":null,"queued":0}
+{"event":"pong","id":null,"active":null,"queued":0,"paused":false}
 ```
 
 `ready` is the first line emitted, before any command is processed. Then the
@@ -66,7 +71,7 @@ Every `job` event contains the same keys:
 | Key | Type | Meaning |
 | --- | --- | --- |
 | `id` | string | Job id from `add`. |
-| `status` | string | `resolving`, `downloading`, `packing`, `done`, `error` or `cancelled`. |
+| `status` | string | `resolving`, `downloading`, `paused`, `packing`, `done`, `error` or `cancelled`. |
 | `title` | string \| null | Sanitized gallery title; null until resolution succeeds. |
 | `progress` | int 0-100 | Monotonic per job. 100 when `done`. |
 | `downloaded` | int | Images successfully written so far. |
@@ -76,23 +81,30 @@ Every `job` event contains the same keys:
 | `error` | string \| null | Error detail for `error` events. |
 
 Terminal statuses are `done`, `error` and `cancelled`; exactly one is emitted per
-job. A `log` event has `id` (string or null), `level` (`info`, `warn`, `error`)
-and `message`. Logs are informational and must not be treated as terminal
-events.
+job, including across any number of pause/resume cycles. `paused` is not
+terminal: it always carries the progress reached so far and is followed by
+`downloading` on resume. A `log` event has `id` (string or null), `level`
+(`info`, `warn`, `error`) and `message`. Logs are informational and must not be
+treated as terminal events.
 
 `pong` fields: `id` (echo of the ping id, or null), `active` (active job id or
-null), `queued` (number of waiting jobs).
+null), `queued` (number of waiting jobs), `paused` (worker pause flag).
 
 ## Behaviour
 
 - Images are streamed with `requests`/`curl_cffi` using `iter_content` and
   written to `<file>.part` before an atomic `os.replace`.
+- `pause` stops new images from starting, holds the queue (no next job begins)
+  and blocks inside the streaming loop between chunks, so in-flight images stop
+  at the next chunk instead of being discarded. `resume` continues from the
+  `.part` files. Pause latency for an image whose server has stalled is bounded
+  by the 25 s request timeout.
 - Each image is retried up to 4 times with exponential backoff; `429`
   `Retry-After` is honoured. A failed first pass is retried once more with
   reduced concurrency.
 - Cancellation is checked before requests, while streaming and between ZIP
-  entries. Cancelling during an extractor network call takes effect when that
-  call returns or times out.
+  entries, and it still works while paused. Cancelling during an extractor
+  network call takes effect when that call returns or times out.
 - Images are named `001.jpg`, `002.png`, ... using zero padding and the
   extension from the source URL.
 - The ZIP is written with `ZIP_DEFLATED` to `<title>.zip.part` and atomically
@@ -142,15 +154,22 @@ python downloader/smoke_test.py
 
 The smoke test starts a local HTTP server on `127.0.0.1` serving three
 generated PNGs, loads a fake extractor, and drives the real worker through a
-subprocess. It covers a normal ZIP download, `keepFolder: true`, cancellation
-and extractor failure. It never contacts a real website. Expected output:
+subprocess. It covers a normal ZIP download, `keepFolder: true`, pause/resume
+(including a queue held while paused and cancel while paused), cancellation,
+extractor failure and shutdown while paused. It never contacts a real website.
+Expected output:
 
 ```text
 PASS job-main: ZIP downloaded, packed and verified
 PASS job-keep: keepFolder preserved the image folder
+PASS job-pause: pause stopped streaming, resume finished the job
+PASS job-queued: queue stayed held while paused, then ran after resume
+PASS job-pause-cancel: cancel works while paused
 PASS job-cancel: cancellation produced a cancelled terminal event
 PASS job-error: extractor failure produced an error event
+PASS shutdown: worker exits cleanly while paused
 PASS protocol: ... worker events were valid JSON lines
+PASS terminal: one terminal event for each of 7 jobs
 SMOKE TEST PASSED
 ```
 

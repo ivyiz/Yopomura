@@ -17,6 +17,7 @@ remote.initialize();
 
 if (require("electron-squirrel-startup")) app.quit();
 
+import { applyPendingProfileRestore } from "./backup/profileBackup";
 import { DatabaseService } from "./db";
 import { DRIZZLE_TAG_LIBRARY_ITEM_IDS } from "./db/migrations";
 import { registerI18nHandlers, setApplicationMenuRebuild } from "./i18n/ipc";
@@ -33,6 +34,7 @@ import { registerExplorerHandlers } from "./ipc/explorer";
 import { registerFSHandlers } from "./ipc/fs";
 import { nativeMenuAccelerator, registerKeymapHandlers, runNativeKeymapAction } from "./ipc/keymap";
 import { registerLibraryScanHandlers, stopLibraryScan } from "./ipc/libraryScan";
+import { registerProfileBackupHandlers } from "./ipc/profileBackup";
 import { registerTrashHandlers } from "./ipc/trash";
 import { registerUpdateHandlers } from "./ipc/update";
 import { startTrashScheduler, stopTrashScheduler } from "./trash/trashService";
@@ -192,6 +194,14 @@ app.on("ready", async () => {
         WindowManager.setupWindowsTasks();
 
         const cold = await runDbBackupStartupBeforeOpen();
+        /* A staged full-profile restore wins over the DB-only cold restore. */
+        const profileRestoreApplied = await applyPendingProfileRestore();
+        if (profileRestoreApplied) {
+            /* Apply restored main settings and library on a clean launch. */
+            app.relaunch();
+            app.exit(0);
+            return;
+        }
 
         db = new DatabaseService();
         setLiveSqlite(db.sqliteDb);
@@ -218,6 +228,7 @@ app.on("ready", async () => {
 
         setupDatabaseHandlers(db);
         registerDbBackupHandlers(db);
+        registerProfileBackupHandlers();
         registerCoverHandlers();
 
         WindowManager.registerListeners();

@@ -3,6 +3,8 @@ export type DownloaderJobStatus =
     | "queued"
     | "resolving"
     | "downloading"
+    /** Active job held by a worker-wide pause; not terminal. */
+    | "paused"
     | "packing"
     | "done"
     | "error"
@@ -30,6 +32,8 @@ export type DownloaderState = {
     ready: boolean;
     /** Job currently owned by the worker, or null. */
     activeId: string | null;
+    /** True while the worker holds downloads and its queue. */
+    paused: boolean;
     jobs: DownloaderJob[];
 };
 

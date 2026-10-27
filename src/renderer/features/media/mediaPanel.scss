@@ -1,0 +1,1467 @@
+/*
+ * Local media panel.
+ *
+ * Scoped entirely to `.mediaPanel*` and built from the app theme variables: surfaces are the
+ * theme tones mixed toward near-black so a light app theme still reads as a media app, while
+ * borders, text, and progress reuse the theme. No gradients on surfaces, no blur, no glow.
+ */
+
+@mixin mediaPanelScrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb-color) transparent;
+
+    &::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        border: 3px solid transparent;
+        border-radius: 999px;
+        background: var(--scrollbar-thumb-color);
+        background-clip: content-box;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+        background: var(--scrollbar-thumb-color-hover);
+        background-clip: content-box;
+    }
+
+    &::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+}
+
+.mediaPanelOverlay {
+    /* Theme-first palette: low theme percentages tint a fixed dark media base. */
+    --mediaPanel-bg: color-mix(in srgb, var(--body-bg-color) 12%, #07080b);
+    --mediaPanel-elevated: color-mix(in srgb, var(--topBar-color) 10%, #0a0c10);
+    --mediaPanel-surface: color-mix(in srgb, var(--btn-color) 14%, #0e1015);
+    --mediaPanel-surface-hover: color-mix(in srgb, var(--btn-color-hover) 16%, #141820);
+    --mediaPanel-border: color-mix(in srgb, var(--divider-color) 24%, #262b34);
+    --mediaPanel-text: color-mix(in srgb, var(--font-color) 18%, #f1f3f7);
+    --mediaPanel-muted: color-mix(in srgb, var(--font-color-secondary) 22%, #9aa2b0);
+    --mediaPanel-progress: color-mix(in srgb, var(--icon-color) 24%, #ffffff);
+    --mediaPanel-video-text: color-mix(in srgb, var(--font-color) 20%, #ffffff);
+    --mediaPanel-video-muted: color-mix(in srgb, var(--font-color-secondary) 22%, #d3d7df);
+    --mediaPanel-radius: 10px;
+
+    position: fixed;
+    inset: 0;
+    /* Above the top bar (1,000,000), below the app's blocking overlay (2,000,000). */
+    z-index: 1500000;
+    display: flex;
+    min-width: 0;
+    overflow: hidden;
+    color-scheme: dark;
+    color: var(--mediaPanel-text);
+    background: var(--mediaPanel-bg);
+    outline: none;
+    user-select: none;
+    -webkit-app-region: no-drag;
+}
+
+.mediaPanel {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    outline: none;
+
+    button {
+        font-family: inherit;
+        cursor: pointer;
+
+        &:focus {
+            box-shadow: none;
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--mediaPanel-progress);
+            outline-offset: 2px;
+        }
+
+        &:disabled {
+            opacity: 0.38;
+            cursor: default;
+            pointer-events: none;
+        }
+    }
+
+    input,
+    select {
+        font-family: inherit;
+        color: var(--mediaPanel-text);
+
+        &:focus {
+            outline: none;
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--mediaPanel-progress);
+            outline-offset: 1px;
+        }
+    }
+}
+
+/* ------------------------------------------------------------------ header */
+
+.mediaPanelHeader {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--mediaPanel-border);
+    background: var(--mediaPanel-elevated);
+    -webkit-app-region: no-drag;
+}
+
+.mediaPanelBrand {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.mediaPanelBrandIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--mediaPanel-border);
+    border-radius: 9px;
+    background: var(--mediaPanel-surface);
+    color: var(--mediaPanel-text);
+    font-size: 0.95rem;
+}
+
+.mediaPanelBrandText {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.mediaPanelBrandTitle {
+    font-size: 0.98rem;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: 0.01em;
+}
+
+.mediaPanelBrandSubtitle {
+    color: var(--mediaPanel-muted);
+    font-size: 0.66rem;
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+}
+
+.mediaPanelSearch {
+    position: relative;
+    flex: 1 1 280px;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    max-width: 480px;
+    margin: 0 auto;
+
+    input {
+        width: 100%;
+        height: 36px;
+        min-width: 0;
+        padding: 0 34px 0 33px;
+        border: 1px solid var(--mediaPanel-border);
+        border-radius: 9px;
+        background: color-mix(in srgb, var(--text-input-bg) 16%, #0b0d12);
+        color: var(--mediaPanel-text);
+        font-size: 0.83rem;
+        line-height: 1;
+        transition: border-color 0.15s ease;
+
+        &::placeholder {
+            color: color-mix(in srgb, var(--mediaPanel-muted) 82%, transparent);
+        }
+
+        &:focus {
+            border-color: color-mix(in srgb, var(--mediaPanel-progress) 44%, var(--mediaPanel-border));
+        }
+
+        &::-webkit-search-cancel-button {
+            display: none;
+        }
+    }
+}
+
+.mediaPanelSearchIcon {
+    position: absolute;
+    left: 11px;
+    color: var(--mediaPanel-muted);
+    font-size: 0.78rem;
+    pointer-events: none;
+}
+
+.mediaPanelSearchClear {
+    position: absolute;
+    right: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--mediaPanel-muted);
+    font-size: 0.72rem;
+
+    &:hover {
+        background: var(--mediaPanel-surface);
+        color: var(--mediaPanel-text);
+    }
+}
+
+.mediaPanelHeaderActions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mediaPanelSort {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 36px;
+    padding: 0 9px 0 11px;
+    border: 1px solid var(--mediaPanel-border);
+    border-radius: 9px;
+    background: transparent;
+    color: var(--mediaPanel-muted);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+
+    > span {
+        white-space: nowrap;
+    }
+
+    select {
+        height: 100%;
+        padding: 0 4px;
+        border: 0;
+        background: transparent;
+        color: var(--mediaPanel-text);
+        font-size: 0.78rem;
+        cursor: pointer;
+
+        option {
+            background: var(--mediaPanel-surface);
+            color: var(--mediaPanel-text);
+        }
+    }
+
+    &:hover {
+        border-color: color-mix(in srgb, var(--mediaPanel-text) 20%, var(--mediaPanel-border));
+    }
+}
+
+.mediaPanelIconButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid var(--mediaPanel-border);
+    border-radius: 9px;
+    background: transparent;
+    color: var(--mediaPanel-muted);
+    font-size: 0.85rem;
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+
+    &:hover:not(:disabled) {
+        border-color: color-mix(in srgb, var(--mediaPanel-text) 20%, var(--mediaPanel-border));
+        background: var(--mediaPanel-surface);
+        color: var(--mediaPanel-text);
+    }
+
+    &.is-spinning svg {
+        animation: mediaPanelSpin 0.9s linear infinite;
+    }
+}
+
+/* -------------------------------------------------------------------- body */
+
+.mediaPanelBody {
+    flex: 1 1 auto;
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+}
+
+.mediaPanelMain {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    padding: 18px 20px 26px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+
+    @include mediaPanelScrollbar;
+}
+
+/* ------------------------------------------------------------------- stage */
+
+.mediaPanelStage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border: 1px solid var(--mediaPanel-border);
+    border-radius: 12px;
+    background: #000;
+    isolation: isolate;
+
+    &:fullscreen {
+        width: 100%;
+        height: 100%;
+        aspect-ratio: auto;
+        border: 0;
+        border-radius: 0;
+    }
+}
+
+.mediaPanelVideo {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    object-fit: contain;
+    cursor: pointer;
+}
+
+.mediaPanelCenterPlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--mediaPanel-video-text) 24%, transparent);
+    border-radius: 50%;
+    background: color-mix(in srgb, #000 62%, transparent);
+    color: var(--mediaPanel-video-text);
+    font-size: 1.15rem;
+    transform: translate(-50%, -50%);
+    transition:
+        background-color 0.15s ease,
+        transform 0.15s ease;
+
+    svg {
+        margin-left: 3px;
+    }
+
+    &:hover {
+        background: color-mix(in srgb, #000 78%, transparent);
+        transform: translate(-50%, -50%) scale(1.04);
+    }
+}
+
+.mediaPanelStageSpinner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.mediaPanelSpinner {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    border: 2px solid color-mix(in srgb, var(--mediaPanel-muted) 26%, transparent);
+    border-top-color: var(--mediaPanel-progress);
+    border-radius: 50%;
+    animation: mediaPanelSpin 0.8s linear infinite;
+}
+
+.mediaPanelStageState {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 26px;
+    background: color-mix(in srgb, #000 84%, transparent);
+    text-align: center;
+}
+
+.mediaPanelStageStateTitle {
+    color: var(--mediaPanel-video-text);
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.mediaPanelStageStateText {
+    max-width: 46ch;
+    color: var(--mediaPanel-video-muted);
+    font-size: 0.82rem;
+    line-height: 1.55;
+}
+
+.mediaPanelButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    padding: 0 13px;
+    border: 1px solid var(--mediaPanel-border);
+    border-radius: 8px;
+    background: var(--mediaPanel-surface);
+    color: var(--mediaPanel-text);
+    font-size: 0.8rem;
+    font-weight: 500;
+
+    &:hover {
+        background: var(--mediaPanel-surface-hover);
+    }
+}
+
+/* ---------------------------------------------------------------- controls */
+
+.mediaPanelControls {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 2;
+    padding: 30px 12px 8px;
+    color: var(--mediaPanel-video-text);
+    background: linear-gradient(
+        to top,
+        color-mix(in srgb, #000 88%, transparent),
+        color-mix(in srgb, #000 56%, transparent) 52%,
+        transparent
+    );
+}
+
+.mediaPanelSeekRow {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.mediaPanelTime {
+    flex: 0 0 auto;
+    min-width: 38px;
+    color: var(--mediaPanel-video-muted);
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+    text-align: left;
+
+    &.is-duration {
+        text-align: right;
+    }
+}
+
+.mediaPanelSeek {
+    position: relative;
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    height: 18px;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.mediaPanelSeekTrack {
+    position: absolute;
+    right: 0;
+    left: 0;
+    height: 4px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--mediaPanel-video-text) 22%, transparent);
+    transition: height 0.12s ease;
+}
+
+.mediaPanelSeekBuffered {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    background: color-mix(in srgb, var(--mediaPanel-video-text) 34%, transparent);
+}
+
+.mediaPanelSeekPlayed {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    background: var(--mediaPanel-progress);
+}
+
+.mediaPanelSeekThumb {
+    position: absolute;
+    top: 50%;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--mediaPanel-progress);
+    opacity: 0;
+    transform: translate(-50%, -50%);
+    transition: opacity 0.12s ease;
+    pointer-events: none;
+}
+
+.mediaPanelSeek:hover .mediaPanelSeekTrack,
+.mediaPanelSeek:focus-within .mediaPanelSeekTrack {
+    height: 5px;
+}
+
+.mediaPanelSeek:hover .mediaPanelSeekThumb,
+.mediaPanelSeek:focus-within .mediaPanelSeekThumb {
+    opacity: 1;
+}
+
+.mediaPanelSeekInput {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 18px;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* Hover/drag preview: a muted twin <video> seeks to the hovered time. */
+.mediaPanelSeekPreview {
+    position: absolute;
+    bottom: calc(100% + 14px);
+    z-index: 4;
+    width: 168px;
+    overflow: hidden;
+    border: 1px solid var(--mediaPanel-border);
+    border-radius: 8px;
+    background: #000;
+    box-shadow: 0 12px 28px color-mix(in srgb, #000 58%, transparent);
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, 4px) scale(0.985);
+    transition:
+        opacity 0.12s ease,
+        transform 0.12s ease,
+        visibility 0.12s;
+    pointer-events: none;
+
+    &.is-visible {
+        opacity: 1;
+        visibility: visible;
+        transform: translate(-50%, 0) scale(1);
+    }
+}
+
+.mediaPanelSeekPreviewVideo {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    object-fit: contain;
+}
+
+.mediaPanelSeekPreviewTime {
+    display: block;
+    padding: 3px 7px;
+    border-top: 1px solid var(--mediaPanel-border);
+    background: color-mix(in srgb, var(--mediaPanel-surface) 76%, #000);
+    color: var(--mediaPanel-video-text);
+    font-size: 0.68rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.mediaPanelControlRow {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-top: 3px;
+}
+
+.mediaPanelControlButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--mediaPanel-video-text);
+    font-size: 0.88rem;
+    transition:
+        background-color 0.13s ease,
+        color 0.13s ease;
+
+    &:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--mediaPanel-video-text) 14%, transparent);
+    }
+
+    &.is-active {
+        color: var(--mediaPanel-progress);
+    }
+
+    &.is-primary {
+        font-size: 0.95rem;
+    }
+
+    &:focus-visible {
+        outline-color: var(--mediaPanel-progress);
+        outline-offset: -1px;
+    }
+}
+
+.mediaPanelVolume {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+}
+
+.mediaPanelVolumeRange {
+    width: 68px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--mediaPanel-progress);
+    cursor: pointer;
+}
+
+.mediaPanelControlSpacer {
+    flex: 1 1 auto;
+    min-width: 6px;
+}
+
+.mediaPanelSpeedWrap {
+    position: relative;
+}
+
+.mediaPanelSpeedButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 42px;
+    height: 30px;
+    padding: 0 7px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--mediaPanel-video-text);
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+
+    &:hover,
+    &.is-open {
+        border-color: color-mix(in srgb, var(--mediaPanel-video-text) 20%, transparent);
+        background: color-mix(in srgb, var(--mediaPanel-video-text) 12%, transparent);
+    }
+}
+
+.mediaPanelSpeedMenu {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 8px);
+    min-width: 108px;
+    padding: 5px;
+    border: 1px solid var(--mediaPanel-border);
+    border-radius: 9px;
+    background: var(--mediaPanel-surface);
+    box-shadow: 0 12px 28px color-mix(in srgb, #000 55%, transparent);
+
+    button {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        height: 30px;
+        padding: 0 9px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--mediaPanel-text);
+        font-size: 0.78rem;
+        font-variant-numeric: tabular-nums;
+        text-align: left;
+
+        &:hover {
+            background: var(--mediaPanel-surface-hover);
+        }
+
+        &.is-active {
+            background: color-mix(
+                in srgb,
+                var(--mediaPanel-progress) 14%,
+                var(--mediaPanel-surface)
+            );
+        }
+    }
+}
+
+.mediaPanelSpeedCheck {
+    color: var(--mediaPanel-progress);
+    font-size: 0.7rem;
+}
+
+/* ------------------------------------------------------------------ details */
+
+.mediaPanelDetail {
+    padding: 15px 2px 0;
+}
+
+.mediaPanelVideoTitle {
+    margin: 0;
+    color: var(--mediaPanel-text);
+    font-size: 1.14rem;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: 0.005em;
+    overflow-wrap: anywhere;
+}
+
+.mediaPanelVideoMeta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 7px;
+    color: var(--mediaPanel-muted);
+    font-size: 0.76rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.4;
+}
+
+.mediaPanelChip {
+    padding: 2px 7px;
+    border: 1px solid var(--mediaPanel-border);
+    border-radius: 999px;
+    color: var(--mediaPanel-muted);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    line-height: 1.5;
+    text-transform: uppercase;
+}
+
+.mediaPanelMetaDot {
+    flex: 0 0 auto;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.55;
+}
+
+.mediaPanelPathButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: min(100%, 560px);
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--mediaPanel-muted);
+    font-size: 0.76rem;
+    text-align: left;
+
+    svg {
+        flex: 0 0 auto;
+        font-size: 0.72rem;
+    }
+
+    span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &:hover {
+        color: var(--mediaPanel-text);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+}
+
+/* -------------------------------------------------------------- sections */
+
+.mediaPanelSection {
+    margin-top: 22px;
+}
+
+.mediaPanelSectionHead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.mediaPanelSectionTitle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0;
+    color: var(--mediaPanel-text);
+    font-size: 0.83rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.3;
+
+    svg {
+        color: var(--mediaPanel-muted);
+        font-size: 0.75rem;
+    }
+}
+
+.mediaPanelSectionCount {
+    color: var(--mediaPanel-muted);
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.mediaPanelContinueRow {
+    display: flex;
+    gap: 10px;
+    padding-bottom: 4px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+
+    @include mediaPanelScrollbar;
+}
+
+.mediaPanelContinueCard {
+    flex: 0 0 clamp(196px, 26%, 258px);
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    min-width: 0;
+    padding: 9px;
+    border: 1px solid var(--mediaPanel-border);
+    border-radius: 10px;
+    background: var(--mediaPanel-surface);
+    color: var(--mediaPanel-text);
+    font-size: 0.8rem;
+    text-align: left;
+    scroll-snap-align: start;
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease;
+
+    &:hover {
+        border-color: color-mix(in srgb, var(--mediaPanel-text) 18%, var(--mediaPanel-border));
+        background: var(--mediaPanel-surface-hover);
+    }
+}
+
+.mediaPanelContinueArt {
+    position: relative;
+    flex: 0 0 62px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 42px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--btn-color) 18%, #05060a);
+    color: var(--mediaPanel-muted);
+    font-size: 0.85rem;
+
+    > span {
+        position: absolute;
+        right: 4px;
+        bottom: 3px;
+        color: color-mix(in srgb, var(--mediaPanel-muted) 82%, transparent);
+        font-size: 0.5rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+    }
+}
+
+.mediaPanelContinueBody {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    padding-top: 1px;
+}
+
+.mediaPanelContinueTitle {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mediaPanelContinueMeta {
+    color: var(--mediaPanel-muted);
+    font-size: 0.66rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+}
+
+.mediaPanelMiniProgress {
+    display: block;
+    height: 3px;
+    margin-top: auto;
+    overflow: hidden;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--mediaPanel-text) 14%, transparent);
+
+    > span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--mediaPanel-progress);
+    }
+}
+
+/* -------------------------------------------------------------- empty state */
+
+.mediaPanelBlank {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: min(420px, 62vh);
+    padding: 34px;
+    border: 1px dashed var(--mediaPanel-border);
+    border-radius: 12px;
+    color: var(--mediaPanel-muted);
+    text-align: center;
+}
+
+.mediaPanelBlankIcon {
+    margin-bottom: 2px;
+    font-size: 1.5rem;
+    opacity: 0.55;
+}
+
+.mediaPanelBlankTitle {
+    color: var(--mediaPanel-text);
+    font-size: 0.96rem;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.mediaPanelBlankText {
+    max-width: 48ch;
+    font-size: 0.8rem;
+    line-height: 1.6;
+}
+
+/* ---------------------------------------------------------------- sidebar */
+
+.mediaPanelSidebar {
+    flex: 0 0 clamp(300px, 25vw, 380px);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    border-left: 1px solid var(--mediaPanel-border);
+    background: var(--mediaPanel-elevated);
+}
+
+.mediaPanelSidebarHead {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 13px 15px 12px;
+    border-bottom: 1px solid var(--mediaPanel-border);
+}
+
+.mediaPanelSidebarTitleBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.mediaPanelSidebarTitle {
+    color: var(--mediaPanel-text);
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.mediaPanelSidebarCount {
+    color: var(--mediaPanel-muted);
+    font-size: 0.68rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+}
+
+.mediaPanelAutoplay {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 27px;
+    padding: 0 9px;
+    border: 1px solid var(--mediaPanel-border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--mediaPanel-muted);
+    font-size: 0.66rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+
+    svg {
+        font-size: 0.62rem;
+    }
+
+    &:hover {
+        background: var(--mediaPanel-surface);
+        color: var(--mediaPanel-text);
+    }
+
+    &.is-on {
+        border-color: color-mix(in srgb, var(--mediaPanel-progress) 34%, var(--mediaPanel-border));
+        background: color-mix(
+            in srgb,
+            var(--mediaPanel-progress) 10%,
+            var(--mediaPanel-surface)
+        );
+        color: var(--mediaPanel-text);
+    }
+}
+
+.mediaPanelAutoplayDot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.35;
+
+    .is-on & {
+        background: var(--mediaPanel-progress);
+        opacity: 1;
+    }
+}
+
+.mediaPanelList {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 0;
+    margin: 0;
+    padding: 7px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    list-style: none;
+
+    @include mediaPanelScrollbar;
+}
+
+.mediaPanelListItem {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    width: 100%;
+    min-width: 0;
+    padding: 8px 8px 8px 6px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--mediaPanel-text);
+    font-size: 0.82rem;
+    text-align: left;
+    transition:
+        background-color 0.13s ease,
+        border-color 0.13s ease;
+
+    &:hover {
+        background: var(--mediaPanel-surface);
+    }
+
+    &.is-active {
+        border-color: color-mix(
+            in srgb,
+            var(--mediaPanel-progress) 18%,
+            var(--mediaPanel-border)
+        );
+        background: color-mix(in srgb, var(--btn-color-focus) 24%, transparent);
+
+        &::before {
+            content: "";
+            position: absolute;
+            top: 9px;
+            bottom: 9px;
+            left: 0;
+            width: 2px;
+            border-radius: 2px;
+            background: var(--mediaPanel-progress);
+        }
+    }
+}
+
+.mediaPanelListIndex {
+    flex: 0 0 20px;
+    padding-top: 2px;
+    color: var(--mediaPanel-muted);
+    font-size: 0.64rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    opacity: 0.75;
+}
+
+.mediaPanelListBody {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.mediaPanelListTitle {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--mediaPanel-text);
+    font-size: 0.79rem;
+    font-weight: 500;
+    line-height: 1.32;
+    word-break: break-word;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.mediaPanelListMeta {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--mediaPanel-muted);
+    font-size: 0.65rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+    white-space: nowrap;
+
+    > span {
+        flex: 0 0 auto;
+    }
+}
+
+.mediaPanelListFolder {
+    flex: 0 1 auto !important;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mediaPanelListBadge {
+    flex: 0 0 auto;
+    margin-top: 1px;
+    padding: 1px 5px;
+    border: 1px solid var(--mediaPanel-border);
+    border-radius: 4px;
+    color: var(--mediaPanel-muted);
+    font-size: 0.52rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    line-height: 1.5;
+}
+
+.mediaPanelListEmpty {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 34px 22px;
+    color: var(--mediaPanel-muted);
+    font-size: 0.77rem;
+    line-height: 1.5;
+    text-align: center;
+
+    svg {
+        font-size: 1.25rem;
+        opacity: 0.5;
+    }
+}
+
+.mediaPanelScanNote {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 15px;
+    border-top: 1px solid var(--mediaPanel-border);
+    color: var(--mediaPanel-muted);
+    font-size: 0.66rem;
+    line-height: 1.35;
+
+    svg {
+        flex: 0 0 auto;
+        color: var(--mediaPanel-muted);
+        font-size: 0.66rem;
+        opacity: 0.8;
+    }
+}
+
+@keyframes mediaPanelSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* --------------------------------------------------------------- responsive */
+
+@media (max-width: 1180px) {
+    .mediaPanelSidebar {
+        flex-basis: 306px;
+    }
+
+    .mediaPanelMain {
+        padding: 16px 16px 24px;
+    }
+}
+
+@media (max-width: 980px) {
+    .mediaPanelHeader {
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 10px 14px;
+    }
+
+    .mediaPanelSearch {
+        order: 3;
+        flex-basis: 100%;
+        max-width: none;
+        margin: 0;
+    }
+
+    .mediaPanelHeaderActions {
+        margin-left: auto;
+    }
+
+    .mediaPanelBody {
+        flex-direction: column;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        @include mediaPanelScrollbar;
+    }
+
+    .mediaPanelMain {
+        flex: 0 0 auto;
+        padding: 14px 14px 20px;
+        overflow: visible;
+    }
+
+    .mediaPanelSidebar {
+        flex: 0 0 auto;
+        max-height: 42vh;
+        border-top: 1px solid var(--mediaPanel-border);
+        border-left: 0;
+    }
+
+    .mediaPanelList {
+        min-height: 0;
+    }
+}
+
+@media (max-width: 720px) {
+    .mediaPanelBrandSubtitle {
+        display: none;
+    }
+
+    .mediaPanelVolumeRange {
+        width: 52px;
+    }
+
+    .mediaPanelVideoTitle {
+        font-size: 1rem;
+    }
+
+    .mediaPanelContinueCard {
+        flex-basis: 210px;
+    }
+
+    .mediaPanelSort > span {
+        display: none;
+    }
+
+    .mediaPanelControlButton {
+        width: 31px;
+        height: 31px;
+    }
+
+    .mediaPanelControls {
+        padding: 24px 8px 6px;
+    }
+
+    .mediaPanelSeekPreview {
+        width: 146px;
+    }
+}
+
+@media (max-width: 560px) {
+    .mediaPanelHeader {
+        padding: 9px 10px;
+    }
+
+    .mediaPanelBrandIcon {
+        width: 32px;
+        height: 32px;
+    }
+
+    .mediaPanelMain {
+        padding: 10px 10px 16px;
+    }
+
+    .mediaPanelStage {
+        border-radius: 8px;
+    }
+
+    .mediaPanelTime {
+        min-width: 33px;
+        font-size: 0.64rem;
+    }
+
+    .mediaPanelSidebar {
+        max-height: 46vh;
+    }
+
+    .mediaPanelSeekPreview {
+        width: 132px;
+    }
+}
+
+/* ----------------------------------------------------------------- theater */
+
+/*
+ * Theater keeps the panel header and every player control, drops the right rail, and turns
+ * "Up next" into a horizontal row under the stage. Fullscreen stays a separate mode.
+ */
+.mediaPanel.is-theater .mediaPanelBody {
+    flex-direction: column;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    @include mediaPanelScrollbar;
+}
+
+.mediaPanel.is-theater .mediaPanelMain {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 1560px;
+    margin: 0 auto;
+    padding: 16px clamp(16px, 2.4vw, 40px) 20px;
+    overflow: visible;
+    transition:
+        padding 0.2s ease,
+        max-width 0.2s ease;
+    animation: mediaPanelSettle 0.2s ease-out;
+}
+
+.mediaPanel.is-theater .mediaPanelSidebar {
+    flex: 0 0 auto;
+    max-height: none;
+    border-top: 1px solid var(--mediaPanel-border);
+    border-left: 0;
+    animation: mediaPanelSettle 0.2s ease-out;
+}
+
+.mediaPanel.is-theater .mediaPanelSidebarHead {
+    padding: 10px clamp(16px, 2.4vw, 40px);
+}
+
+.mediaPanel.is-theater .mediaPanelList {
+    flex: 0 0 auto;
+    flex-direction: row;
+    gap: 8px;
+    padding: 8px clamp(16px, 2.4vw, 40px) 14px;
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    > li {
+        flex: 0 0 clamp(232px, 24vw, 300px);
+        min-width: 0;
+    }
+}
+
+.mediaPanel.is-theater .mediaPanelListItem {
+    height: 100%;
+    padding: 9px 10px;
+}
+
+.mediaPanel.is-theater .mediaPanelListEmpty {
+    flex: 0 0 auto;
+    flex-direction: row;
+    padding: 24px;
+}
+
+.mediaPanel.is-theater .mediaPanelScanNote {
+    padding-inline: clamp(16px, 2.4vw, 40px);
+}
+
+@keyframes mediaPanelSettle {
+    from {
+        opacity: 0.86;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@media (max-width: 980px) {
+    .mediaPanel.is-theater .mediaPanelMain {
+        padding: 12px 12px 16px;
+    }
+
+    .mediaPanel.is-theater .mediaPanelSidebarHead,
+    .mediaPanel.is-theater .mediaPanelList {
+        padding-inline: 12px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mediaPanelOverlay,
+    .mediaPanelOverlay * {
+        animation: none !important;
+        transition: none !important;
+    }
+}

@@ -60,3 +60,15 @@ export type BrowserContextMenuRequest = {
     x: number;
     y: number;
 };
+
+/** One link returned by the browser link scanner. */
+export type BrowserScannedLink = {
+    url: string;
+    text: string;
+};
+
+/** Ad-blocking state for the integrated browser session. */
+export type BrowserAdblockState = {
+    enabled: boolean;
+    ready: boolean;
+};

@@ -2,9 +2,11 @@ import type { I18nChangedPayload, I18nState, LanguageSource } from "@common/i18n
 import type { KeymapEditIpcResult, KeymapEditOp, KeymapSnapshot, NativeKeymapAction } from "@common/keybindings";
 import type { MainSettingsType } from "@common/mainSettings";
 import type {
+    BrowserAdblockState,
     BrowserBounds,
     BrowserContextMenuRequest,
     BrowserDownload,
+    BrowserScannedLink,
     BrowserSearchEngine,
     BrowserState,
 } from "@common/types/browser";
@@ -392,6 +394,10 @@ export type DownloaderChannels = {
     "downloader:cancel": ChannelDefinition<{ id: string }, void>;
     "downloader:remove": ChannelDefinition<{ id: string }, void>;
     "downloader:clearFinished": ChannelDefinition<void, void>;
+    /** Pauses the active job and the queue without losing progress. */
+    "downloader:pause": ChannelDefinition<void, void>;
+    /** Resumes a paused worker. */
+    "downloader:resume": ChannelDefinition<void, void>;
     "downloader:state": ChannelDefinition<DownloaderState, void, "m2r">;
 };
 
@@ -404,6 +410,20 @@ export type TrashChannels = {
     "trash:forget": ChannelDefinition<{ id: string }, boolean>;
     "trash:openFolder": ChannelDefinition<void, void>;
     "trash:purgeExpired": ChannelDefinition<void, number>;
+    /** Permanently removes every pending app-trash entry. */
+    "trash:empty": ChannelDefinition<void, { ok: true; count: number } | { ok: false; message: string }>;
+    /** Count and on-disk size of the pending app trash. */
+    "trash:stats": ChannelDefinition<void, { count: number; totalBytes: number }>;
+    /** Sets a per-item retention window and recomputes its expiry. */
+    "trash:setRetention": ChannelDefinition<
+        { id: string; days: number },
+        { ok: true; entry: TrashEntry } | { ok: false; message: string }
+    >;
+    /** Recovers every pending entry, keeping both files on name collisions. */
+    "trash:restoreAll": ChannelDefinition<
+        void,
+        { ok: true; count: number; failed: number } | { ok: false; message: string }
+    >;
 };
 
 export type BrowserChannels = {
@@ -423,9 +443,29 @@ export type BrowserChannels = {
     "browser:getDisabledHosts": ChannelDefinition<void, string[]>;
     "browser:setSearchEngine": ChannelDefinition<{ engine: BrowserSearchEngine }, void>;
     "browser:setDownloadDir": ChannelDefinition<{ dir: string | null }, void>;
+    /** Extracts http(s) links from the active/requested tab. */
+    "browser:scanLinks": ChannelDefinition<{ tabId?: string }, BrowserScannedLink[]>;
+    "browser:getAdblock": ChannelDefinition<void, BrowserAdblockState>;
+    "browser:setAdblock": ChannelDefinition<{ enabled: boolean }, BrowserAdblockState>;
     "browser:state": ChannelDefinition<BrowserState, void, "m2r">;
     "browser:download": ChannelDefinition<BrowserDownload, void, "m2r">;
     "browser:contextMenu": ChannelDefinition<BrowserContextMenuRequest, void, "m2r">;
+};
+
+export type ProfileBackupChannels = {
+    /** Prompts for a destination and writes a complete profile ZIP. */
+    "profileBackup:create": ChannelDefinition<
+        void,
+        { ok: true; path: string; bytes: number } | { ok: false; message: string }
+    >;
+    /**
+     * Prompts for a profile ZIP, stages it for the next launch and asks the
+     * renderer to tell the user a restart is required.
+     */
+    "profileBackup:restore": ChannelDefinition<
+        void,
+        { ok: true; restartRequired: boolean; message?: string } | { ok: false; message: string }
+    >;
 };
 
 export type IPCChannels = DatabaseChannels &
@@ -446,7 +486,8 @@ export type IPCChannels = DatabaseChannels &
     KeymapChannels &
     DownloaderChannels &
     TrashChannels &
-    BrowserChannels;
+    BrowserChannels &
+    ProfileBackupChannels;
 
 export type MainToRendererChannels = {
     [K in keyof IPCChannels as IPCChannels[K] extends ChannelDefinition<unknown, unknown, "m2r">

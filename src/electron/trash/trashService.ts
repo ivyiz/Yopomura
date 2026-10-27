@@ -11,7 +11,14 @@ import {
     type TrashItemType,
     type TrashRetentionDays,
 } from "@common/types/trash";
-import { appendTrashEntry, getEntry, listTrashEntries, markRestored, removeEntry } from "@electron/trash/journal";
+import {
+    appendTrashEntry,
+    getEntry,
+    listTrashEntries,
+    markRestored,
+    removeEntry,
+    updateEntry,
+} from "@electron/trash/journal";
 import { restoreFromRecycleBin } from "@electron/trash/recycleBin";
 import { createMainLogger } from "@electron/util/logger";
 import { app, shell } from "electron";
@@ -20,6 +27,10 @@ const logger = createMainLogger("trash/service");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PURGE_INTERVAL_MS = 60_000;
+/** Keeps stats cheap on a badly damaged or enormous trash tree. */
+const TRASH_SIZE_MAX_ENTRIES = 20_000;
+const TRASH_SIZE_MAX_TOTAL_ENTRIES = 60_000;
+const TRASH_SIZE_MAX_DEPTH = 24;
 
 export type MoveToTrashInput = {
     path: string;
@@ -28,6 +39,18 @@ export type MoveToTrashInput = {
     itemType?: TrashItemType;
     retentionDays?: number;
 };
+
+/** Result of {@link emptyTrash}. */
+export type EmptyTrashResult = { ok: true; count: number } | { ok: false; message: string };
+
+/** Count and on-disk size of active entries. */
+export type TrashStats = { count: number; totalBytes: number };
+
+/** Result of {@link setTrashRetention}. */
+export type SetTrashRetentionResult = { ok: true; entry: TrashEntry } | { ok: false; message: string };
+
+/** Result of {@link restoreAllTrash}. */
+export type RestoreAllTrashResult = { ok: true; count: number; failed: number } | { ok: false; message: string };
 
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
@@ -47,6 +70,72 @@ const pathExists = async (candidate: string): Promise<boolean> => {
     } catch {
         return false;
     }
+};
+
+/** Options for {@link measureTrashPathSize}. */
+export type MeasureTrashPathSizeOptions = {
+    /** Stop after this many files/folders (default 20,000). */
+    maxEntries?: number;
+    /** Do not descend deeper than this (default 24). */
+    maxDepth?: number;
+};
+
+type MeasuredTree = { bytes: number; visited: number };
+
+/**
+ * Walks one trash path without following symlinks. Missing and unreadable
+ * children are skipped so one locked folder cannot fail the whole call.
+ */
+const measureTree = async (target: string, maxEntries: number, maxDepth: number): Promise<MeasuredTree> => {
+    let totalBytes = 0;
+    let visited = 0;
+    const pending: Array<{ path: string; depth: number }> = [{ path: target, depth: 0 }];
+
+    while (pending.length > 0 && visited < maxEntries) {
+        const current = pending.pop();
+        if (!current) break;
+
+        let stat: Awaited<ReturnType<typeof fs.lstat>>;
+        try {
+            stat = await fs.lstat(current.path);
+        } catch {
+            continue;
+        }
+        if (stat.isSymbolicLink()) continue;
+
+        visited += 1;
+        if (stat.isFile()) {
+            totalBytes += stat.size;
+            continue;
+        }
+        if (!stat.isDirectory() || current.depth >= maxDepth) continue;
+
+        try {
+            const children = await fs.readdir(current.path, { withFileTypes: true });
+            for (const child of children) {
+                if (child.isSymbolicLink()) continue;
+                pending.push({ path: path.join(current.path, child.name), depth: current.depth + 1 });
+            }
+        } catch {
+            /* A locked or vanished folder contributes nothing to the total. */
+        }
+    }
+
+    return { bytes: totalBytes, visited };
+};
+
+/**
+ * Recursive on-disk size for one trash path. Traversal is capped so a huge or
+ * damaged tree cannot stall the panel.
+ */
+export const measureTrashPathSize = async (
+    target: string,
+    options: MeasureTrashPathSizeOptions = {},
+): Promise<number> => {
+    const maxEntries = Math.max(1, Math.floor(options.maxEntries ?? TRASH_SIZE_MAX_ENTRIES));
+    const maxDepth = Math.max(0, Math.floor(options.maxDepth ?? TRASH_SIZE_MAX_DEPTH));
+    const measured = await measureTree(target, maxEntries, maxDepth);
+    return measured.bytes;
 };
 
 /**
@@ -256,6 +345,131 @@ export const purgeExpiredTrash = async (now = Date.now()): Promise<number> => {
         if (result.ok) purged += 1;
     }
     return purged;
+};
+
+/**
+ * Permanently deletes every active app-trash entry. Legacy Recycle Bin rows are
+ * left alone because the app cannot remove them. Individual failures do not
+ * stop the sweep; when nothing could be purged the last error is returned.
+ */
+export const emptyTrash = async (): Promise<EmptyTrashResult> => {
+    const entries = (await listActiveTrash()).filter((entry) => entry.storage === "app" && entry.trashPath);
+    if (entries.length === 0) return { ok: true, count: 0 };
+
+    let count = 0;
+    let lastError = "";
+    for (const entry of entries) {
+        try {
+            const result = await purgeTrashEntry(entry.id);
+            if (result.ok) {
+                count += 1;
+            } else {
+                lastError = result.message;
+            }
+        } catch (error) {
+            lastError = errorMessage(error);
+            logger.warn("empty trash: entry purge failed", { id: entry.id, error: lastError });
+        }
+    }
+
+    if (count === 0) {
+        return {
+            ok: false,
+            message: lastError || "Could not permanently delete the items in Recently Deleted.",
+        };
+    }
+    return { ok: true, count };
+};
+
+/**
+ * Counts active entries (legacy Recycle Bin rows included) and sums the
+ * recursive on-disk size of the app-trash copies.
+ */
+export const getTrashStats = async (): Promise<TrashStats> => {
+    const entries = await listActiveTrash();
+    let totalBytes = 0;
+    let remaining = TRASH_SIZE_MAX_TOTAL_ENTRIES;
+    for (const entry of entries) {
+        if (entry.storage !== "app" || !entry.trashPath || remaining <= 0) continue;
+        const measured = await measureTree(
+            entry.trashPath,
+            Math.min(remaining, TRASH_SIZE_MAX_ENTRIES),
+            TRASH_SIZE_MAX_DEPTH,
+        );
+        totalBytes += measured.bytes;
+        remaining -= measured.visited;
+    }
+    return { count: entries.length, totalBytes };
+};
+
+/**
+ * Changes the countdown of one app-trash entry. The expiry is always
+ * `deletedAt + days`, so choosing a shorter window can expire an item at once.
+ */
+export const setTrashRetention = async (id: string, days: number): Promise<SetTrashRetentionResult> => {
+    if (!isTrashRetentionDays(days)) {
+        return {
+            ok: false,
+            message: "Choose a retention window of 1, 3, 7, 15, or 30 days.",
+        };
+    }
+
+    const entry = await getEntry(id);
+    if (!entry) return { ok: false, message: "This Recently Deleted entry no longer exists." };
+    if (entry.storage !== "app" || !entry.trashPath) {
+        return {
+            ok: false,
+            message: "This item lives in the Windows Recycle Bin, so its countdown cannot be changed.",
+        };
+    }
+    if (entry.status !== "trashed") {
+        return { ok: false, message: "This item has already been recovered." };
+    }
+
+    try {
+        const updated = await updateEntry(id, {
+            retentionDays: days,
+            expiresAt: entry.deletedAt + days * DAY_MS,
+        });
+        if (!updated) return { ok: false, message: "This Recently Deleted entry no longer exists." };
+        return { ok: true, entry: updated };
+    } catch (error) {
+        logger.warn("set retention failed", { id, days, error: errorMessage(error) });
+        return { ok: false, message: `Could not update the countdown: ${errorMessage(error)}` };
+    }
+};
+
+/**
+ * Recovers every active entry, newest first. Collisions keep both files via the
+ * normal `(recovered)` suffix and one failure does not stop the rest.
+ */
+export const restoreAllTrash = async (): Promise<RestoreAllTrashResult> => {
+    const entries = await listActiveTrash();
+    if (entries.length === 0) return { ok: true, count: 0, failed: 0 };
+
+    let count = 0;
+    let failed = 0;
+    let lastError = "";
+    for (const entry of entries) {
+        try {
+            const result = await recoverTrashEntry(entry.id);
+            if (result.ok) {
+                count += 1;
+            } else {
+                failed += 1;
+                lastError = result.message;
+            }
+        } catch (error) {
+            failed += 1;
+            lastError = errorMessage(error);
+            logger.warn("restore all: entry recovery failed", { id: entry.id, error: lastError });
+        }
+    }
+
+    if (count === 0) {
+        return { ok: false, message: lastError || "Could not recover the items in Recently Deleted." };
+    }
+    return { ok: true, count, failed };
 };
 
 /** Opens the app trash directory in Explorer/Finder. */

@@ -51,6 +51,7 @@ import {
 import UiBlockOverlay from "./components/UiBlockOverlay";
 import BrowserHost from "./features/browser/BrowserHost";
 import DownloaderPanel from "./features/downloader/DownloaderPanel";
+import MediaPanel from "./features/media/MediaPanel";
 import VideoPlayer from "./features/media/VideoPlayer";
 import TrashPanel from "./features/trash/TrashPanel";
 import TrashToast from "./features/trash/TrashToast";
@@ -91,6 +92,10 @@ interface AppContext {
     openTrash: () => void;
     /** True while the Recently Deleted panel is mounted. */
     trashOpen: boolean;
+    /** Open the dedicated media library/player panel. */
+    openMedia: () => void;
+    /** True while the media panel is mounted. */
+    mediaOpen: boolean;
     /** True while the video player overlay is mounted. */
     videoOpen: boolean;
     contextMenuData: Menu.ContextMenuData | null;
@@ -143,6 +148,8 @@ const App = (): ReactElement => {
     const openDownloader = useCallback(() => setDownloaderOpen(true), []);
     const [trashOpen, setTrashOpen] = useState(false);
     const openTrash = useCallback(() => setTrashOpen(true), []);
+    const [mediaOpen, setMediaOpen] = useState(false);
+    const openMedia = useCallback(() => setMediaOpen(true), []);
     const importedDownloadJobs = useRef(new Set<string>());
 
     useEffect(() => {
@@ -835,6 +842,8 @@ const App = (): ReactElement => {
                 downloaderOpen,
                 openTrash,
                 trashOpen,
+                openMedia,
+                mediaOpen,
                 videoOpen: Boolean(videoLink),
                 validateDirectory,
                 contextMenuData,
@@ -862,6 +871,7 @@ const App = (): ReactElement => {
                 />
             ) : null}
             {trashOpen ? <TrashPanel onClose={() => setTrashOpen(false)} /> : null}
+            {mediaOpen ? <MediaPanel onClose={() => setMediaOpen(false)} /> : null}
             <BrowserHost />
             <TrashToast />
             <UiBlockOverlay />

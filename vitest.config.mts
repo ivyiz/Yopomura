@@ -63,6 +63,7 @@ export default defineConfig({
                         "src/electron/util/**/*.test.ts",
                         "src/electron/browser/**/*.test.ts",
                         "src/electron/trash/**/*.test.ts",
+                        "src/electron/backup/**/*.test.ts",
                     ],
                     setupFiles: ["src/test/setupMainLibraryIo.ts"],
                 },

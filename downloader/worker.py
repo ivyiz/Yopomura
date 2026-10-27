@@ -157,15 +157,28 @@ def unlink(path):
         pass
 
 
-def download_image(url, dest, headers, cancel: threading.Event):
+def wait_if_paused(paused: threading.Event, cancel: threading.Event):
+    """Blocks while paused, without ever ignoring a cancellation request."""
+    while paused.is_set():
+        if cancel.is_set():
+            raise JobCancelled
+        if cancel.wait(0.05):
+            raise JobCancelled
+
+
+def download_image(url, dest, headers, cancel: threading.Event, paused: threading.Event | None = None):
     if cancel.is_set():
         raise JobCancelled
+    if paused is not None:
+        wait_if_paused(paused, cancel)
     part = dest + ".part"
     session = get_session()
     last_error = None
     for attempt in range(1, MAX_RETRIES + 1):
         if cancel.is_set():
             raise JobCancelled
+        if paused is not None:
+            wait_if_paused(paused, cancel)
         retry_after = None
         try:
             resp = session.get(url, headers=headers, timeout=REQUEST_TIMEOUT, stream=True)
@@ -186,6 +199,8 @@ def download_image(url, dest, headers, cancel: threading.Event):
                     for chunk in resp.iter_content(CHUNK_SIZE):
                         if cancel.is_set():
                             raise JobCancelled
+                        if paused is not None:
+                            wait_if_paused(paused, cancel)
                         if chunk:
                             handle.write(chunk)
                             written += len(chunk)
@@ -602,9 +617,10 @@ def job_fields(job: Job, status, message=None, error=None, progress=None, output
 
 
 class ProgressReporter:
-    def __init__(self, job, emit):
+    def __init__(self, job, emit, paused: threading.Event):
         self.job = job
         self.emit = emit
+        self._paused = paused
         self._lock = threading.Lock()
         self._last = 0.0
         self._published = None
@@ -617,15 +633,31 @@ class ProgressReporter:
                 self._last = now
                 self._publish()
 
-    def _publish(self):
+    def set_paused(self, paused):
+        """Emits the paused/downloading transition under the progress lock.
+
+        Serializing with {@link advance} guarantees a paused event is never
+        followed by a stale downloading progress event.
+        """
+        with self._lock:
+            self._publish(force=True, message="Paused" if paused else "Resumed")
+
+    def announce(self, message):
+        """First `downloading` event of the job, ordered against pause()."""
+        with self._lock:
+            self._publish(force=True, message=message)
+
+    def _publish(self, force=False, message=None):
         snapshot = (self.job.downloaded, self.job.total)
-        if snapshot == self._published:
+        if snapshot == self._published and not force:
             return
         self._published = snapshot
         total = self.job.total
         percent = 100 if total and self.job.downloaded >= total else int(self.job.downloaded * 100 / total) if total else 0
         self.job.progress = max(0, min(100, percent))
-        self.emit("job", **job_fields(self.job, "downloading"))
+        status = "paused" if self._paused.is_set() else "downloading"
+        self.job.status = status
+        self.emit("job", **job_fields(self.job, status, message="Paused" if status == "paused" else message))
 
 
 class Downloader:
@@ -635,11 +667,52 @@ class Downloader:
         self._queue: deque[Job] = deque()
         self._jobs: dict[str, Job] = {}
         self._active: Job | None = None
+        self._reporter: ProgressReporter | None = None
+        self._paused = threading.Event()
         self._stopping = False
         self._thread = threading.Thread(target=self._runner, name="job-runner", daemon=True)
 
     def start(self):
         self._thread.start()
+
+    def is_paused(self):
+        return self._paused.is_set()
+
+    def pause(self):
+        with self._cond:
+            if self._paused.is_set():
+                return
+            self._paused.set()
+            self._cond.notify_all()
+            job = self._active
+            reporter = self._reporter
+        if job is None:
+            self._log(None, "info", "Downloads paused")
+            return
+        if reporter is not None:
+            reporter.set_paused(True)
+        else:
+            job.status = "paused"
+            self.emit("job", **job_fields(job, "paused", message="Paused"))
+        self._log(job.id, "info", "Paused")
+
+    def resume(self):
+        with self._cond:
+            if not self._paused.is_set():
+                return
+            self._paused.clear()
+            self._cond.notify_all()
+            job = self._active
+            reporter = self._reporter
+        if job is None:
+            self._log(None, "info", "Downloads resumed")
+            return
+        if reporter is not None:
+            reporter.set_paused(False)
+        else:
+            job.status = "downloading"
+            self.emit("job", **job_fields(job, "downloading", message="Resumed"))
+        self._log(job.id, "info", "Resumed")
 
     def add(self, job_id, url, out_dir, keep_folder=False):
         if not isinstance(job_id, str) or not job_id.strip():
@@ -725,7 +798,7 @@ class Downloader:
     def _runner(self):
         while True:
             with self._cond:
-                while not self._queue and not self._stopping:
+                while not self._stopping and (not self._queue or self._paused.is_set()):
                     self._cond.wait()
                 if self._stopping:
                     return
@@ -744,6 +817,11 @@ class Downloader:
                 with self._cond:
                     if self._active is job:
                         self._active = None
+                    self._reporter = None
+
+    def _hold_while_paused(self, job):
+        wait_if_paused(self._paused, job.cancel)
+        self._check_cancel(job)
 
     def _run(self, job):
         job.status = "resolving"
@@ -762,6 +840,10 @@ class Downloader:
         headers = dict(headers or {})
         headers.setdefault("User-Agent", USER_AGENT)
 
+        # Do not start the download phase (and waste the temporary folder)
+        # while the worker is paused.
+        self._hold_while_paused(job)
+
         job.title = sanitize_filename(title or "download")
         job.total = len(urls)
         job.progress = 0
@@ -769,15 +851,19 @@ class Downloader:
         if not os.path.isdir(job.out_dir):
             raise DownloadFailed(f"Output directory is not usable: {job.out_dir}")
 
+        job.status = "downloading"
         self._log(job.id, "info", f"Found {job.total} image(s): {job.title}")
-        self.emit("job", **job_fields(job, "downloading", message=f"0/{job.total} images"))
 
         temp_dir = tempfile.mkdtemp(prefix=f"_temp_{job.title[:48]}_", dir=job.out_dir)
         zip_path = safe_child(job.out_dir, f"{job.title}.zip")
         zip_part = zip_path + ".part"
         keep_temp = False
+        reporter = ProgressReporter(job, self.emit, self._paused)
+        self._reporter = reporter
         try:
-            completed = self._download_all(job, urls, headers, temp_dir)
+            reporter.announce(f"0/{job.total} images")
+            completed = self._download_all(job, urls, headers, temp_dir, reporter)
+            self._reporter = None
             if not completed:
                 raise DownloadFailed("All image downloads failed")
             if len(completed) < job.total:
@@ -814,23 +900,24 @@ class Downloader:
             self._log(job.id, "info", f"Saved {zip_path}")
             self._terminal(job, "done", message=message)
         except BaseException:
+            self._reporter = None
             if not keep_temp:
                 shutil.rmtree(temp_dir, ignore_errors=True)
             unlink(zip_part)
             raise
 
-    def _download_all(self, job, urls, headers, temp_dir):
+    def _download_all(self, job, urls, headers, temp_dir, reporter):
         pad = max(3, len(str(len(urls))))
         tasks = []
         for index, url in enumerate(urls, 1):
             dest = os.path.join(temp_dir, f"{index:0{pad}d}{image_extension(url)}")
             tasks.append((index, url, dest))
 
-        reporter = ProgressReporter(job, self.emit)
-
         def work(task):
             index, url, dest = task
-            download_image(url, dest, headers, job.cancel)
+            wait_if_paused(self._paused, job.cancel)
+            self._check_cancel(job)
+            download_image(url, dest, headers, job.cancel, self._paused)
             reporter.advance()
 
         def run_pass(batch, workers):
@@ -925,9 +1012,13 @@ def main():
                 )
             elif cmd == "cancel":
                 downloader.cancel(message.get("id"))
+            elif cmd == "pause":
+                downloader.pause()
+            elif cmd == "resume":
+                downloader.resume()
             elif cmd == "ping":
                 active, queued = downloader.status()
-                emit("pong", id=message.get("id"), active=active, queued=queued)
+                emit("pong", id=message.get("id"), active=active, queued=queued, paused=downloader.is_paused())
             elif cmd == "shutdown":
                 break
             else:

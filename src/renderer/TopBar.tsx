@@ -3,12 +3,14 @@ import BookmarkToggle from "@features/home/classic/components/BookmarkToggle";
 import {
     faCog,
     faDownload,
+    faFilm,
     faGlobe,
     faGrip,
     faHome,
     faList,
     faMinus,
     faTimes,
+    faTrash,
     faWindowMaximize,
     faWindowRestore,
 } from "@fortawesome/free-solid-svg-icons";
@@ -29,7 +31,8 @@ import LibraryScanStatusButton from "./components/LibraryScanStatusButton";
 const TopBar = (): ReactElement => {
     const { t } = useTranslation("common");
     const [title, setTitle] = useState<string>("Yokomura");
-    const { pageNumberInputRef, bookProgressRef, closeReader, openDownloader } = useAppContext();
+    const { pageNumberInputRef, bookProgressRef, closeReader, openDownloader, openMedia, openTrash } =
+        useAppContext();
     const [isMaximized, setMaximized] = useState(window.electron.currentWindow.isMaximized() || false);
     const [pageNumberChangeDisabled, setPageNumberChangeDisabled] = useState(false);
     const readerContentLink = useAppSelector((store) => store.reader.content?.link ?? "");
@@ -196,6 +199,16 @@ const TopBar = (): ReactElement => {
                 </button>
                 <button
                     type="button"
+                    className="mediaToggle"
+                    tabIndex={-1}
+                    onFocus={(e) => e.currentTarget.blur()}
+                    onClick={openMedia}
+                    data-tooltip={t("topBar.media")}
+                >
+                    <FontAwesomeIcon icon={faFilm} />
+                </button>
+                <button
+                    type="button"
                     className="downloaderToggle"
                     tabIndex={-1}
                     onFocus={(e) => e.currentTarget.blur()}
@@ -203,6 +216,16 @@ const TopBar = (): ReactElement => {
                     data-tooltip={t("topBar.downloader")}
                 >
                     <FontAwesomeIcon icon={faDownload} />
+                </button>
+                <button
+                    type="button"
+                    className="trashToggle"
+                    tabIndex={-1}
+                    onFocus={(e) => e.currentTarget.blur()}
+                    onClick={openTrash}
+                    data-tooltip={t("topBar.trash")}
+                >
+                    <FontAwesomeIcon icon={faTrash} />
                 </button>
                 <LibraryScanStatusButton />
             </div>

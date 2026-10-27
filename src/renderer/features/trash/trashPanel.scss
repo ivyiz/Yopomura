@@ -44,6 +44,28 @@
             color: var(--error-color, #ff8a9a);
             border-color: rgba(255, 138, 154, 0.4);
         }
+        &.is-primary {
+            border-color: var(--btn-color-focus);
+            font-weight: 500;
+        }
+    }
+
+    input[type="search"] {
+        font-family: inherit;
+        color: var(--font-color);
+        background: var(--text-input-bg);
+        border: 1px solid var(--divider-color);
+        border-radius: 8px;
+        padding: 7px 30px 7px 10px;
+        outline: none;
+        font-size: 0.82rem;
+
+        &:focus {
+            border-color: var(--btn-color-focus);
+        }
+        &::-webkit-search-cancel-button {
+            display: none;
+        }
     }
 
     select {
@@ -86,6 +108,28 @@
     color: var(--font-color-secondary);
 }
 
+.trashPanelHeadText {
+    min-width: 0;
+}
+
+.trashPanelStats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.trashStatChip {
+    padding: 2px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--divider-color);
+    background: rgba(127, 127, 127, 0.08);
+    color: var(--font-color-secondary);
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
 .trashPanelClose {
     width: 32px;
     height: 32px;
@@ -102,6 +146,35 @@
     gap: 10px;
     padding: 12px 22px;
     border-bottom: 1px solid var(--divider-color);
+
+    &.is-actions {
+        padding-top: 0;
+    }
+}
+
+.trashSearchWrap {
+    position: relative;
+    flex: 1 1 220px;
+    min-width: 160px;
+
+    input {
+        width: 100%;
+    }
+}
+
+.trashSearchClear {
+    position: absolute;
+    top: 50%;
+    right: 4px;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    color: var(--font-color-secondary);
+    font-size: 0.95rem;
+    line-height: 1;
 }
 
 .trashRetention {
@@ -131,6 +204,11 @@
     background: rgba(127, 127, 127, 0.08);
     border-bottom: 1px solid var(--divider-color);
     font-size: 0.78rem;
+
+    &.is-error {
+        color: var(--error-color, #ff8a9a);
+        background: rgba(255, 138, 154, 0.08);
+    }
 }
 
 .trashPanelList {
@@ -234,8 +312,16 @@
 .trashRowActions {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 6px;
     flex: 0 0 auto;
+}
+
+.trashRowRetention {
+    padding: 5px 6px !important;
+    font-size: 0.74rem !important;
+    max-width: 108px;
 }
 
 .trashPanelFoot {

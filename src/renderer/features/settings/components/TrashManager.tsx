@@ -3,10 +3,12 @@ import { useAppContext } from "@renderer/App";
 import { setAppSettings } from "@store/appSettings";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { setSettingsOpen } from "@store/ui";
-import { openTrashFolder } from "@utils/trash";
+import { formatTrashBytes, getTrashStats, openTrashFolder, type TrashStats } from "@utils/trash";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import "./trashManager.scss";
+
+const EMPTY_STATS: TrashStats = { count: 0, totalBytes: 0 };
 
 /** Settings entry point for Recently Deleted, its retention period and trash folder. */
 const TrashManager = () => {
@@ -14,12 +16,15 @@ const TrashManager = () => {
     const dispatch = useAppDispatch();
     const { openTrash } = useAppContext();
     const retentionDays = useAppSelector((state) => state.appSettings.trashRetentionDays);
-    const [count, setCount] = useState(0);
+    const [stats, setStats] = useState<TrashStats>(EMPTY_STATS);
     const [message, setMessage] = useState("");
 
     const load = useCallback(async () => {
-        const rows = await window.electron.invoke("trash:list", { limit: 500 });
-        setCount(rows.length);
+        try {
+            setStats(await getTrashStats());
+        } catch {
+            /* stats are informational; the panel still opens */
+        }
     }, []);
 
     useEffect(() => {
@@ -47,6 +52,12 @@ const TrashManager = () => {
         <div className="settingItem2" id="settings-recentlyDeleted">
             <h3>{t("trash.title")}</h3>
             <div className="desc">{t("trash.desc")}</div>
+            <div className="trashManagerStats">
+                {t("trash.statsLine", {
+                    count: stats.count,
+                    size: formatTrashBytes(stats.totalBytes),
+                })}
+            </div>
             <div className="main row trashSettingsRow">
                 <label className="trashSettingsField">
                     <span>{t("trash.retention")}</span>
@@ -71,7 +82,7 @@ const TrashManager = () => {
             </div>
             <div className="main row">
                 <button type="button" onClick={openPanel}>
-                    {t("trash.openPanel", { count })}
+                    {t("trash.openPanel", { count: stats.count })}
                 </button>
                 <button type="button" onClick={() => void openFolder()}>
                     {t("trash.openFolder")}

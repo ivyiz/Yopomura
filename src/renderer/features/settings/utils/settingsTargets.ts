@@ -249,6 +249,10 @@ export const SETTINGS_TARGETS_STATIC: readonly SettingsTarget[] = [
         keywords: ["backup", "restore", "database"],
         contentPath: "dbBackup",
     }),
+    setting("setting:profile-backup", "#settings-profileBackup", "profileBackup.title", {
+        keywords: ["backup", "restore", "zip", "profile", "covers", "trash"],
+        contentPath: "profileBackup",
+    }),
     setting("setting:pdf", "#settings-pdfScale", "pdf.title", { keywords: ["pdf"], contentPath: "pdf" }),
     setting("setting:custom-stylesheet", "#settings-customStylesheet", "customStylesheet.title", {
         keywords: ["css"],

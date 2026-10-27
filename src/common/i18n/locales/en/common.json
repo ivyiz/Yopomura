@@ -41,6 +41,8 @@
         "bookmarksTooltip": "Bookmarks (Ctrl+Shift+B)",
         "browser": "Browser",
         "downloader": "Downloader",
+        "media": "Media",
+        "trash": "Recently Deleted",
         "listView": "List View",
         "galleryView": "Gallery View (Experimental)",
         "navigateToPage": "Navigate To Page Number",

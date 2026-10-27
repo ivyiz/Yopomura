@@ -35,6 +35,13 @@
     font-size: 0.72rem;
 }
 
+.trashManagerStats {
+    margin: 8px 0 2px;
+    color: var(--font-color-secondary);
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+}
+
 .trashManagerMessage {
     margin: 8px 1em;
     color: var(--font-color);

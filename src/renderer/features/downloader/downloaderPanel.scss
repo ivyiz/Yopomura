@@ -92,6 +92,14 @@
     justify-content: center;
 }
 
+.downloaderPause {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px !important;
+    font-size: 0.75rem !important;
+}
+
 .downloaderCompose {
     padding: 16px 22px 14px;
     display: flex;
@@ -189,6 +197,9 @@
 
     &.is-done {
         border-color: rgba(126, 231, 135, 0.35);
+    }
+    &.is-paused {
+        border-color: rgba(255, 210, 122, 0.4);
     }
     &.is-error {
         border-color: rgba(255, 138, 154, 0.4);

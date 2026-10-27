@@ -38,12 +38,14 @@ class DownloaderService extends EventEmitter {
     private pendingCommands: string[] = [];
     private jobs = new Map<string, DownloaderJob>();
     private activeId: string | null = null;
+    private paused = false;
     private starting = false;
 
     getState(): DownloaderState {
         return {
             ready: Boolean(this.worker),
             activeId: this.activeId,
+            paused: this.paused,
             jobs: [...this.jobs.values()].sort((a, b) => a.createdAt - b.createdAt),
         };
     }
@@ -51,6 +53,25 @@ class DownloaderService extends EventEmitter {
     /** Spawns the sidecar if needed. Safe to call from every panel mount. */
     start(): void {
         this.ensureWorker();
+    }
+
+    /**
+     * Holds the active job and the queue. The worker keeps its stdin loop alive,
+     * so a paused download can still be cancelled, resumed or extended.
+     */
+    pause(): void {
+        if (this.paused) return;
+        this.paused = true;
+        this.send({ cmd: "pause" });
+        this.broadcast();
+    }
+
+    /** Releases a paused worker; jobs continue with their existing progress. */
+    resume(): void {
+        if (!this.paused) return;
+        this.paused = false;
+        this.send({ cmd: "resume" });
+        this.broadcast();
     }
 
     addJob({ url, outDir, keepFolder = false }: AddDownloaderJobInput): DownloaderJob {
@@ -111,6 +132,7 @@ class DownloaderService extends EventEmitter {
         const worker = this.worker;
         this.worker = null;
         this.starting = false;
+        this.paused = false;
         if (worker && !worker.killed) {
             setTimeout(() => {
                 try {
@@ -147,12 +169,14 @@ class DownloaderService extends EventEmitter {
                 log.error("worker failed to start", err);
                 this.worker = null;
                 this.starting = false;
+                this.paused = false;
                 this.emit("error-state", err.message);
             });
             worker.once("exit", (code, signal) => {
                 log.info("worker exited", { code, signal });
                 this.worker = null;
                 this.starting = false;
+                this.paused = false;
                 if (this.activeId) {
                     this.patchJob(this.activeId, {
                         status: "error",
@@ -224,6 +248,8 @@ class DownloaderService extends EventEmitter {
             const queued = this.pendingCommands;
             this.pendingCommands = [];
             for (const command of queued) this.send(JSON.parse(command) as Record<string, unknown>);
+            // Pause survives a (re)spawn: the fresh worker starts unpaused.
+            if (this.paused) this.send({ cmd: "pause" });
             this.broadcast();
             return;
         }
@@ -246,7 +272,12 @@ class DownloaderService extends EventEmitter {
         if (event.message !== undefined) next.message = event.message;
         if (event.error !== undefined) next.error = event.error;
 
-        if (event.status === "resolving" || event.status === "downloading" || event.status === "packing") {
+        if (
+            event.status === "resolving" ||
+            event.status === "downloading" ||
+            event.status === "paused" ||
+            event.status === "packing"
+        ) {
             this.activeId = event.id;
         }
         if (event.status === "done" || event.status === "error" || event.status === "cancelled") {

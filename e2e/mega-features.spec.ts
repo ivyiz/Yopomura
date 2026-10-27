@@ -22,6 +22,7 @@ test("mega features smoke", async () => {
     const target = path.join(libraryDir, "sample.webm");
     const deletable = path.join(libraryDir, "DELETE-ME.zip");
     const permanent = path.join(libraryDir, "PERM-DELETE-ME.zip");
+    const backupPath = path.join(os.tmpdir(), `yokomura-profile-e2e-${Date.now()}.zip`);
     test.skip(
         !fs.existsSync(target) || !fs.existsSync(deletable),
         "requires the yokomura-mega-test fixtures and a matching portable userdata",
@@ -31,7 +32,10 @@ test("mega features smoke", async () => {
     const server = http.createServer((_req, res) => {
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
         res.end(
-            "<!doctype html><html><head><title>Test Browser Page</title></head><body><h1>Browser OK</h1></body></html>",
+            "<!doctype html><html><head><title>Test Browser Page</title></head><body><h1>Browser OK</h1>" +
+                '<a href="/gallery/one">Gallery One</a>' +
+                '<a href="/gallery/two">Gallery Two</a>' +
+                "</body></html>",
         );
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -50,6 +54,12 @@ test("mega features smoke", async () => {
                 checkboxChecked: false,
             });
         });
+        await app.evaluate(({ dialog }, destination) => {
+            (dialog as unknown as { showSaveDialog: unknown }).showSaveDialog = async () => ({
+                canceled: false,
+                filePath: destination,
+            });
+        }, backupPath);
         const page = await app.firstWindow();
         page.on("pageerror", (err) => errors.push(err.message));
         await page.waitForSelector(".locationRow", { timeout: 90_000 });
@@ -68,6 +78,20 @@ test("mega features smoke", async () => {
         expect(scrollbar.overflowY).toBe("scroll");
         expect(scrollbar.scrollbarWidth).toBeGreaterThan(8);
 
+        // Full profile backup ZIP (native save dialog is stubbed above).
+        const backup = (await page.evaluate(async () => {
+            const bridge = (
+                window as unknown as {
+                    electron: { invoke: (channel: string) => Promise<unknown> };
+                }
+            ).electron;
+            return bridge.invoke("profileBackup:create");
+        })) as { ok: boolean; path?: string; bytes?: number; message?: string };
+        console.log("PROFILE_BACKUP", backup);
+        expect(backup.ok).toBe(true);
+        expect(fs.existsSync(backupPath)).toBe(true);
+        expect(fs.statSync(backupPath).size).toBeGreaterThan(1_000);
+
         // Media player
         await page.locator(".locationRow", { hasText: "sample" }).first().click();
         await page.waitForSelector(".videoPlayerOverlay", { timeout: 15_000 });
@@ -80,6 +104,25 @@ test("mega features smoke", async () => {
         await page.locator('.videoPlayerOverlay button[aria-label="Close video player"]').click();
         await expect(page.locator(".videoPlayerOverlay")).toHaveCount(0);
 
+        // Dedicated YouTube-style media panel (Media icon on the TopBar).
+        await page.locator(".mediaToggle").click();
+        await page.waitForSelector(".mediaPanelOverlay", { timeout: 15_000 });
+        await page.waitForSelector(".mediaPanelVideo, .mediaPanelList li", { timeout: 20_000 });
+        const mediaItem = page.locator(".mediaPanelList li", { hasText: "sample" }).first();
+        if (await mediaItem.count()) await mediaItem.click();
+        const mediaVideo = page.locator(".mediaPanelVideo");
+        await expect(mediaVideo).toHaveCount(1);
+        await expect
+            .poll(() => mediaVideo.evaluate((el) => (el as HTMLVideoElement).readyState), { timeout: 20_000 })
+            .toBeGreaterThan(0);
+        await page.locator(".mediaPanelSeek").hover();
+        await expect(page.locator(".mediaPanelSeekPreview.is-visible")).toHaveCount(1);
+        await page.locator('.mediaPanelControlButton[aria-label="Theater mode"]').click();
+        await expect(page.locator(".mediaPanel.is-theater")).toHaveCount(1);
+        console.log("MEDIA_PANEL_OK");
+        await page.keyboard.press("Escape");
+        await expect(page.locator(".mediaPanelOverlay")).toHaveCount(0);
+
         // Full browser
         await page.locator(".browserToggle").click();
         await page.waitForSelector(".browserHost.is-full", { timeout: 15_000 });
@@ -91,6 +134,25 @@ test("mega features smoke", async () => {
             })
             .toContain("Test Browser Page");
         console.log("BROWSER_TITLE", await page.locator(".browserTab.is-active").innerText());
+
+        // Adblock is on by default; the shield toggles it.
+        const shield = page.locator('.browserToolbar button[title^="Ad blocking"]');
+        await expect(shield).toHaveAttribute("title", /^Ad blocking on/);
+        await shield.click();
+        await expect(shield).toHaveAttribute("title", /^Ad blocking off/);
+        await shield.click();
+        await expect(shield).toHaveAttribute("title", /^Ad blocking on/);
+
+        // Scan page links and select them (do not enqueue the fake URLs).
+        await page.locator('.browserToolbar button[title="Scan links on this page"]').click();
+        await page.waitForSelector(".browserScanDialog", { timeout: 15_000 });
+        await expect(page.locator(".browserScanRow")).toHaveCount(2);
+        await page.locator(".browserScanDialog").getByRole("button", { name: "Select all" }).click();
+        await expect(page.locator(".browserScanRow input:checked")).toHaveCount(2);
+        console.log("BROWSER_SCAN_OK", await page.locator(".browserScanCount").innerText());
+        await page.locator('.browserScanDialog button[title="Close"]').click();
+        await expect(page.locator(".browserScanDialog")).toHaveCount(0);
+
         await page.locator(".browserNewTab").click();
         await expect(page.locator(".browserTab")).toHaveCount(2);
         await page.locator('.browserTabStrip button[title="Close browser"]').click();
@@ -116,7 +178,8 @@ test("mega features smoke", async () => {
         await page.locator(".contextMenu").getByText("Delete", { exact: true }).click();
         await page.waitForSelector(".trashToast", { timeout: 20_000 });
         await expect.poll(() => fs.existsSync(deletable), { timeout: 15_000 }).toBe(false);
-        await page.locator(".trashToast button", { hasText: "View" }).click();
+        // Dedicated TopBar trash icon opens the panel (toast View is covered by the other flow).
+        await page.locator(".trashToggle").click();
         await page.waitForSelector(".trashPanel", { timeout: 15_000 });
         const trashRow = page.locator(".trashRow", { hasText: "DELETE-ME" }).first();
         await expect(trashRow).toHaveCount(1);
@@ -167,6 +230,7 @@ test("mega features smoke", async () => {
             )
             .toBe(true);
         console.log("DOWNLOADER_OK");
+        await expect(page.locator(".downloaderPause")).toBeDisabled();
         await page.locator(".downloaderFoot button", { hasText: "Close" }).click();
 
         console.log("PAGE_ERRORS", errors);
@@ -174,5 +238,6 @@ test("mega features smoke", async () => {
     } finally {
         await app.close();
         server.close();
+        fs.rmSync(backupPath, { force: true });
     }
 });

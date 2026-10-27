@@ -23,6 +23,8 @@ export const registerDownloaderHandlers = (): void => {
     });
     ipc.handle("downloader:add", (_event, request) => downloaderService.addJob(request));
     ipc.handle("downloader:cancel", (_event, { id }) => downloaderService.cancelJob(id));
+    ipc.handle("downloader:pause", () => downloaderService.pause());
+    ipc.handle("downloader:resume", () => downloaderService.resume());
     ipc.handle("downloader:remove", (_event, { id }) => downloaderService.removeJob(id));
     ipc.handle("downloader:clearFinished", () => downloaderService.clearFinished());
 };

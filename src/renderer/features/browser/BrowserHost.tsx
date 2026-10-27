@@ -1,6 +1,7 @@
 import type {
     BrowserContextMenuRequest,
     BrowserDownload,
+    BrowserScannedLink,
     BrowserSearchEngine,
     BrowserState,
 } from "@common/types/browser";
@@ -9,9 +10,12 @@ import {
     faArrowRight,
     faDownload,
     faGlobe,
+    faLink,
     faMoon,
     faPlus,
     faRotate,
+    faShield,
+    faShieldHalved,
     faSun,
     faUpRightFromSquare,
     faXmark,
@@ -20,7 +24,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useAppContext } from "@renderer/App";
 import { useAppSelector } from "@store/hooks";
 import { selectModalOverlayOpen } from "@store/ui";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { BrowserMode, ToggleBrowserDetail } from "./browserEvents";
 import "./browserHost.scss";
 
@@ -69,12 +73,17 @@ const readSavedDisabledHosts = (): string[] => {
     }
 };
 
+/** Ad blocking defaults to on; localStorage stores "off" when disabled. */
+const readSavedAdblock = (): boolean => {
+    return window.localStorage.getItem("yokomura-browser-adblock") !== "off";
+};
+
 /**
  * React shell for the native WebContentsView browser. The native view sits over
  * `.browserContent`; tabs/toolbar/menus stay in the renderer.
  */
 const BrowserHost = () => {
-    const { openDownloader, downloaderOpen, videoOpen, trashOpen } = useAppContext();
+    const { openDownloader, downloaderOpen, videoOpen, trashOpen, mediaOpen } = useAppContext();
     const folders = useAppSelector((store) => store.mainSettings.library.folders);
     const defaultOutDir = useAppSelector((store) => {
         const folder = store.mainSettings.library.folders.find((row) => row.isDefaultLocation);
@@ -92,11 +101,26 @@ const BrowserHost = () => {
     const [menu, setMenu] = useState<ContextMenuState | null>(null);
     const [downloads, setDownloads] = useState<BrowserDownload[]>([]);
     const [error, setError] = useState("");
+    const [scanOpen, setScanOpen] = useState(false);
+    const [scanLoading, setScanLoading] = useState(false);
+    const [scanLinks, setScanLinks] = useState<BrowserScannedLink[]>([]);
+    const [scanSelected, setScanSelected] = useState<string[]>([]);
+    const [scanFilter, setScanFilter] = useState("");
+    const [scanError, setScanError] = useState("");
+    const [adblockEnabled, setAdblockEnabled] = useState<boolean>(readSavedAdblock);
     const modeRef = useRef<BrowserMode | null>(null);
     const paneRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const lastBounds = useRef("");
     const addressFocused = useRef(false);
+
+    const filteredScanLinks = useMemo(() => {
+        const query = scanFilter.trim().toLowerCase();
+        if (!query) return scanLinks;
+        return scanLinks.filter(
+            (link) => link.text.toLowerCase().includes(query) || link.url.toLowerCase().includes(query),
+        );
+    }, [scanLinks, scanFilter]);
 
     const contentBounds = useCallback(() => {
         const rect = contentRef.current?.getBoundingClientRect();
@@ -149,6 +173,9 @@ const BrowserHost = () => {
             const saved = readSavedEngine();
             setEngine(saved);
             void window.electron.invoke("browser:setSearchEngine", { engine: saved });
+            const savedAdblock = readSavedAdblock();
+            setAdblockEnabled(savedAdblock);
+            void window.electron.invoke("browser:setAdblock", { enabled: savedAdblock });
             for (const host of readSavedDisabledHosts()) {
                 void window.electron.invoke("browser:setHostForceDark", {
                     hostOrUrl: host,
@@ -206,9 +233,11 @@ const BrowserHost = () => {
         !modalOverlayOpen &&
         !readerActive &&
         !menu &&
+        !scanOpen &&
         !downloaderOpen &&
         !videoOpen &&
-        !trashOpen;
+        !trashOpen &&
+        !mediaOpen;
 
     useEffect(() => {
         void window.electron.invoke("browser:setVisible", { visible });
@@ -249,6 +278,13 @@ const BrowserHost = () => {
         if (!mode) return;
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key !== "Escape") return;
+            if (scanOpen) {
+                setScanOpen(false);
+                setScanError("");
+                setScanLoading(false);
+                requestAnimationFrame(syncBounds);
+                return;
+            }
             const target = event.target as HTMLElement | null;
             if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
             modeRef.current = null;
@@ -257,15 +293,21 @@ const BrowserHost = () => {
         };
         window.addEventListener("keydown", onKeyDown);
         return () => window.removeEventListener("keydown", onKeyDown);
-    }, [mode]);
+    }, [mode, scanOpen, syncBounds]);
 
     const activeTab = state.tabs.find((tab) => tab.id === state.activeId);
     const currentDisabled = activeTab ? disabledHosts.includes(hostOf(activeTab.url)) : false;
+    const scanCountText = scanLoading
+        ? "Scanning page…"
+        : `${scanLinks.length} link${scanLinks.length === 1 ? "" : "s"} found · ${scanSelected.length} selected${
+              scanFilter.trim() ? ` · ${filteredScanLinks.length} shown` : ""
+          }`;
 
     const close = () => {
         modeRef.current = null;
         setMode(null);
         setMenu(null);
+        setScanOpen(false);
     };
 
     const navigate = async () => {
@@ -283,6 +325,107 @@ const BrowserHost = () => {
         const outDir = defaultOutDir || folders[0]?.path || window.electron.app.getPath("downloads");
         await window.electron.invoke("downloader:add", { url, outDir, keepFolder: false });
         openDownloader();
+    };
+
+    const closeScan = useCallback(() => {
+        setScanOpen(false);
+        setScanError("");
+        setScanLoading(false);
+        requestAnimationFrame(syncBounds);
+    }, [syncBounds]);
+
+    const scanPageLinks = async () => {
+        setScanOpen(true);
+        setMenu(null);
+        setScanLinks([]);
+        setScanSelected([]);
+        setScanFilter("");
+        setScanError("");
+        if (!state.activeId) {
+            setScanError("Open a page before scanning links");
+            return;
+        }
+
+        setScanLoading(true);
+        try {
+            const links = await window.electron.invoke("browser:scanLinks", { tabId: state.activeId });
+            setScanLinks(links);
+            setScanSelected(links.map((link) => link.url));
+        } catch (failure) {
+            setScanError(failure instanceof Error ? failure.message : "Could not scan this page");
+        } finally {
+            setScanLoading(false);
+        }
+    };
+
+    const toggleScanLink = (url: string) => {
+        setScanSelected((prev) => {
+            return prev.includes(url) ? prev.filter((row) => row !== url) : [...prev, url];
+        });
+    };
+
+    const selectAllScanned = () => {
+        setScanSelected((prev) => [...new Set([...prev, ...filteredScanLinks.map((link) => link.url)])]);
+    };
+
+    const addScannedLinks = async () => {
+        const urls = scanLinks.filter((link) => scanSelected.includes(link.url)).map((link) => link.url);
+        if (urls.length === 0) {
+            setScanError("Select at least one link");
+            return;
+        }
+
+        setScanLoading(true);
+        setScanError("");
+        const outDir = defaultOutDir || folders[0]?.path || window.electron.app.getPath("downloads");
+
+        const queued = new Set<string>();
+        try {
+            const downloaderState = await window.electron.invoke("downloader:getState");
+            for (const job of downloaderState.jobs) {
+                if (
+                    job.status === "queued" ||
+                    job.status === "resolving" ||
+                    job.status === "downloading" ||
+                    job.status === "packing"
+                ) {
+                    queued.add(job.url);
+                }
+            }
+        } catch {
+            // If the queue state is unavailable, still try to add the links.
+        }
+
+        let added = 0;
+        const failed: string[] = [];
+        for (const url of urls) {
+            if (queued.has(url)) continue;
+            try {
+                await window.electron.invoke("downloader:add", { url, outDir, keepFolder: false });
+                added += 1;
+            } catch {
+                failed.push(url);
+            }
+        }
+
+        setScanLoading(false);
+        if (added === 0 && failed.length === 0) {
+            setScanError("All selected links are already in the Downloader");
+            return;
+        }
+
+        openDownloader();
+        closeScan();
+        if (failed.length > 0) {
+            setError(`${failed.length} link(s) could not be added to the Downloader`);
+        }
+    };
+
+    const toggleAdblock = () => {
+        const next = !adblockEnabled;
+        setAdblockEnabled(next);
+        window.localStorage.setItem("yokomura-browser-adblock", next ? "on" : "off");
+        void window.electron.invoke("browser:setAdblock", { enabled: next });
     };
 
     const closeMenu = () => {
@@ -481,11 +624,33 @@ const BrowserHost = () => {
                     </button>
                     <button
                         type="button"
+                        className={`browserIconBtn ${adblockEnabled ? "is-on" : ""}`}
+                        title={
+                            adblockEnabled
+                                ? "Ad blocking on (click to disable)"
+                                : "Ad blocking off (click to enable)"
+                        }
+                        aria-pressed={adblockEnabled}
+                        onClick={toggleAdblock}
+                    >
+                        <FontAwesomeIcon icon={adblockEnabled ? faShield : faShieldHalved} />
+                    </button>
+                    <button
+                        type="button"
                         className="browserIconBtn"
                         title="Add current page to Downloader"
                         onClick={() => void addToDownloader(state.url)}
                     >
                         <FontAwesomeIcon icon={faDownload} />
+                    </button>
+                    <button
+                        type="button"
+                        className="browserIconBtn"
+                        title="Scan links on this page"
+                        disabled={!state.activeId}
+                        onClick={() => void scanPageLinks()}
+                    >
+                        <FontAwesomeIcon icon={faLink} />
                     </button>
                     <button
                         type="button"
@@ -519,6 +684,100 @@ const BrowserHost = () => {
                                 </span>
                             </div>
                         ))}
+                    </div>
+                ) : null}
+
+                {scanOpen ? (
+                    <div
+                        className="browserScanOverlay"
+                        onMouseDown={(event) => {
+                            if (event.target === event.currentTarget) closeScan();
+                        }}
+                    >
+                        <div className="browserScanDialog" role="dialog" aria-modal="true" aria-label="Scan links">
+                            <div className="browserScanHeader">
+                                <strong>Scan links</strong>
+                                <button
+                                    type="button"
+                                    className="browserIconBtn"
+                                    title="Close"
+                                    aria-label="Close"
+                                    onClick={closeScan}
+                                >
+                                    <FontAwesomeIcon icon={faXmark} />
+                                </button>
+                            </div>
+
+                            <div className="browserScanControls">
+                                <input
+                                    className="browserScanFilter"
+                                    value={scanFilter}
+                                    onChange={(event) => setScanFilter(event.target.value)}
+                                    placeholder="Filter links"
+                                    spellCheck={false}
+                                    // biome-ignore lint/a11y/noAutofocus: the drawer is opened by an explicit toolbar action
+                                    autoFocus
+                                />
+                                <button
+                                    type="button"
+                                    className="browserScanAction"
+                                    disabled={filteredScanLinks.length === 0}
+                                    onClick={selectAllScanned}
+                                >
+                                    Select all
+                                </button>
+                                <button
+                                    type="button"
+                                    className="browserScanAction"
+                                    disabled={scanSelected.length === 0}
+                                    onClick={() => setScanSelected([])}
+                                >
+                                    Clear
+                                </button>
+                            </div>
+
+                            <div className="browserScanCount">{scanCountText}</div>
+
+                            {scanError ? <div className="browserScanError">{scanError}</div> : null}
+
+                            <div className="browserScanList">
+                                {scanLoading ? (
+                                    <div className="browserScanEmpty">Scanning page…</div>
+                                ) : filteredScanLinks.length === 0 ? (
+                                    <div className="browserScanEmpty">
+                                        {scanLinks.length === 0
+                                            ? "No links found on this page."
+                                            : "No links match the filter."}
+                                    </div>
+                                ) : (
+                                    filteredScanLinks.map((link) => (
+                                        <label key={link.url} className="browserScanRow" title={link.url}>
+                                            <input
+                                                type="checkbox"
+                                                checked={scanSelected.includes(link.url)}
+                                                onChange={() => toggleScanLink(link.url)}
+                                            />
+                                            <span className="browserScanText">{link.text || link.url}</span>
+                                            <span className="browserScanUrl">{link.url}</span>
+                                        </label>
+                                    ))
+                                )}
+                            </div>
+
+                            <div className="browserScanFooter">
+                                <button
+                                    type="button"
+                                    className="browserScanPrimary"
+                                    disabled={scanLoading || scanSelected.length === 0}
+                                    onClick={() => void addScannedLinks()}
+                                >
+                                    Add selected to Downloader
+                                </button>
+                                <button type="button" className="browserScanAction" onClick={closeScan}>
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 ) : null}
 

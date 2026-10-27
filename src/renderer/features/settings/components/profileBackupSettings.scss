@@ -1,0 +1,35 @@
+#settings-profileBackup {
+    .profileBackupActions {
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5em;
+        padding: 0.15em 1em 0.35em;
+    }
+
+    .profileBackupBusy,
+    .profileBackupMessage,
+    .profileBackupError {
+        display: block;
+        font-size: 0.9em;
+        overflow-wrap: anywhere;
+    }
+
+    .profileBackupBusy {
+        color: var(--font-color-secondary);
+    }
+
+    .profileBackupMessage {
+        color: var(--font-color);
+    }
+
+    .profileBackupError {
+        color: var(--error-color);
+    }
+
+    .profileBackupPath {
+        color: var(--font-color-secondary);
+        font-family: monospace;
+        font-size: 0.85em;
+        overflow-wrap: anywhere;
+    }
+}

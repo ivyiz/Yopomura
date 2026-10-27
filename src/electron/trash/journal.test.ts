@@ -148,6 +148,73 @@ describe("createTrashJournal", () => {
         expect(await journal.listTrashEntries()).toEqual([]);
     });
 
+    it("updates fields in place and persists the merged entry", async () => {
+        const { journal } = makeJournal();
+        const dayMs = 24 * 60 * 60 * 1000;
+        const entry = await journal.appendTrashEntry({
+            originalPath: path.join("C:\\library", "One Piece.zip"),
+            kind: "file",
+            itemType: "manga",
+            storage: "app",
+            trashPath: path.join("C:\\userdata", "trash", "abc", "One Piece.zip"),
+            deletedAt: 1_000,
+            expiresAt: 1_000 + 7 * dayMs,
+            retentionDays: 7,
+        });
+
+        const updated = await journal.updateEntry(entry.id, {
+            retentionDays: 1,
+            expiresAt: 1_000 + dayMs,
+        });
+        expect(updated).toEqual({ ...entry, retentionDays: 1, expiresAt: 1_000 + dayMs });
+        expect(await journal.getEntry(entry.id)).toEqual(updated);
+
+        const untouched = await journal.updateEntry(entry.id, { expiresAt: undefined });
+        expect(untouched?.expiresAt).toBe(1_000 + dayMs);
+        expect(untouched?.retentionDays).toBe(1);
+        expect(await journal.updateEntry("missing-id", { retentionDays: 3 })).toBeNull();
+    });
+
+    it("rejects invalid patch values without writing the journal", async () => {
+        const { journal, filePath } = makeJournal();
+        const entry = await append(journal, "volume-1");
+        const before = readRaw(filePath);
+
+        await expect(journal.updateEntry(entry.id, { retentionDays: 4 as unknown as 7 })).rejects.toThrow(
+            "retentionDays",
+        );
+        await expect(journal.updateEntry(entry.id, { expiresAt: Number.NaN })).rejects.toThrow("expiresAt");
+        await expect(journal.updateEntry(entry.id, { status: "deleted" as unknown as "trashed" })).rejects.toThrow(
+            "status",
+        );
+
+        expect(readRaw(filePath)).toBe(before);
+        expect(await journal.getEntry(entry.id)).toEqual(entry);
+    });
+
+    it("serializes concurrent updates so every patch survives", async () => {
+        const { journal, filePath } = makeJournal();
+        const entries = await Promise.all(
+            Array.from({ length: 6 }, (_, index) => append(journal, `volume-${index}`, { deletedAt: index })),
+        );
+
+        await Promise.all(
+            entries.map((entry, index) =>
+                journal.updateEntry(entry.id, { retentionDays: 3, expiresAt: index * 1_000 }),
+            ),
+        );
+
+        const listed = await journal.listTrashEntries();
+        expect(listed).toHaveLength(6);
+        for (const entry of listed) {
+            const index = entries.findIndex((row) => row.id === entry.id);
+            expect(entry.expiresAt).toBe(index * 1_000);
+            expect(entry.retentionDays).toBe(3);
+        }
+        expect(JSON.parse(readRaw(filePath))).toHaveLength(6);
+        expect(tempFiles(path.dirname(filePath))).toEqual([]);
+    });
+
     it("prunes entries older than the retention window", async () => {
         const { journal } = makeJournal();
         const stale = await append(journal, "stale.cbz", { deletedAt: 1_000 });

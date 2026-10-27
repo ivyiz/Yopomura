@@ -1,6 +1,6 @@
 import { getDefaultLocationPath } from "@common/library/folders";
 import type { DownloaderJob, DownloaderState } from "@common/types/downloader";
-import { faFolderOpen, faTrash, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faFolderOpen, faPause, faPlay, faTrash, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useAppSelector } from "@store/hooks";
 import { promptSelectDir } from "@utils/file";
@@ -17,11 +17,15 @@ const STATUS_LABEL: Record<DownloaderJob["status"], string> = {
     queued: "Queued",
     resolving: "Resolving",
     downloading: "Downloading",
+    paused: "Paused",
     packing: "Packing ZIP",
     done: "Done",
     error: "Error",
     cancelled: "Cancelled",
 };
+
+/** Statuses that mean the worker still owes this job work. */
+const PENDING_STATUSES: DownloaderJob["status"][] = ["queued", "resolving", "downloading", "paused", "packing"];
 
 const DownloaderPanel = ({ onClose, onOpenOutput }: DownloaderPanelProps) => {
     const { t } = useTranslation("home");
@@ -30,7 +34,7 @@ const DownloaderPanel = ({ onClose, onOpenOutput }: DownloaderPanelProps) => {
     const [urls, setUrls] = useState("");
     const [outDir, setOutDir] = useState(defaultDir);
     const [keepFolder, setKeepFolder] = useState(false);
-    const [state, setState] = useState<DownloaderState>({ ready: false, activeId: null, jobs: [] });
+    const [state, setState] = useState<DownloaderState>({ ready: false, activeId: null, paused: false, jobs: [] });
     const [busy, setBusy] = useState(false);
 
     useEffect(() => {
@@ -48,6 +52,16 @@ const DownloaderPanel = ({ onClose, onOpenOutput }: DownloaderPanelProps) => {
     }, []);
 
     const jobs = useMemo(() => [...state.jobs].reverse(), [state.jobs]);
+    const canTogglePause =
+        state.paused || state.activeId !== null || jobs.some((job) => PENDING_STATUSES.includes(job.status));
+
+    const togglePause = () => {
+        if (state.paused) {
+            void window.electron.invoke("downloader:resume");
+        } else {
+            void window.electron.invoke("downloader:pause");
+        }
+    };
 
     const add = async () => {
         if (busy) return;
@@ -79,6 +93,16 @@ const DownloaderPanel = ({ onClose, onOpenOutput }: DownloaderPanelProps) => {
                         <h2>Downloader</h2>
                     </div>
                     <div className="downloaderHeadActions">
+                        <button
+                            type="button"
+                            className="downloaderPause"
+                            onClick={togglePause}
+                            disabled={!canTogglePause}
+                            title={state.paused ? "Resume downloads" : "Pause downloads"}
+                        >
+                            <FontAwesomeIcon icon={state.paused ? faPlay : faPause} />
+                            <span>{state.paused ? "Resume" : "Pause"}</span>
+                        </button>
                         <button type="button" className="downloaderClose" onClick={onClose} title="Close">
                             <FontAwesomeIcon icon={faXmark} />
                         </button>
@@ -182,6 +206,7 @@ const DownloaderPanel = ({ onClose, onOpenOutput }: DownloaderPanelProps) => {
                                         {(job.status === "queued" ||
                                             job.status === "resolving" ||
                                             job.status === "downloading" ||
+                                            job.status === "paused" ||
                                             job.status === "packing") && (
                                             <button
                                                 type="button"
