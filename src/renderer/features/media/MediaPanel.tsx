@@ -17,6 +17,7 @@ import { absolutePathToFileUrl } from "@utils/libraryCover";
 import type { SyntheticEvent } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import MediaPlayerControls from "./MediaPlayerControls";
+import MediaThumbnail from "./MediaThumbnail";
 import {
     continueWatchingVideos,
     DEFAULT_SCAN_MAX_DEPTH,
@@ -178,6 +179,8 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
     const [buffering, setBuffering] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
+    const [videoWidth, setVideoWidth] = useState(0);
+    const [videoHeight, setVideoHeight] = useState(0);
     const [bufferedTime, setBufferedTime] = useState(0);
     const [volume, setVolume] = useState(() => {
         try {
@@ -218,6 +221,12 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         }
         return map;
     }, [watched]);
+
+    const selectedWatched = selected ? watchedByPath.get(normalizeVideoPath(selected.path)) : undefined;
+    const watchedPercent =
+        selectedWatched && selectedWatched.duration > 0
+            ? Math.round(clamp01(selectedWatched.time / selectedWatched.duration) * 100)
+            : 0;
 
     const continueItems = useMemo(
         () => continueWatchingVideos(entries, watched, MAX_CONTINUE_ITEMS),
@@ -289,6 +298,8 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         pathRef.current = selectedPath;
         setCurrentTime(0);
         setDuration(0);
+        setVideoWidth(0);
+        setVideoHeight(0);
         setBufferedTime(0);
         setStatus("loading");
         setErrorMessage("");
@@ -504,6 +515,8 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         lastDurationRef.current = video.duration;
         setCurrentTime(video.currentTime);
         setDuration(Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0);
+        setVideoWidth(video.videoWidth);
+        setVideoHeight(video.videoHeight);
     };
 
     const handleCanPlay = (event: SyntheticEvent<HTMLVideoElement>) => {
@@ -944,23 +957,88 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                     <h1 className="mediaPanelVideoTitle" title={selected.title}>
                                         {selected.title}
                                     </h1>
-                                    <div className="mediaPanelVideoMeta">
-                                        <span className="mediaPanelChip">{extensionLabel(selected.path)}</span>
-                                        <span>{formatBytes(selected.sizeBytes)}</span>
-                                        <span className="mediaPanelMetaDot" aria-hidden />
-                                        <span>{formatMediaDate(selected.modifiedMs)}</span>
-                                        <span className="mediaPanelMetaDot" aria-hidden />
+                                </div>
+
+                                <section
+                                    className="mediaPanelDescription"
+                                    aria-labelledby="mediaPanelDescriptionTitle"
+                                >
+                                    <div className="mediaPanelDescriptionHead">
+                                        <h2 id="mediaPanelDescriptionTitle" className="mediaPanelDescriptionTitle">
+                                            Description
+                                        </h2>
+                                        <span className="mediaPanelDescriptionFormat">
+                                            {extensionLabel(selected.path)}
+                                        </span>
+                                    </div>
+                                    <dl className="mediaPanelDescriptionGrid">
+                                        <div>
+                                            <dt>File</dt>
+                                            <dd>{window.path.basename(selected.path)}</dd>
+                                        </div>
+                                        <div>
+                                            <dt>Size</dt>
+                                            <dd>{formatBytes(selected.sizeBytes)}</dd>
+                                        </div>
+                                        <div>
+                                            <dt>Modified</dt>
+                                            <dd>{formatMediaDate(selected.modifiedMs)}</dd>
+                                        </div>
+                                        <div>
+                                            <dt>Duration</dt>
+                                            <dd>{duration > 0 ? formatTime(duration) : "—"}</dd>
+                                        </div>
+                                        <div>
+                                            <dt>Resolution</dt>
+                                            <dd>{videoWidth > 0 ? `${videoWidth} × ${videoHeight}` : "—"}</dd>
+                                        </div>
+                                        <div>
+                                            <dt>Last watched</dt>
+                                            <dd>
+                                                {selectedWatched
+                                                    ? `${formatTime(selectedWatched.time)} · ${watchedPercent}%`
+                                                    : "Not started"}
+                                            </dd>
+                                        </div>
+                                        <div className="is-wide">
+                                            <dt>Folder</dt>
+                                            <dd>
+                                                <button
+                                                    type="button"
+                                                    className="mediaPanelDescriptionPath"
+                                                    title={selected.path}
+                                                    onClick={() => window.electron.showItemInFolder(selected.path)}
+                                                >
+                                                    {window.path.dirname(selected.path)}
+                                                </button>
+                                            </dd>
+                                        </div>
+                                    </dl>
+                                    <div className="mediaPanelDescriptionActions">
                                         <button
                                             type="button"
-                                            className="mediaPanelPathButton"
-                                            title={`Show in folder: ${selected.path}`}
                                             onClick={() => window.electron.showItemInFolder(selected.path)}
                                         >
                                             <FontAwesomeIcon icon={faFolderOpen} aria-hidden />
-                                            <span>{window.path.dirname(selected.path)}</span>
+                                            Open in File Explorer
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => void window.electron.clipboard.writeText(selected.path)}
+                                        >
+                                            Copy path
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                seekTo(0);
+                                                void videoRef.current?.play().catch(() => undefined);
+                                            }}
+                                        >
+                                            Play from start
                                         </button>
                                     </div>
-                                </div>
+                                </section>
 
                                 {continueItems.length > 0 ? (
                                     <section
@@ -990,10 +1068,10 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                                         title={`${entry.title}\n${entry.path}`}
                                                         onClick={() => selectVideo(entry.path)}
                                                     >
-                                                        <span className="mediaPanelContinueArt" aria-hidden>
-                                                            <FontAwesomeIcon icon={faFilm} />
-                                                            <span>{extensionLabel(entry.path)}</span>
-                                                        </span>
+                                                        <MediaThumbnail
+                                                            path={entry.path}
+                                                            className="mediaPanelContinueArt"
+                                                        />
                                                         <span className="mediaPanelContinueBody">
                                                             <span className="mediaPanelContinueTitle">
                                                                 {entry.title}
@@ -1111,8 +1189,14 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                                 title={`${item.title}\n${item.path}`}
                                                 onClick={() => selectVideo(item.path)}
                                             >
-                                                <span className="mediaPanelListIndex">
-                                                    {String(index + 1).padStart(2, "0")}
+                                                <span className="mediaPanelListThumb">
+                                                    <MediaThumbnail path={item.path} />
+                                                    <span className="mediaPanelListIndex">
+                                                        {String(index + 1).padStart(2, "0")}
+                                                    </span>
+                                                    {active ? (
+                                                        <span className="mediaPanelListPlaying" aria-hidden />
+                                                    ) : null}
                                                 </span>
                                                 <span className="mediaPanelListBody">
                                                     <span className="mediaPanelListTitle">{item.title}</span>
@@ -1124,6 +1208,10 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                                         <span>{formatBytes(item.sizeBytes)}</span>
                                                         <span className="mediaPanelMetaDot" aria-hidden />
                                                         <span>{formatMediaDate(item.modifiedMs)}</span>
+                                                        <span className="mediaPanelMetaDot" aria-hidden />
+                                                        <span className="mediaPanelListExt">
+                                                            {extensionLabel(item.path)}
+                                                        </span>
                                                     </span>
                                                     {saved && fraction > 0 && fraction < 1 ? (
                                                         <span className="mediaPanelMiniProgress" aria-hidden>
@@ -1134,9 +1222,6 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                                             />
                                                         </span>
                                                     ) : null}
-                                                </span>
-                                                <span className="mediaPanelListBadge">
-                                                    {extensionLabel(item.path)}
                                                 </span>
                                             </button>
                                         </li>

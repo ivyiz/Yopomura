@@ -142,6 +142,12 @@ test("mega features smoke", async () => {
         await expect(page.locator(".mediaPanelSeekPreview.is-visible")).toHaveCount(1);
         await page.locator('.mediaPanelControlButton[aria-label="Theater mode"]').click();
         await expect(page.locator(".mediaPanel.is-theater")).toHaveCount(1);
+        await expect(page.locator(".mediaPanelVideoMeta")).toHaveCount(0);
+        await expect(page.locator(".mediaPanelDescription")).toHaveCount(1);
+        await expect(page.locator(".mediaPanelDescriptionFormat")).toHaveText("WEBM");
+        await expect(page.locator(".mediaPanelListThumb").first()).toBeVisible();
+        await page.locator(".mediaPanelDescription").scrollIntoViewIfNeeded();
+        await expect(page.locator(".mediaPanelDescriptionPath")).toBeVisible();
         console.log("MEDIA_PANEL_OK");
         await page.keyboard.press("Escape");
         await expect(page.locator(".mediaPanelOverlay")).toHaveCount(0);
