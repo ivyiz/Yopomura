@@ -57,7 +57,7 @@ test("mega features smoke", async () => {
         await page.keyboard.press("Escape");
 
         // Location list has its own always-visible draggable scrollbar.
-        const scrollbar = await page.locator(".location-cont").evaluate((el) => {
+        const scrollbar = await page.locator("#locationTab .location-cont").evaluate((el) => {
             const style = window.getComputedStyle(el);
             return {
                 overflowY: style.overflowY,
