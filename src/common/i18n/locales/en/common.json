@@ -81,7 +81,7 @@
         "showCoverInExplorer": "Show cover in File Explorer",
         "copyPath": "Copy Path",
         "copyImage": "Copy Image",
-        "moveToTrash": "Move to Recently Deleted",
+        "moveToTrash": "Delete",
         "moveToTrashMessage": "Move \"{{name}}\" to Recently Deleted?",
         "moveToTrashDetail": "It stays recoverable for the retention period, then is deleted from disk. If it is in your library, its library entry and bookmarks are removed too.",
         "moveToTrashFailed": "Could not move the item to Recently Deleted.",

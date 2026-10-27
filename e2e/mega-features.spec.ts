@@ -113,7 +113,7 @@ test("mega features smoke", async () => {
         const row = page.locator(".locationRow", { hasText: "DELETE-ME" }).first();
         await row.click({ button: "right" });
         await page.waitForSelector(".contextMenu", { timeout: 10_000 });
-        await page.getByText("Move to Recently Deleted", { exact: true }).last().click();
+        await page.locator(".contextMenu").getByText("Delete", { exact: true }).click();
         await page.waitForSelector(".trashToast", { timeout: 20_000 });
         await expect.poll(() => fs.existsSync(deletable), { timeout: 15_000 }).toBe(false);
         await page.locator(".trashToast button", { hasText: "View" }).click();
@@ -135,7 +135,7 @@ test("mega features smoke", async () => {
         const permanentRow = page.locator(".locationRow", { hasText: "PERM-DELETE-ME" }).first();
         await permanentRow.click({ button: "right" });
         await page.waitForSelector(".contextMenu", { timeout: 10_000 });
-        await page.getByText("Move to Recently Deleted", { exact: true }).last().click();
+        await page.locator(".contextMenu").getByText("Delete", { exact: true }).click();
         await page.waitForSelector(".trashToast", { timeout: 20_000 });
         await expect.poll(() => fs.existsSync(permanent), { timeout: 15_000 }).toBe(false);
         await page.locator(".trashToast button", { hasText: "View" }).click();
