@@ -6,7 +6,7 @@ import { createRendererLogger } from "@utils/logger";
 const log = createRendererLogger("utils/locationCover");
 
 /** Library row fields needed to resolve a location row cover. */
-export type LocationCoverItem = Pick<LibraryItem, "id" | "type" | "link" | "cover" | "extra">;
+export type LocationCoverItem = Pick<LibraryItem, "id" | "type" | "link" | "cover" | "extra" | "favouritedAt">;
 
 /** Session cache of path-keyed preview promises, stamped with mtime so replaced files refresh. */
 const previewByLink = new Map<string, Promise<string>>();

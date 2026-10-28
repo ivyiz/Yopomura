@@ -7,7 +7,7 @@ import { BROWSER_BOOKMARKS_FILE, createBookmarkStore, normalizeBookmarkUrl } fro
 const dirs: string[] = [];
 
 const makeStore = () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "yomikiru-bookmarks-"));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "yopomura-bookmarks-"));
     dirs.push(dir);
     const file = path.join(dir, BROWSER_BOOKMARKS_FILE);
     return { dir, file, store: createBookmarkStore(file) };
@@ -32,9 +32,11 @@ describe("browser bookmarks", () => {
             url: "https://example.com",
             title: "Example",
             favicon: "https://example.com/i.png",
+            category: "Research",
         });
         expect(first?.title).toBe("Example");
         expect(first?.favicon).toBe("https://example.com/i.png");
+        expect(first?.category).toBe("Research");
         expect(store.list()).toHaveLength(1);
 
         const duplicate = store.add({ url: "https://example.com/", title: "Another" });
@@ -42,8 +44,9 @@ describe("browser bookmarks", () => {
         expect(store.list()).toHaveLength(1);
 
         const id = first?.id ?? "";
-        const updated = store.update(id, "  Renamed   page  ");
+        const updated = store.update(id, { title: "  Renamed   page  ", category: "  Tools  " });
         expect(updated?.title).toBe("Renamed page");
+        expect(updated?.category).toBe("Tools");
         expect(store.list()[0]?.title).toBe("Renamed page");
 
         expect(store.remove("missing")).toBe(false);
@@ -51,13 +54,14 @@ describe("browser bookmarks", () => {
         expect(store.list()).toEqual([]);
 
         const persisted = JSON.parse(fs.readFileSync(file, "utf8")) as { version: number };
-        expect(persisted.version).toBe(1);
+        expect(persisted.version).toBe(2);
     });
 
     it("falls back to the hostname when the title is empty", () => {
         const { store } = makeStore();
         const bookmark = store.add({ url: "https://example.com/deep/page", title: "   " });
         expect(bookmark?.title).toBe("example.com");
+        expect(bookmark?.category).toBe("Favorites");
     });
 
     it("ignores data favicons and invalid stored rows", () => {
@@ -79,6 +83,7 @@ describe("browser bookmarks", () => {
         const list = store.list();
         expect(list).toHaveLength(1);
         expect(list[0]?.favicon).toBe("");
+        expect(list[0]?.category).toBe("Favorites");
     });
 
     it("starts empty when the file is corrupt", () => {
@@ -90,5 +95,6 @@ describe("browser bookmarks", () => {
         const bookmark = store.add({ url: "https://example.com", title: "Recovered" });
         expect(bookmark).not.toBeNull();
         expect(store.list()).toHaveLength(1);
+        expect(bookmark?.category).toBe("Favorites");
     });
 });

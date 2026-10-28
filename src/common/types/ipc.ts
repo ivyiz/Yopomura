@@ -450,14 +450,16 @@ export type BrowserChannels = {
     "browser:getAdblock": ChannelDefinition<void, BrowserAdblockState>;
     "browser:setAdblock": ChannelDefinition<{ enabled: boolean }, BrowserAdblockState>;
     /** Cached data URLs for the New Tab site tiles. */
-    "browser:getSiteIcons": ChannelDefinition<{ hosts: string[] }, Record<string, string>>;
     "browser:capturePage": ChannelDefinition<{ tabId?: string }, string>;
     "browser:getBookmarks": ChannelDefinition<void, BrowserBookmark[]>;
     "browser:addBookmark": ChannelDefinition<
-        { url: string; title?: string; favicon?: string },
+        { url: string; title?: string; favicon?: string; category?: string },
         BrowserBookmark | null
     >;
-    "browser:updateBookmark": ChannelDefinition<{ id: string; title: string }, BrowserBookmark | null>;
+    "browser:updateBookmark": ChannelDefinition<
+        { id: string; title?: string; category?: string },
+        BrowserBookmark | null
+    >;
     "browser:removeBookmark": ChannelDefinition<{ id: string }, boolean>;
     "browser:state": ChannelDefinition<BrowserState, void, "m2r">;
     "browser:bookmarks": ChannelDefinition<BrowserBookmark[], void, "m2r">;

@@ -137,91 +137,38 @@
     }
 }
 
-.browserStartGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 10px;
-}
-
-.browserStartCard {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-    padding: 12px;
-    border: 1px solid var(--divider-color);
-    border-radius: 11px;
-    background: color-mix(in srgb, var(--body-bg-color) 88%, var(--font-color) 4%);
-    color: var(--font-color);
-    text-align: left;
-    cursor: pointer;
-    transition:
-        background-color 0.14s ease,
-        border-color 0.14s ease,
-        transform 0.14s ease;
-
-    &:hover {
-        background: var(--btn-color-hover);
-        border-color: var(--btn-color-focus);
-        transform: translateY(-1px);
-    }
-
-    &:focus-visible {
-        outline: 2px solid var(--btn-color-focus);
-        outline-offset: 2px;
-    }
-}
-
-.browserStartIcon {
-    width: 44px;
-    height: 44px;
-    flex: 0 0 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    border-radius: 10px;
-    border: 1px solid var(--divider-color);
-    background: var(--text-input-bg);
-    color: var(--font-color);
-
-    img {
-        width: 30px;
-        height: 30px;
-        object-fit: contain;
-    }
-}
-
-.browserStartIconLetter {
-    font-size: 1.05rem;
-    font-weight: 600;
-    color: var(--font-color-secondary);
-}
-
-.browserStartCardText {
-    min-width: 0;
+.browserStartEmpty {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-}
-
-.browserStartCardTitle {
-    display: flex;
     align-items: center;
-    gap: 7px;
-    min-width: 0;
-    font-size: 0.9rem;
-    font-weight: 600;
-}
-
-.browserStartCardDomain {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    justify-content: center;
+    gap: 8px;
+    min-height: 260px;
+    margin-top: 28px;
+    padding: 24px;
+    border: 1px dashed var(--divider-color);
+    border-radius: 12px;
     color: var(--font-color-secondary);
-    font-size: 0.72rem;
-    line-height: 1.35;
-    opacity: 0.9;
+    text-align: center;
+
+    > svg {
+        font-size: 1.6rem;
+        opacity: 0.6;
+    }
+
+    h2 {
+        margin: 0;
+        color: var(--font-color);
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    p {
+        max-width: 420px;
+        margin: 0;
+        font-size: 0.8rem;
+        line-height: 1.5;
+    }
 }
 
 .browserStartBookmarkGrid {
@@ -348,10 +295,6 @@
     .browserStartInner {
         width: calc(100% - 28px);
         padding-top: 22px;
-    }
-
-    .browserStartGrid {
-        grid-template-columns: 1fr;
     }
 
     .browserStartBookmarkGrid {

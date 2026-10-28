@@ -69,6 +69,35 @@
     gap: 9px;
 }
 
+.browserBookmarkIntro {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 0 2px;
+}
+
+.browserBookmarkPreview {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid var(--divider-color);
+    border-radius: 8px;
+    background: var(--text-input-bg);
+    color: var(--font-color-secondary);
+    font-size: 0.9rem;
+
+    img {
+        width: 26px;
+        height: 26px;
+        object-fit: contain;
+    }
+}
+
 .browserBookmarkField {
     display: flex;
     flex-direction: column;
@@ -80,7 +109,8 @@
         font-weight: 500;
     }
 
-    input {
+    input,
+    select {
         width: 100%;
         height: 32px;
         padding: 0 9px;
@@ -103,12 +133,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    padding: 7px 9px;
-    border: 1px solid var(--divider-color);
-    border-radius: 7px;
-    background: color-mix(in srgb, var(--body-bg-color) 82%, var(--font-color) 4%);
+    min-width: 0;
     color: var(--font-color-secondary);
-    font-size: 0.72rem;
+    font-size: 0.7rem;
 }
 
 .browserBookmarkFooter {

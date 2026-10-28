@@ -11,6 +11,7 @@ import ListNavigator from "@renderer/components/ListNavigator";
 import { PAGE_SEARCH_PRIORITY } from "@renderer/hooks/usePageSearchFocus";
 import { setAppSettings } from "@store/appSettings";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
+import { setLibraryItemFavourite } from "@store/library";
 import { dialogUtils } from "@utils/dialog";
 import { formatUtils } from "@utils/file";
 import { indexLibraryItemsByLink, locationLinkKey } from "@utils/locationCover";
@@ -165,6 +166,22 @@ const LocationsTab = (): ReactElement => {
             }
             items.push(window.contextMenu.template.showInExplorer(link));
             items.push(window.contextMenu.template.copyPath(link));
+            const catalogueItem = libraryByLink.get(locationLinkKey(link));
+            if (catalogueItem) {
+                items.push({
+                    label: catalogueItem.favouritedAt
+                        ? t("gallery.details.removeFavourite")
+                        : t("gallery.details.addFavourite"),
+                    action: () => {
+                        void dispatch(
+                            setLibraryItemFavourite({
+                                link: catalogueItem.link,
+                                favourite: !catalogueItem.favouritedAt,
+                            }),
+                        );
+                    },
+                });
+            }
             items.push(
                 window.contextMenu.template.divider(),
                 window.contextMenu.template.trashItem(link, () => {
@@ -178,7 +195,7 @@ const LocationsTab = (): ReactElement => {
                 focusBackElem: e.nativeEvent.relatedTarget,
             });
         },
-        [currentLink, openVideo],
+        [currentLink, dispatch, libraryByLink, openVideo, t],
     );
 
     const filterLocation = useCallback((filter: string, location: LocationData) => {

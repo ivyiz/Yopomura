@@ -29,9 +29,15 @@ import { useAppContext } from "@renderer/App";
 import { useAppSelector } from "@store/hooks";
 import { selectModalOverlayOpen } from "@store/ui";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import BrowserBookmarkBubble from "./BrowserBookmarkBubble";
+import BrowserBookmarkBubble, { type BookmarkBubbleDraft } from "./BrowserBookmarkBubble";
 import BrowserExtensionsMenu, { type BrowserToolEntry } from "./BrowserExtensionsMenu";
 import BrowserStartPage from "./BrowserStartPage";
+import {
+    bookmarkCategories,
+    canonicalCategoryName,
+    readLastBookmarkCategory,
+    saveLastBookmarkCategory,
+} from "./browserBookmarks";
 import { applyBrowserEngine, BROWSER_ENGINE_EVENT, ENGINE_LABEL, readBrowserEngine } from "./browserEngine";
 import type { BrowserMode, ToggleBrowserDetail } from "./browserEvents";
 import {
@@ -112,7 +118,6 @@ const BrowserHost = () => {
         return folder?.path ?? "";
     });
     const modalOverlayOpen = useAppSelector(selectModalOverlayOpen);
-    const readerActive = useAppSelector((store) => store.reader.active);
 
     const [mode, setMode] = useState<BrowserMode | null>(null);
     const [state, setState] = useState<BrowserState>(EMPTY_STATE);
@@ -133,10 +138,7 @@ const BrowserHost = () => {
     const [scanError, setScanError] = useState("");
     const [extensionsOpen, setExtensionsOpen] = useState(false);
     const [bookmarks, setBookmarks] = useState<BrowserBookmark[]>([]);
-    const [bookmarkBubble, setBookmarkBubble] = useState<{
-        bookmark: BrowserBookmark;
-        created: boolean;
-    } | null>(null);
+    const [bookmarkBubble, setBookmarkBubble] = useState<BookmarkBubbleDraft | null>(null);
     const [pinnedTools, setPinnedTools] = useState<BrowserToolId[]>(readPinnedToolIds);
     const [adblockEnabled, setAdblockEnabled] = useState<boolean>(readSavedAdblock);
     const modeRef = useRef<BrowserMode | null>(null);
@@ -151,6 +153,7 @@ const BrowserHost = () => {
             activeTab?.url ? bookmarks.find((bookmark) => samePageUrl(bookmark.url, activeTab.url)) : undefined,
         [bookmarks, activeTab?.url],
     );
+    const bookmarkCategoryOptions = useMemo(() => bookmarkCategories(bookmarks), [bookmarks]);
     const bookmarkable = isBookmarkableUrl(activeTab?.url);
 
     /** Freezes the page behind React menus; the native view is hidden while they are open. */
@@ -174,24 +177,24 @@ const BrowserHost = () => {
         setExtensionsOpen(false);
         setScanOpen(false);
         if (activeBookmark) {
-            setBookmarkBubble({ bookmark: activeBookmark, created: false });
+            setBookmarkBubble({
+                mode: "edit",
+                bookmarkId: activeBookmark.id,
+                url: activeBookmark.url,
+                title: activeBookmark.title,
+                favicon: activeBookmark.favicon,
+                category: activeBookmark.category,
+            });
             return;
         }
 
-        try {
-            const created = await window.electron.invoke("browser:addBookmark", {
-                url: tab.url,
-                title: tab.title || hostOf(tab.url),
-                favicon: tab.favicon,
-            });
-            if (!created) return;
-            setBookmarks((previous) =>
-                previous.some((bookmark) => bookmark.id === created.id) ? previous : [created, ...previous],
-            );
-            setBookmarkBubble({ bookmark: created, created: true });
-        } catch (failure) {
-            setError(failure instanceof Error ? failure.message : "Could not save this bookmark");
-        }
+        setBookmarkBubble({
+            mode: "new",
+            url: tab.url,
+            title: tab.title || hostOf(tab.url),
+            favicon: tab.favicon,
+            category: readLastBookmarkCategory(),
+        });
     }, [activeBookmark, activeTab, capturePageSnapshot]);
 
     const filteredScanLinks = useMemo(() => {
@@ -238,6 +241,18 @@ const BrowserHost = () => {
     useEffect(() => {
         modeRef.current = mode;
     }, [mode]);
+
+    useLayoutEffect(() => {
+        const body = document.body;
+        const open = mode === "side";
+        body.classList.toggle("browserSideOpen", open);
+        if (open) body.style.setProperty("--browser-side-width", `${sideWidth + 6}px`);
+        else body.style.removeProperty("--browser-side-width");
+        return () => {
+            body.classList.remove("browserSideOpen");
+            body.style.removeProperty("--browser-side-width");
+        };
+    }, [mode, sideWidth]);
 
     useEffect(() => {
         const onEngineChange = (event: Event) => {
@@ -349,7 +364,6 @@ const BrowserHost = () => {
     const visible =
         Boolean(mode) &&
         !modalOverlayOpen &&
-        !readerActive &&
         !menu &&
         !scanOpen &&
         !extensionsOpen &&
@@ -390,15 +404,6 @@ const BrowserHost = () => {
             window.removeEventListener("resize", onResize);
         };
     }, [mode, syncBounds]);
-
-    useEffect(() => {
-        if (!readerActive || !mode) return;
-        modeRef.current = null;
-        setMode(null);
-        setExtensionsOpen(false);
-        setBookmarkBubble(null);
-        setSnapshot("");
-    }, [readerActive, mode]);
 
     useEffect(() => {
         if (!mode) return;
@@ -654,23 +659,41 @@ const BrowserHost = () => {
         void window.electron.invoke("browser:setAdblock", { enabled: next });
     };
 
-    const saveBookmarkTitle = async (title: string) => {
+    const saveBookmarkDraft = async (values: { title: string; category: string }) => {
         const current = bookmarkBubble;
         if (!current) return;
+        const category = canonicalCategoryName(values.category, bookmarkCategoryOptions);
         try {
-            const updated = await window.electron.invoke("browser:updateBookmark", {
-                id: current.bookmark.id,
-                title,
-            });
-            if (updated) {
-                setBookmarks((previous) =>
-                    previous.map((bookmark) => (bookmark.id === updated.id ? updated : bookmark)),
-                );
+            if (current.mode === "new") {
+                const created = await window.electron.invoke("browser:addBookmark", {
+                    url: current.url,
+                    title: values.title,
+                    favicon: current.favicon,
+                    category,
+                });
+                if (created) {
+                    setBookmarks((previous) => [
+                        created,
+                        ...previous.filter((bookmark) => bookmark.id !== created.id),
+                    ]);
+                }
+            } else if (current.bookmarkId) {
+                const updated = await window.electron.invoke("browser:updateBookmark", {
+                    id: current.bookmarkId,
+                    title: values.title,
+                    category,
+                });
+                if (updated) {
+                    setBookmarks((previous) =>
+                        previous.map((bookmark) => (bookmark.id === updated.id ? updated : bookmark)),
+                    );
+                }
             }
+            saveLastBookmarkCategory(category);
             setBookmarkBubble(null);
             setSnapshot("");
         } catch (failure) {
-            setError(failure instanceof Error ? failure.message : "Could not rename this bookmark");
+            setError(failure instanceof Error ? failure.message : "Could not save this bookmark");
         }
     };
 
@@ -680,7 +703,7 @@ const BrowserHost = () => {
             if (removed) {
                 setBookmarks((previous) => previous.filter((bookmark) => bookmark.id !== id));
             }
-            setBookmarkBubble((previous) => (previous?.bookmark.id === id ? null : previous));
+            setBookmarkBubble((previous) => (previous?.bookmarkId === id ? null : previous));
             setSnapshot("");
         } catch (failure) {
             setError(failure instanceof Error ? failure.message : "Could not remove this bookmark");
@@ -1060,10 +1083,14 @@ const BrowserHost = () => {
                     ) : null}
                     {bookmarkBubble ? (
                         <BrowserBookmarkBubble
-                            bookmark={bookmarkBubble.bookmark}
-                            created={bookmarkBubble.created}
-                            onSave={(title) => void saveBookmarkTitle(title)}
-                            onRemove={() => void removeBookmarkById(bookmarkBubble.bookmark.id)}
+                            draft={bookmarkBubble}
+                            categories={bookmarkCategoryOptions}
+                            onSave={(values) => void saveBookmarkDraft(values)}
+                            onRemove={() => {
+                                if (bookmarkBubble.bookmarkId) {
+                                    void removeBookmarkById(bookmarkBubble.bookmarkId);
+                                }
+                            }}
                             onClose={closeBookmarkBubble}
                         />
                     ) : null}

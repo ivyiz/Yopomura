@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { BrowserBookmark } from "@common/types/browser";
+import { DEFAULT_BOOKMARK_CATEGORY } from "@common/types/browser";
 import { createMainLogger } from "@electron/util/logger";
 
 const logger = createMainLogger("browser/bookmarks");
@@ -11,10 +12,11 @@ export const BROWSER_BOOKMARKS_FILE = "browser-bookmarks.json";
 
 const MAX_BOOKMARKS = 5_000;
 const MAX_TITLE_LENGTH = 512;
+const MAX_CATEGORY_LENGTH = 48;
 const MAX_FAVICON_LENGTH = 2_048;
 
 type StoredBookmarks = {
-    version: 1;
+    version: 2;
     bookmarks: BrowserBookmark[];
 };
 
@@ -22,12 +24,18 @@ export type AddBookmarkInput = {
     url: string;
     title?: string;
     favicon?: string;
+    category?: string;
+};
+
+export type UpdateBookmarkInput = {
+    title?: string;
+    category?: string;
 };
 
 export type BookmarkStore = {
     list: () => BrowserBookmark[];
     add: (input: AddBookmarkInput) => BrowserBookmark | null;
-    update: (id: string, title: string) => BrowserBookmark | null;
+    update: (id: string, input: UpdateBookmarkInput) => BrowserBookmark | null;
     remove: (id: string) => boolean;
 };
 
@@ -48,6 +56,9 @@ const cleanText = (value: unknown, fallback: string, maxLength: number): string 
     const result = text || fallback;
     return result.length > maxLength ? result.slice(0, maxLength) : result;
 };
+
+/** Normalizes a user-visible category/folder name. */
+const cleanCategory = (value: unknown): string => cleanText(value, DEFAULT_BOOKMARK_CATEGORY, MAX_CATEGORY_LENGTH);
 
 /** Stores only network favicons; data URLs would bloat the JSON file. */
 const cleanFavicon = (value: unknown): string => {
@@ -76,6 +87,7 @@ const normalizeRow = (value: unknown): BrowserBookmark | null => {
         url,
         title: cleanText(row.title, titleFallback(url), MAX_TITLE_LENGTH),
         favicon: cleanFavicon(row.favicon),
+        category: cleanCategory(row.category),
         createdAt:
             typeof row.createdAt === "number" && Number.isFinite(row.createdAt) && row.createdAt > 0
                 ? row.createdAt
@@ -124,7 +136,7 @@ export const createBookmarkStore = (filePath: string): BookmarkStore => {
     };
 
     const write = (next: BrowserBookmark[]): void => {
-        const payload: StoredBookmarks = { version: 1, bookmarks: next };
+        const payload: StoredBookmarks = { version: 2, bookmarks: next };
         fs.mkdirSync(path.dirname(filePath), { recursive: true });
         const tempPath = `${filePath}.${process.pid}.tmp`;
         try {
@@ -156,6 +168,7 @@ export const createBookmarkStore = (filePath: string): BookmarkStore => {
             url,
             title: cleanText(input.title, titleFallback(url), MAX_TITLE_LENGTH),
             favicon: cleanFavicon(input.favicon),
+            category: cleanCategory(input.category),
             createdAt: Date.now(),
         };
         const next = [bookmark, ...current];
@@ -168,15 +181,20 @@ export const createBookmarkStore = (filePath: string): BookmarkStore => {
         }
     };
 
-    const update = (id: string, title: string): BrowserBookmark | null => {
+    const update = (id: string, input: UpdateBookmarkInput): BrowserBookmark | null => {
         const current = read();
         const index = current.findIndex((bookmark) => bookmark.id === id);
         if (index < 0) return null;
         const existing = current[index];
-        const nextTitle = cleanText(title, existing.title, MAX_TITLE_LENGTH);
-        if (nextTitle === existing.title) return { ...existing };
+        const nextTitle = cleanText(input.title ?? existing.title, existing.title, MAX_TITLE_LENGTH);
+        const nextCategory = cleanCategory(input.category ?? existing.category);
+        if (nextTitle === existing.title && nextCategory === existing.category) return { ...existing };
 
-        const updated: BrowserBookmark = { ...existing, title: nextTitle };
+        const updated: BrowserBookmark = {
+            ...existing,
+            title: nextTitle,
+            category: nextCategory,
+        };
         const next = current.map((bookmark, rowIndex) => (rowIndex === index ? updated : bookmark));
         try {
             write(next);

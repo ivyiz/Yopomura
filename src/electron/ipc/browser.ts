@@ -2,7 +2,6 @@ import path from "node:path";
 import { getAdblockState, setAdblockEnabled } from "@electron/browser/adblock";
 import { BrowserManager } from "@electron/browser/BrowserManager";
 import { type BookmarkStore, BROWSER_BOOKMARKS_FILE, createBookmarkStore } from "@electron/browser/bookmarks";
-import { getSiteIconDataUrls } from "@electron/browser/siteIcons";
 import { app, BrowserWindow } from "electron";
 import { ipc } from "./utils";
 
@@ -104,7 +103,6 @@ export const registerBrowserHandlers = (): void => {
     ipc.handle("browser:scanLinks", (event, { tabId }) => managerFor(event).scanLinks(tabId));
     ipc.handle("browser:getAdblock", () => getAdblockState());
     ipc.handle("browser:setAdblock", (_event, { enabled }) => setAdblockEnabled(enabled));
-    ipc.handle("browser:getSiteIcons", (_event, { hosts }) => getSiteIconDataUrls(hosts));
     ipc.handle("browser:capturePage", (event, { tabId }) => managerFor(event).capturePage(tabId));
     ipc.handle("browser:getBookmarks", () => getBookmarkStore().list());
     ipc.handle("browser:addBookmark", (_event, input) => {
@@ -112,8 +110,8 @@ export const registerBrowserHandlers = (): void => {
         if (bookmark) broadcastBookmarks();
         return bookmark;
     });
-    ipc.handle("browser:updateBookmark", (_event, { id, title }) => {
-        const bookmark = getBookmarkStore().update(id, title);
+    ipc.handle("browser:updateBookmark", (_event, { id, title, category }) => {
+        const bookmark = getBookmarkStore().update(id, { title, category });
         if (bookmark) broadcastBookmarks();
         return bookmark;
     });

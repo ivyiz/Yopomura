@@ -40,6 +40,7 @@
         "bookmarks": "Bookmarks",
         "bookmarksTooltip": "Bookmarks (Ctrl+Shift+B)",
         "browser": "Browser",
+        "browserSide": "Browser side panel",
         "downloader": "Downloader",
         "media": "Media",
         "trash": "Recently Deleted",

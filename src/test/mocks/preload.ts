@@ -301,7 +301,6 @@ export const installPreloadMocks = (): void => {
     onInvoke("browser:scanLinks", () => []);
     onInvoke("browser:getAdblock", () => ({ enabled: true, ready: false }));
     onInvoke("browser:setAdblock", () => ({ enabled: true, ready: false }));
-    onInvoke("browser:getSiteIcons", () => ({}));
     onInvoke("browser:capturePage", () => "");
     onInvoke("browser:getBookmarks", () => []);
     onInvoke("browser:addBookmark", () => null);

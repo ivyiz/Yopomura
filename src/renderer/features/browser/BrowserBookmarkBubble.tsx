@@ -1,31 +1,68 @@
-import type { BrowserBookmark } from "@common/types/browser";
+import { DEFAULT_BOOKMARK_CATEGORY } from "@common/types/browser";
 import { faBookmark, faTrashCan, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { canonicalCategoryName, cleanCategoryName } from "./browserBookmarks";
 import "./browserBookmarkBubble.scss";
 
+const NEW_CATEGORY = "__new_category__";
+
+export type BookmarkBubbleDraft = {
+    mode: "new" | "edit";
+    /** Present when editing an existing bookmark. */
+    bookmarkId?: string;
+    url: string;
+    title: string;
+    favicon: string;
+    category: string;
+};
+
 type BrowserBookmarkBubbleProps = {
-    bookmark: BrowserBookmark;
-    /** True right after adding; false when editing an existing bookmark. */
-    created: boolean;
-    onSave: (title: string) => void;
+    draft: BookmarkBubbleDraft;
+    categories: string[];
+    onSave: (values: { title: string; category: string }) => void;
     onRemove: () => void;
     onClose: () => void;
 };
 
 /** Brave-style bookmark editor anchored under the browser toolbar. */
-const BrowserBookmarkBubble = ({ bookmark, created, onSave, onRemove, onClose }: BrowserBookmarkBubbleProps) => {
-    const [title, setTitle] = useState(bookmark.title);
+const BrowserBookmarkBubble = ({ draft, categories, onSave, onRemove, onClose }: BrowserBookmarkBubbleProps) => {
+    const [title, setTitle] = useState(draft.title);
+    const [categoryChoice, setCategoryChoice] = useState(draft.category || DEFAULT_BOOKMARK_CATEGORY);
+    const [newCategory, setNewCategory] = useState("");
+    const [iconFailed, setIconFailed] = useState(false);
 
-    // biome-ignore lint/correctness/useExhaustiveDependencies: reset the draft when the bookmark or its title changes
+    // biome-ignore lint/correctness/useExhaustiveDependencies: reset the draft when the bubble target changes
     useEffect(() => {
-        setTitle(bookmark.title);
-    }, [bookmark.id, bookmark.title]);
+        setTitle(draft.title);
+        setCategoryChoice(draft.category || DEFAULT_BOOKMARK_CATEGORY);
+        setNewCategory("");
+        setIconFailed(false);
+    }, [draft.url, draft.mode, draft.title, draft.category]);
 
-    const trimmed = title.trim();
+    const options = useMemo(() => {
+        const seen = new Set<string>();
+        const rows: string[] = [];
+        for (const category of [DEFAULT_BOOKMARK_CATEGORY, ...categories, draft.category]) {
+            const cleaned = cleanCategoryName(category);
+            if (seen.has(cleaned.toLowerCase())) continue;
+            seen.add(cleaned.toLowerCase());
+            rows.push(cleaned);
+        }
+        return rows;
+    }, [categories, draft.category]);
+
+    const selectedCategory = categoryChoice === NEW_CATEGORY ? newCategory : categoryChoice;
+    const trimmedTitle = title.trim();
+    const trimmedCategory = cleanCategoryName(selectedCategory);
+    const canSave = Boolean(trimmedTitle) && (categoryChoice !== NEW_CATEGORY || Boolean(newCategory.trim()));
+
     const submit = () => {
-        if (!trimmed) return;
-        onSave(trimmed);
+        if (!canSave) return;
+        onSave({
+            title: trimmedTitle,
+            category: canonicalCategoryName(trimmedCategory, categories),
+        });
     };
 
     return (
@@ -35,7 +72,7 @@ const BrowserBookmarkBubble = ({ bookmark, created, onSave, onRemove, onClose }:
                 <div className="browserBookmarkHeader">
                     <span className="browserBookmarkTitle">
                         <FontAwesomeIcon icon={faBookmark} aria-hidden />
-                        {created ? "Bookmark added" : "Edit bookmark"}
+                        {draft.mode === "new" ? "Add bookmark" : "Edit bookmark"}
                     </span>
                     <button
                         type="button"
@@ -55,6 +92,24 @@ const BrowserBookmarkBubble = ({ bookmark, created, onSave, onRemove, onClose }:
                         submit();
                     }}
                 >
+                    <div className="browserBookmarkIntro">
+                        <span className="browserBookmarkPreview" aria-hidden>
+                            {draft.favicon && !iconFailed ? (
+                                <img
+                                    src={draft.favicon}
+                                    alt=""
+                                    draggable={false}
+                                    onError={() => setIconFailed(true)}
+                                />
+                            ) : (
+                                <FontAwesomeIcon icon={faBookmark} />
+                            )}
+                        </span>
+                        <span className="browserBookmarkUrl" title={draft.url}>
+                            {draft.url}
+                        </span>
+                    </div>
+
                     <div className="browserBookmarkField">
                         <span>Name</span>
                         <input
@@ -67,24 +122,51 @@ const BrowserBookmarkBubble = ({ bookmark, created, onSave, onRemove, onClose }:
                             autoFocus
                         />
                     </div>
+
                     <div className="browserBookmarkField">
-                        <span>URL</span>
-                        <span className="browserBookmarkUrl" title={bookmark.url}>
-                            {bookmark.url}
-                        </span>
+                        <span>Category</span>
+                        <select
+                            value={categoryChoice}
+                            onChange={(event) => setCategoryChoice(event.currentTarget.value)}
+                            aria-label="Bookmark category"
+                        >
+                            {options.map((category) => (
+                                <option key={category} value={category}>
+                                    {category}
+                                </option>
+                            ))}
+                            <option value={NEW_CATEGORY}>New category…</option>
+                        </select>
                     </div>
 
+                    {categoryChoice === NEW_CATEGORY ? (
+                        <div className="browserBookmarkField">
+                            <span>New category</span>
+                            <input
+                                value={newCategory}
+                                onChange={(event) => setNewCategory(event.currentTarget.value)}
+                                placeholder="e.g. Research"
+                                aria-label="New bookmark category"
+                                spellCheck={false}
+                            />
+                        </div>
+                    ) : null}
+
                     <div className="browserBookmarkFooter">
-                        <button
-                            type="button"
-                            className="browserBookmarkRemove"
-                            onClick={onRemove}
-                            title="Remove bookmark"
-                        >
-                            <FontAwesomeIcon icon={faTrashCan} aria-hidden />
-                            Remove
-                        </button>
-                        <button type="submit" className="browserBookmarkDone" disabled={!trimmed}>
+                        {draft.mode === "edit" ? (
+                            <button
+                                type="button"
+                                className="browserBookmarkRemove"
+                                onClick={onRemove}
+                                title="Remove bookmark"
+                            >
+                                <FontAwesomeIcon icon={faTrashCan} aria-hidden />
+                                Remove
+                            </button>
+                        ) : (
+                            <span />
+                        )}
+                        <button type="submit" className="browserBookmarkDone" disabled={!canSave}>
                             Done
                         </button>
                     </div>

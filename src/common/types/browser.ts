@@ -67,12 +67,17 @@ export type BrowserScannedLink = {
     text: string;
 };
 
+/** Default bookmark category shown on the New Tab page. */
+export const DEFAULT_BOOKMARK_CATEGORY = "Favorites";
+
 /** One saved browser bookmark. */
 export type BrowserBookmark = {
     id: string;
     url: string;
     title: string;
     favicon: string;
+    /** User-defined folder shown on the New Tab page. */
+    category: string;
     /** Unix milliseconds. */
     createdAt: number;
 };

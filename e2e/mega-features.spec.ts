@@ -161,10 +161,8 @@ test("mega features smoke", async () => {
         await page.locator(".browserToggle").click();
         await page.waitForSelector(".browserHost.is-full", { timeout: 15_000 });
         await page.waitForSelector(".browserStart", { timeout: 15_000 });
-        await expect(page.locator(".browserStartCard")).toHaveCount(8);
-        await expect(page.locator(".browserStartIcon")).toHaveCount(8);
-        await expect(page.locator(".browserStartBadge")).toHaveCount(0);
-        await expect(page.locator(".browserStartCardBlurb")).toHaveCount(0);
+        await expect(page.locator(".browserStartCard")).toHaveCount(0);
+        await expect(page.locator(".browserStartEmpty")).toBeVisible();
         await expect(page.locator(".browserToolTile")).toHaveCount(7);
         console.log("BROWSER_START_OK");
 
@@ -222,7 +220,11 @@ test("mega features smoke", async () => {
         await expect(bookmarkTile).toHaveAttribute("aria-pressed", "false");
         await bookmarkTile.click();
         await expect(page.locator(".browserBookmarkBubble")).toBeVisible();
-        await page.locator(".browserBookmarkBubble input").fill("Test Page Bookmark");
+        await page.locator('.browserBookmarkBubble input[aria-label="Bookmark name"]').fill("Test Page Bookmark");
+        await page
+            .locator('.browserBookmarkBubble select[aria-label="Bookmark category"]')
+            .selectOption("__new_category__");
+        await page.locator('.browserBookmarkBubble input[aria-label="New bookmark category"]').fill("Research");
         await page.locator(".browserBookmarkBubble").getByRole("button", { name: "Done" }).click();
         await expect(page.locator(".browserBookmarkBubble")).toHaveCount(0);
         await expect(bookmarkTile).toHaveAttribute("aria-pressed", "true");
@@ -249,10 +251,11 @@ test("mega features smoke", async () => {
         await page.locator(".browserNewTab").click();
         await expect(page.locator(".browserTab")).toHaveCount(2);
         await page.waitForSelector(".browserStart", { timeout: 15_000 });
-        await expect(page.locator(".browserStartBookmarks")).toBeVisible();
+        await expect(page.locator(".browserStartCategory", { hasText: "Research" })).toBeVisible();
         await expect(page.locator(".browserStartBookmarkTitle")).toContainText("Test Page Bookmark");
         await page.locator('.browserStartBookmarkRemove[aria-label^="Remove bookmark"]').first().click();
-        await expect(page.locator(".browserStartBookmarks")).toHaveCount(0);
+        await expect(page.locator(".browserStartCategory")).toHaveCount(0);
+        await expect(page.locator(".browserStartEmpty")).toBeVisible();
         console.log("BROWSER_BOOKMARK_NEWTAB_OK");
         const startSearch = page.locator(".browserStartSearch input");
         await startSearch.fill(`http://127.0.0.1:${port}/`);

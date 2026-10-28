@@ -565,6 +565,10 @@
     gap: 8px;
 }
 
+body.browserSideOpen #app .reader {
+    width: calc(100vw - var(--browser-side-width, 0px));
+}
+
 @container (max-width: 500px) {
     .browserToolTile.is-secondary {
         display: none;

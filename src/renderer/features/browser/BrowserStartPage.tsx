@@ -2,13 +2,8 @@ import type { BrowserBookmark, BrowserSearchEngine } from "@common/types/browser
 import { faBookmark as faBookmarkRegular } from "@fortawesome/free-regular-svg-icons";
 import { faArrowRight, faMagnifyingGlass, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { useEffect, useMemo, useState } from "react";
-import {
-    BROWSER_START_SITES,
-    type BrowserStartCategory,
-    type BrowserStartSite,
-    browserStartHosts,
-} from "./startSites";
+import { useMemo, useState } from "react";
+import { groupBookmarksByCategory } from "./browserBookmarks";
 import "./browserStartPage.scss";
 
 type BrowserStartPageProps = {
@@ -19,30 +14,10 @@ type BrowserStartPageProps = {
     onRemoveBookmark: (id: string) => void;
 };
 
-type SiteIconProps = {
-    site: BrowserStartSite;
-    icon?: string;
-};
-
 const ENGINE_LABEL: Record<BrowserSearchEngine, string> = {
     brave: "Brave",
     google: "Google",
     duckduckgo: "DuckDuckGo",
-};
-
-const SiteIcon = ({ site, icon }: SiteIconProps) => {
-    const [failedIcon, setFailedIcon] = useState<string | undefined>(undefined);
-    const failed = Boolean(icon) && failedIcon === icon;
-
-    return (
-        <span className="browserStartIcon" aria-hidden>
-            {icon && !failed ? (
-                <img src={icon} alt="" draggable={false} onError={() => setFailedIcon(icon)} />
-            ) : (
-                <span className="browserStartIconLetter">{site.name.charAt(0).toUpperCase()}</span>
-            )}
-        </span>
-    );
 };
 
 const bookmarkHost = (url: string): string => {
@@ -105,72 +80,10 @@ const BookmarkRow = ({
     );
 };
 
-const SiteCard = ({
-    site,
-    icon,
-    onOpen,
-}: {
-    site: BrowserStartSite;
-    icon?: string;
-    onOpen: (site: BrowserStartSite, newTab: boolean) => void;
-}) => (
-    <button
-        type="button"
-        className="browserStartCard"
-        title={`${site.name} — ${site.url}`}
-        onClick={(event) => onOpen(site, event.ctrlKey || event.metaKey || event.shiftKey)}
-        onAuxClick={(event) => {
-            if (event.button === 1) onOpen(site, true);
-        }}
-    >
-        <SiteIcon site={site} icon={icon} />
-        <span className="browserStartCardText">
-            <span className="browserStartCardTitle">{site.name}</span>
-            <span className="browserStartCardDomain">{site.domain}</span>
-        </span>
-    </button>
-);
-
-/** Chrome-style New Tab page rendered inside the browser panel for `about:blank`. */
+/** New Tab page rendered inside the browser panel for `about:blank`. */
 const BrowserStartPage = ({ engine, bookmarks, onOpenUrl, onSearch, onRemoveBookmark }: BrowserStartPageProps) => {
     const [query, setQuery] = useState("");
-    const [icons, setIcons] = useState<Record<string, string>>({});
-    const hosts = useMemo(() => browserStartHosts(), []);
-
-    useEffect(() => {
-        let cancelled = false;
-        void window.electron
-            .invoke("browser:getSiteIcons", { hosts })
-            .then((next) => {
-                if (!cancelled) setIcons(next);
-            })
-            .catch(() => undefined);
-        return () => {
-            cancelled = true;
-        };
-    }, [hosts]);
-
-    const openSite = (site: BrowserStartSite, newTab: boolean) => {
-        onOpenUrl(site.url, newTab);
-    };
-
-    const groups: { key: BrowserStartCategory; title: string; sites: BrowserStartSite[] }[] = [
-        {
-            key: "reading",
-            title: "Reading",
-            sites: BROWSER_START_SITES.filter((site) => site.category === "reading"),
-        },
-        {
-            key: "media",
-            title: "Media",
-            sites: BROWSER_START_SITES.filter((site) => site.category === "media"),
-        },
-        {
-            key: "tools",
-            title: "Tools",
-            sites: BROWSER_START_SITES.filter((site) => site.category === "tools"),
-        },
-    ];
+    const groups = useMemo(() => groupBookmarksByCategory(bookmarks), [bookmarks]);
 
     return (
         <div className="browserStart">
@@ -179,8 +92,8 @@ const BrowserStartPage = ({ engine, bookmarks, onOpenUrl, onSearch, onRemoveBook
                     <span className="browserStartEyebrow">New tab</span>
                     <h1>Where do you want to go?</h1>
                     <p>
-                        Pick a site below, or search with {ENGINE_LABEL[engine]}. Ctrl/Cmd-click a site to open it
-                        in a new tab.
+                        Search with {ENGINE_LABEL[engine]}, or bookmark pages to build categories here.
+                        Ctrl/Cmd-click a bookmark to open it in a new tab.
                     </p>
                 </header>
 
@@ -207,45 +120,39 @@ const BrowserStartPage = ({ engine, bookmarks, onOpenUrl, onSearch, onRemoveBook
                     </button>
                 </form>
 
-                {bookmarks.length > 0 ? (
-                    <section
-                        className="browserStartSection browserStartBookmarks"
-                        aria-labelledby="browserStart-bookmarks"
-                    >
-                        <div className="browserStartSectionHead">
-                            <h2 id="browserStart-bookmarks">Bookmarks</h2>
-                            <span>{bookmarks.length} saved</span>
-                        </div>
-                        <div className="browserStartBookmarkGrid">
-                            {bookmarks.map((bookmark) => (
-                                <BookmarkRow
-                                    key={bookmark.id}
-                                    bookmark={bookmark}
-                                    onOpen={onOpenUrl}
-                                    onRemove={onRemoveBookmark}
-                                />
-                            ))}
-                        </div>
-                    </section>
-                ) : null}
-
-                {groups.map((group) => (
-                    <section
-                        className="browserStartSection"
-                        key={group.key}
-                        aria-labelledby={`browserStart-${group.key}`}
-                    >
-                        <div className="browserStartSectionHead">
-                            <h2 id={`browserStart-${group.key}`}>{group.title}</h2>
-                            <span>{group.sites.length} sites</span>
-                        </div>
-                        <div className="browserStartGrid">
-                            {group.sites.map((site) => (
-                                <SiteCard key={site.id} site={site} icon={icons[site.domain]} onOpen={openSite} />
-                            ))}
-                        </div>
-                    </section>
-                ))}
+                {groups.length === 0 ? (
+                    <div className="browserStartEmpty">
+                        <FontAwesomeIcon icon={faBookmarkRegular} aria-hidden />
+                        <h2>No bookmarks yet</h2>
+                        <p>Open a page and press the bookmark button to create your first category.</p>
+                    </div>
+                ) : (
+                    groups.map((group, index) => (
+                        <section
+                            className="browserStartSection browserStartCategory"
+                            key={group.category}
+                            aria-labelledby={`browserStart-category-${index}`}
+                        >
+                            <div className="browserStartSectionHead">
+                                <h2 id={`browserStart-category-${index}`}>{group.category}</h2>
+                                <span>
+                                    {group.bookmarks.length} bookmark
+                                    {group.bookmarks.length === 1 ? "" : "s"}
+                                </span>
+                            </div>
+                            <div className="browserStartBookmarkGrid">
+                                {group.bookmarks.map((bookmark) => (
+                                    <BookmarkRow
+                                        key={bookmark.id}
+                                        bookmark={bookmark}
+                                        onOpen={onOpenUrl}
+                                        onRemove={onRemoveBookmark}
+                                    />
+                                ))}
+                            </div>
+                        </section>
+                    ))
+                )}
             </div>
         </div>
     );

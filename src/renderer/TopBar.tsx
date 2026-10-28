@@ -2,6 +2,7 @@ import { toggleBrowser } from "@features/browser/browserEvents";
 import BookmarkToggle from "@features/home/classic/components/BookmarkToggle";
 import {
     faCog,
+    faColumns,
     faDownload,
     faFilm,
     faGlobe,
@@ -195,6 +196,19 @@ const TopBar = (): ReactElement => {
                     )}
                 </div>
                 <BookmarkToggle />
+                <button
+                    type="button"
+                    className="browserSideToggle"
+                    tabIndex={-1}
+                    onFocus={(e) => e.currentTarget.blur()}
+                    onClick={() => {
+                        closeMedia();
+                        toggleBrowser("side");
+                    }}
+                    data-tooltip={t("topBar.browserSide")}
+                >
+                    <FontAwesomeIcon icon={faColumns} />
+                </button>
                 <button
                     type="button"
                     className="browserToggle"
