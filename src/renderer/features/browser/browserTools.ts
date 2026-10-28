@@ -1,5 +1,5 @@
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
-import { faDownload, faLink, faShieldHalved, faUpRightFromSquare } from "@fortawesome/free-solid-svg-icons";
+import { faFileArrowDown, faLink, faShieldHalved, faUpRightFromSquare } from "@fortawesome/free-solid-svg-icons";
 
 /** Built-in browser tools that can be pinned to the toolbar. */
 export const BROWSER_TOOL_IDS = ["adblock", "download", "scan", "external"] as const;
@@ -30,7 +30,7 @@ export const BROWSER_TOOLS: readonly BrowserToolDefinition[] = [
         label: "Send page to Downloader",
         description: "Open this page in the Downloader so you can choose the folder and options.",
         kind: "action",
-        icon: faDownload,
+        icon: faFileArrowDown,
     },
     {
         id: "scan",

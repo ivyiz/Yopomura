@@ -168,7 +168,7 @@ test("mega features smoke", async () => {
         await expect(page.locator(".browserStartEmpty")).toBeVisible();
         await expect(page.locator(".browserStartEyebrow")).toHaveCount(0);
         await expect(page.locator(".browserStartHeader p")).toHaveCount(0);
-        await expect(page.locator(".browserToolTile")).toHaveCount(6);
+        await expect(page.locator(".browserToolTile")).toHaveCount(7);
         console.log("BROWSER_START_OK");
 
         // Extensions button opens the built-in tools popover.

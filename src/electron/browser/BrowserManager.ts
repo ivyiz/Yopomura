@@ -194,7 +194,7 @@ export class BrowserManager extends EventEmitter {
     };
 
     private startDownload(item: DownloadItem, filename: string, resume: boolean): void {
-        const id = `download-${this.nextDownloadId++}`;
+        const id = `download-${Date.now()}-${this.nextDownloadId++}`;
         const savePath = this.prepareDownloadPath(filename, item);
 
         this.activeDownloads.set(id, { item, filename, savePath });

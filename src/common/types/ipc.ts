@@ -464,6 +464,7 @@ export type BrowserChannels = {
     "browser:state": ChannelDefinition<BrowserState, void, "m2r">;
     "browser:bookmarks": ChannelDefinition<BrowserBookmark[], void, "m2r">;
     "browser:download": ChannelDefinition<BrowserDownload, void, "m2r">;
+    "browser:cancelDownload": ChannelDefinition<{ id: string }, boolean>;
     "browser:contextMenu": ChannelDefinition<BrowserContextMenuRequest, void, "m2r">;
 };
 

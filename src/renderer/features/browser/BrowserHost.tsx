@@ -6,12 +6,31 @@ import type {
     BrowserSearchEngine,
     BrowserState,
 } from "@common/types/browser";
+import { buildDownloadFeed } from "@features/downloader/downloadFeed";
+import {
+    DOWNLOAD_HISTORY_EVENT,
+    type DownloadHistoryEntry,
+    readDownloadHistory,
+} from "@features/downloader/downloadHistory";
+import {
+    type DownloadFileKind,
+    downloadFileKind,
+    downloadProgressPercent,
+    formatDownloadMeta,
+} from "@features/downloader/downloadPresentation";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { faBookmark as faBookmarkRegular } from "@fortawesome/free-regular-svg-icons";
 import {
     faArrowLeft,
     faArrowRight,
     faBookmark as faBookmarkSolid,
     faDownload,
+    faFile,
+    faFileImage,
+    faFileLines,
+    faFileZipper,
+    faFilm,
+    faFolderOpen,
     faGlobe,
     faLink,
     faPlus,
@@ -26,7 +45,18 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useAppContext } from "@renderer/App";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { requestSettingsNav, selectModalOverlayOpen } from "@store/ui";
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+    type CSSProperties,
+    Fragment,
+    type ReactElement,
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
+import { createPortal } from "react-dom";
 import BrowserBookmarkBubble, { type BookmarkBubbleDraft } from "./BrowserBookmarkBubble";
 import BrowserExtensionsMenu, { type BrowserToolEntry } from "./BrowserExtensionsMenu";
 import BrowserStartPage from "./BrowserStartPage";
@@ -67,6 +97,17 @@ const EMPTY_STATE: BrowserState = {
     visible: false,
 };
 
+const DOWNLOADS_SEEN_KEY = "yomikura-browser-downloads-seen-at";
+
+const DOWNLOAD_KIND_ICON: Record<DownloadFileKind, IconDefinition> = {
+    video: faFilm,
+    archive: faFileZipper,
+    image: faFileImage,
+    document: faFileLines,
+    executable: faFile,
+    other: faFile,
+};
+
 const hostOf = (url: string): string => {
     try {
         return new URL(url).hostname;
@@ -96,7 +137,8 @@ const readSavedAdblock = (): boolean => {
  * `.browserContent`; tabs/toolbar/menus stay in the renderer.
  */
 const BrowserHost = () => {
-    const { openDownloader, downloaderOpen, videoOpen, trashOpen, mediaOpen } = useAppContext();
+    const { openDownloader, openDownloadHistory, downloaderOpen, videoOpen, trashOpen, mediaOpen } =
+        useAppContext();
     const dispatch = useAppDispatch();
     const defaultOutDir = useAppSelector((store) => {
         const folder = store.mainSettings.library.folders.find((row) => row.isDefaultLocation);
@@ -114,6 +156,14 @@ const BrowserHost = () => {
     const [disabledHosts, setDisabledHosts] = useState<string[]>(readDisabledHosts);
     const [menu, setMenu] = useState<ContextMenuState | null>(null);
     const [downloads, setDownloads] = useState<BrowserDownload[]>([]);
+    const [downloadsOpen, setDownloadsOpen] = useState(false);
+    const [downloadsPos, setDownloadsPos] = useState<{ top: number; right: number } | null>(null);
+    const [downloadHistory, setDownloadHistory] = useState<DownloadHistoryEntry[]>(readDownloadHistory);
+    const [downloadsSeenAt, setDownloadsSeenAt] = useState<number>(() => {
+        const stored = Number(window.localStorage.getItem(DOWNLOADS_SEEN_KEY));
+        return Number.isFinite(stored) && stored > 0 ? stored : Date.now();
+    });
+    const [downloadsNowTick, setDownloadsNowTick] = useState(() => Date.now());
     const [error, setError] = useState("");
     const [scanOpen, setScanOpen] = useState(false);
     const [scanLoading, setScanLoading] = useState(false);
@@ -131,8 +181,9 @@ const BrowserHost = () => {
     const contentRef = useRef<HTMLDivElement>(null);
     const lastBounds = useRef("");
     const addressFocused = useRef(false);
-    const menuOpenRef = useRef(false);
-    menuOpenRef.current = Boolean(menu);
+    const downloadsButtonRef = useRef<HTMLButtonElement>(null);
+    const overlayOpenRef = useRef(false);
+    overlayOpenRef.current = Boolean(menu || downloadsOpen);
 
     const activeTab = state.tabs.find((tab) => tab.id === state.activeId);
     const activeBookmark = useMemo(
@@ -143,12 +194,61 @@ const BrowserHost = () => {
     const bookmarkCategoryOptions = useMemo(() => bookmarkCategories(bookmarks), [bookmarks]);
     const bookmarkable = isBookmarkableUrl(activeTab?.url);
 
+    useEffect(() => {
+        const sync = () => setDownloadHistory(readDownloadHistory());
+        window.addEventListener(DOWNLOAD_HISTORY_EVENT, sync);
+        return () => window.removeEventListener(DOWNLOAD_HISTORY_EVENT, sync);
+    }, []);
+
+    useEffect(() => {
+        if (!downloadsOpen) return;
+        setDownloadHistory(readDownloadHistory());
+        setDownloadsNowTick(Date.now());
+        const tick = window.setInterval(() => setDownloadsNowTick(Date.now()), 30_000);
+        return () => window.clearInterval(tick);
+    }, [downloadsOpen]);
+
+    useLayoutEffect(() => {
+        if (!downloadsOpen) return;
+        const updatePosition = () => {
+            const rect = downloadsButtonRef.current?.getBoundingClientRect();
+            if (!rect) return;
+            setDownloadsPos({
+                top: rect.bottom + 8,
+                right: Math.max(12, window.innerWidth - rect.right),
+            });
+        };
+        updatePosition();
+        window.addEventListener("resize", updatePosition);
+        return () => window.removeEventListener("resize", updatePosition);
+    }, [downloadsOpen]);
+
+    const downloadRows = useMemo(
+        () => buildDownloadFeed(downloads, downloadHistory),
+        [downloads, downloadHistory],
+    );
+    const activeDownloadRows = useMemo(
+        () => downloadRows.filter((row) => row.status === "progressing"),
+        [downloadRows],
+    );
+    const downloadRingPercent = useMemo(() => {
+        const total = activeDownloadRows.reduce((sum, row) => sum + Math.max(0, row.total), 0);
+        if (total <= 0) return null;
+        const received = activeDownloadRows.reduce((sum, row) => sum + Math.max(0, row.received), 0);
+        return Math.max(0, Math.min(100, Math.round((received / total) * 100)));
+    }, [activeDownloadRows]);
+    const hasUnseenDownloads =
+        !downloadsOpen && downloadHistory.some((entry) => entry.finishedAt > downloadsSeenAt);
+
     /** Freezes the page behind React menus; the native view is hidden while they are open. */
     const capturePageSnapshot = useCallback(async (): Promise<string> => {
         if (newTabPage) return "";
         if (snapshot) return snapshot;
         try {
-            const image = await window.electron.invoke("browser:capturePage", {});
+            const image = await Promise.race([
+                window.electron.invoke("browser:capturePage", {}),
+                new Promise<string>((resolve) => window.setTimeout(() => resolve(""), 1500)),
+            ]);
             if (image) setSnapshot(image);
             return image;
         } catch {
@@ -161,6 +261,7 @@ const BrowserHost = () => {
         if (!tab || !isBookmarkableUrl(tab.url)) return;
         await capturePageSnapshot();
         setMenu(null);
+        setDownloadsOpen(false);
         setExtensionsOpen(false);
         setScanOpen(false);
         if (activeBookmark) {
@@ -274,6 +375,7 @@ const BrowserHost = () => {
             modeRef.current = next;
             setMode(next);
             setMenu(null);
+            setDownloadsOpen(false);
             setExtensionsOpen(false);
             setBookmarkBubble(null);
             if (!next) return;
@@ -302,6 +404,7 @@ const BrowserHost = () => {
             modeRef.current = null;
             setMode(null);
             setMenu(null);
+            setDownloadsOpen(false);
             setScanOpen(false);
             setExtensionsOpen(false);
             setBookmarkBubble(null);
@@ -321,6 +424,7 @@ const BrowserHost = () => {
             if (!bounds) return;
             void (async () => {
                 await capturePageSnapshot();
+                setDownloadsOpen(false);
                 setMenu({
                     ...request,
                     menuX: bounds.x + request.x,
@@ -382,6 +486,7 @@ const BrowserHost = () => {
         Boolean(mode) &&
         !modalOverlayOpen &&
         !menu &&
+        !downloadsOpen &&
         !scanOpen &&
         !extensionsOpen &&
         !bookmarkBubble &&
@@ -394,7 +499,7 @@ const BrowserHost = () => {
     useEffect(() => {
         let cancelled = false;
         void window.electron.invoke("browser:setVisible", { visible: showNative }).then(() => {
-            if (cancelled || !showNative || menuOpenRef.current) return;
+            if (cancelled || !showNative || overlayOpenRef.current) return;
             // Keep the frozen frame until Chromium has shown the native view again.
             setSnapshot("");
         });
@@ -438,6 +543,10 @@ const BrowserHost = () => {
             }
             if (event.key !== "Escape") return;
             if (modalOverlayOpen || mediaOpen || trashOpen || downloaderOpen || videoOpen) return;
+            if (downloadsOpen) {
+                setDownloadsOpen(false);
+                return;
+            }
             if (menu) {
                 setMenu(null);
                 return;
@@ -479,6 +588,7 @@ const BrowserHost = () => {
         extensionsOpen,
         bookmarkBubble,
         menu,
+        downloadsOpen,
         openBookmarkBubble,
         syncBounds,
         modalOverlayOpen,
@@ -501,6 +611,7 @@ const BrowserHost = () => {
         modeRef.current = null;
         setMode(null);
         setMenu(null);
+        setDownloadsOpen(false);
         setScanOpen(false);
         setExtensionsOpen(false);
         setBookmarkBubble(null);
@@ -582,6 +693,7 @@ const BrowserHost = () => {
         }
         await capturePageSnapshot();
         setMenu(null);
+        setDownloadsOpen(false);
         setScanOpen(false);
         setBookmarkBubble(null);
         setExtensionsOpen(true);
@@ -591,6 +703,7 @@ const BrowserHost = () => {
         await capturePageSnapshot();
         setScanOpen(true);
         setMenu(null);
+        setDownloadsOpen(false);
         setScanLinks([]);
         setScanSelected([]);
         setScanFilter("");
@@ -721,6 +834,43 @@ const BrowserHost = () => {
 
     const closeMenu = () => {
         setMenu(null);
+    };
+
+    const closeDownloads = () => {
+        setDownloadsOpen(false);
+        const seenAt = Date.now();
+        try {
+            window.localStorage.setItem(DOWNLOADS_SEEN_KEY, String(seenAt));
+        } catch {
+            // The badge is cosmetic; storage can be unavailable in hardened profiles.
+        }
+        setDownloadsSeenAt(seenAt);
+    };
+
+    const toggleDownloads = () => {
+        if (downloadsOpen) {
+            closeDownloads();
+            return;
+        }
+        // Capture in the background: download pages can make capturePage stall.
+        void capturePageSnapshot();
+        setMenu(null);
+        setScanOpen(false);
+        setExtensionsOpen(false);
+        setBookmarkBubble(null);
+        const seenAt = Date.now();
+        try {
+            window.localStorage.setItem(DOWNLOADS_SEEN_KEY, String(seenAt));
+        } catch {
+            // The badge is cosmetic; storage can be unavailable in hardened profiles.
+        }
+        setDownloadsSeenAt(seenAt);
+        setDownloadsOpen(true);
+    };
+
+    const openFullDownloadHistory = () => {
+        setDownloadsOpen(false);
+        openDownloadHistory();
     };
 
     const contextAction = async (action: "open" | "new-tab" | "copy" | "download" | "external") => {
@@ -1010,6 +1160,36 @@ const BrowserHost = () => {
                     ))}
                     <div className="browserToolbarDivider" aria-hidden />
                     <button
+                        ref={downloadsButtonRef}
+                        type="button"
+                        className={`browserToolTile browserDownloadsBtn${activeDownloadRows.length > 0 ? " is-active" : ""}${hasUnseenDownloads ? " has-unseen" : ""}${downloadsOpen ? " is-open" : ""}`}
+                        title={
+                            activeDownloadRows.length > 0
+                                ? `${activeDownloadRows.length} download${activeDownloadRows.length === 1 ? "" : "s"} in progress`
+                                : "Downloads"
+                        }
+                        aria-label="Downloads"
+                        aria-haspopup="dialog"
+                        aria-expanded={downloadsOpen}
+                        onClick={() => void toggleDownloads()}
+                    >
+                        <FontAwesomeIcon icon={faDownload} />
+                        {activeDownloadRows.length > 0 ? (
+                            <span
+                                className={`browserDownloadRing${downloadRingPercent === null ? " is-indeterminate" : ""}`}
+                                style={
+                                    downloadRingPercent === null
+                                        ? undefined
+                                        : ({
+                                              "--download-progress": `${downloadRingPercent}%`,
+                                          } as CSSProperties)
+                                }
+                                aria-hidden
+                            />
+                        ) : null}
+                        {hasUnseenDownloads ? <span className="browserDownloadDot" aria-hidden /> : null}
+                    </button>
+                    <button
                         type="button"
                         className={`browserToolTile browserExtensionsBtn ${extensionsOpen ? "is-open" : ""}`}
                         title="Extensions"
@@ -1067,23 +1247,6 @@ const BrowserHost = () => {
                         </div>
                     )}
                 </div>
-
-                {downloads.length > 0 ? (
-                    <div className="browserDownloads">
-                        {downloads.slice(0, 2).map((download) => (
-                            <div key={download.id}>
-                                <span title={download.savePath}>{download.filename}</span>
-                                <span>
-                                    {download.state === "completed"
-                                        ? "Done"
-                                        : download.total > 0
-                                          ? `${Math.round((download.received / download.total) * 100)}%`
-                                          : download.state}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                ) : null}
 
                 {scanOpen ? (
                     <div
@@ -1247,6 +1410,122 @@ const BrowserHost = () => {
                         </div>
                     </>
                 ) : null}
+
+                {downloadsOpen
+                    ? (createPortal(
+                          <>
+                              <div
+                                  className="browserDownloadsBackdrop"
+                                  onMouseDown={closeDownloads}
+                                  onContextMenu={(event) => {
+                                      event.preventDefault();
+                                      closeDownloads();
+                                  }}
+                              />
+                              <div
+                                  className="browserDownloadsBubble"
+                                  style={{ top: downloadsPos?.top ?? 64, right: downloadsPos?.right ?? 16 }}
+                                  role="dialog"
+                                  aria-label="Recent download history"
+                              >
+                                  <div className="browserDownloadsHead">
+                                      <strong>Recent download history</strong>
+                                      <button
+                                          type="button"
+                                          className="browserDownloadsClose"
+                                          title="Close"
+                                          aria-label="Close downloads"
+                                          onClick={closeDownloads}
+                                      >
+                                          <FontAwesomeIcon icon={faXmark} />
+                                      </button>
+                                  </div>
+                                  <div className="browserDownloadsList">
+                                      {downloadRows.length === 0 ? (
+                                          <p className="browserDownloadsEmpty">No recent downloads</p>
+                                      ) : (
+                                          downloadRows.map((row) => {
+                                              const kind = downloadFileKind(row.path || row.title);
+                                              const percent = downloadProgressPercent(row);
+                                              return (
+                                                  <div
+                                                      className={`browserDownloadRow is-${row.status}`}
+                                                      key={row.key}
+                                                  >
+                                                      <span
+                                                          className={`browserDownloadType is-${kind}`}
+                                                          aria-hidden
+                                                      >
+                                                          <FontAwesomeIcon icon={DOWNLOAD_KIND_ICON[kind]} />
+                                                      </span>
+                                                      <div className="browserDownloadText">
+                                                          <span className="browserDownloadName" title={row.title}>
+                                                              {row.title}
+                                                          </span>
+                                                          <span className="browserDownloadMeta">
+                                                              {formatDownloadMeta(row, downloadsNowTick)}
+                                                          </span>
+                                                          {row.status === "progressing" ? (
+                                                              <span
+                                                                  className={`browserDownloadBar${percent === null ? " is-indeterminate" : ""}`}
+                                                                  aria-hidden
+                                                              >
+                                                                  <span
+                                                                      style={{
+                                                                          width: `${percent ?? 35}%`,
+                                                                      }}
+                                                                  />
+                                                              </span>
+                                                          ) : null}
+                                                      </div>
+                                                      <span className="browserDownloadActions">
+                                                          {row.status === "progressing" &&
+                                                          row.source === "browser" ? (
+                                                              <button
+                                                                  type="button"
+                                                                  title="Cancel download"
+                                                                  aria-label={`Cancel ${row.title}`}
+                                                                  onClick={() =>
+                                                                      void window.electron.invoke(
+                                                                          "browser:cancelDownload",
+                                                                          { id: row.id },
+                                                                      )
+                                                                  }
+                                                              >
+                                                                  <FontAwesomeIcon icon={faXmark} />
+                                                              </button>
+                                                          ) : null}
+                                                          {row.path ? (
+                                                              <button
+                                                                  type="button"
+                                                                  title="Show in folder"
+                                                                  aria-label={`Show ${row.title} in folder`}
+                                                                  onClick={() =>
+                                                                      window.electron.showItemInFolder(row.path)
+                                                                  }
+                                                              >
+                                                                  <FontAwesomeIcon icon={faFolderOpen} />
+                                                              </button>
+                                                          ) : null}
+                                                      </span>
+                                                  </div>
+                                              );
+                                          })
+                                      )}
+                                  </div>
+                                  <button
+                                      type="button"
+                                      className="browserDownloadsFull"
+                                      onClick={openFullDownloadHistory}
+                                  >
+                                      <span>Full download history</span>
+                                      <FontAwesomeIcon icon={faUpRightFromSquare} />
+                                  </button>
+                              </div>
+                          </>,
+                          document.body,
+                      ) as unknown as ReactElement)
+                    : null}
             </div>
         </div>
     );

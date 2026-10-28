@@ -95,6 +95,8 @@ interface AppContext {
     openVideo: (link: string) => void;
     /** Open the downloader queue overlay; the optional URL is only prefilled, never queued. */
     openDownloader: (initialUrls?: string) => void;
+    /** Open the downloader directly on its Download History tab. */
+    openDownloadHistory: () => void;
     /** True while the downloader panel is mounted. */
     downloaderOpen: boolean;
     /** Open the Recently Deleted panel. */
@@ -157,6 +159,10 @@ const App = (): ReactElement => {
 
     const [downloaderOpen, setDownloaderOpen] = useState(false);
     const [downloaderDraft, setDownloaderDraft] = useState("");
+    const [downloaderView, setDownloaderView] = useState<{ view: "queue" | "history"; request: number }>({
+        view: "queue",
+        request: 0,
+    });
     const [trashOpen, setTrashOpen] = useState(false);
     const [mediaOpen, setMediaOpen] = useState(false);
 
@@ -166,6 +172,11 @@ const App = (): ReactElement => {
         if (initialUrls?.trim()) {
             setDownloaderDraft((current) => appendDownloadDraft(current, initialUrls));
         }
+        setDownloaderView((current) => ({ view: "queue", request: current.request + 1 }));
+        setDownloaderOpen(true);
+    }, []);
+    const openDownloadHistory = useCallback(() => {
+        setDownloaderView((current) => ({ view: "history", request: current.request + 1 }));
         setDownloaderOpen(true);
     }, []);
     const openTrash = useCallback(() => {
@@ -863,6 +874,7 @@ const App = (): ReactElement => {
                 openInNewWindow,
                 openVideo,
                 openDownloader,
+                openDownloadHistory,
                 downloaderOpen,
                 openTrash,
                 trashOpen,
@@ -893,6 +905,8 @@ const App = (): ReactElement => {
                 <DownloaderPanel
                     draft={downloaderDraft}
                     onDraftChange={setDownloaderDraft}
+                    initialView={downloaderView.view}
+                    viewRequest={downloaderView.request}
                     onClose={() => setDownloaderOpen(false)}
                     onOpenOutput={(path) => void openInReaderIfValid(path)}
                 />

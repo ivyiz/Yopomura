@@ -104,6 +104,7 @@ export const registerBrowserHandlers = (): void => {
     ipc.handle("browser:getDisabledHosts", (event) => managerFor(event).getDisabledHosts());
     ipc.handle("browser:setSearchEngine", (event, { engine }) => managerFor(event).setSearchEngine(engine));
     ipc.handle("browser:setDownloadDir", (event, { dir }) => managerFor(event).setDownloadDir(dir));
+    ipc.handle("browser:cancelDownload", (event, { id }) => managerFor(event).cancelDownload(id));
     ipc.handle("browser:scanLinks", (event, { tabId }) => managerFor(event).scanLinks(tabId));
     ipc.handle("browser:getAdblock", () => getAdblockState());
     ipc.handle("browser:setAdblock", (_event, { enabled }) => setAdblockEnabled(enabled));

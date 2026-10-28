@@ -96,7 +96,6 @@ test("browser downloads land in the library and recent Media playlist", async ()
         };
 
         await download("browser-manga.cbz", `http://127.0.0.1:${port}/browser-manga.cbz`);
-        await expect(page.locator(".downloadToast")).toBeVisible({ timeout: 15_000 });
         await expect
             .poll(
                 async () =>
@@ -126,6 +125,56 @@ test("browser downloads land in the library and recent Media playlist", async ()
         await expect(page.locator(".locationRow", { hasText: "browser-clip" })).toBeVisible({
             timeout: 20_000,
         });
+
+        // The toolbar Downloads button opens a Chrome-style recent history bubble.
+        await page.locator(".browserToggle").click();
+        await page.waitForSelector(".browserHost.is-full", { timeout: 15_000 });
+        await expect(page.locator(".browserDownloadsBtn")).toBeVisible();
+        await expect(page.locator(".browserDownloadsBtn")).toHaveClass(/has-unseen/);
+        await page.locator(".browserDownloadsBtn").click();
+        await expect(page.locator(".browserDownloadsBubble")).toBeVisible();
+        await expect(page.locator(".browserDownloadsBtn")).not.toHaveClass(/has-unseen/);
+        await expect(page.locator(".browserDownloadsHead")).toContainText("Recent download history");
+        await expect(page.locator(".browserDownloadRow", { hasText: "browser-manga.cbz" })).toHaveCount(1);
+        await expect(page.locator(".browserDownloadRow", { hasText: "browser-clip.webm" })).toHaveCount(1);
+        const bubbleHit = await page.evaluate(() => {
+            const bubble = document.querySelector(".browserDownloadsBubble");
+            if (!bubble) return false;
+            const rect = bubble.getBoundingClientRect();
+            return Boolean(
+                document
+                    .elementFromPoint(rect.left + rect.width / 2, rect.top + 40)
+                    ?.closest(".browserDownloadsBubble"),
+            );
+        });
+        expect(bubbleHit).toBe(true);
+
+        // Mouse leave must not close the bubble; Escape closes only the bubble.
+        const bubbleBox = await page.locator(".browserDownloadsBubble").boundingBox();
+        if (bubbleBox) {
+            await page.mouse.move(bubbleBox.x - 30, Math.min(bubbleBox.y + bubbleBox.height + 30, 700));
+            await page.waitForTimeout(350);
+        }
+        await expect(page.locator(".browserDownloadsBubble")).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(page.locator(".browserDownloadsBubble")).toHaveCount(0);
+        await expect(page.locator(".browserHost.is-full")).toHaveCount(1);
+
+        await page.locator(".browserDownloadsBtn").click();
+        await expect(page.locator(".browserDownloadsBubble")).toBeVisible();
+        await page.locator(".browserDownloadsClose").click();
+        await expect(page.locator(".browserDownloadsBubble")).toHaveCount(0);
+
+        await page.locator(".browserDownloadsBtn").click();
+        await page.locator(".browserDownloadsFull").click();
+        await expect(page.locator(".downloaderPanel")).toBeVisible({ timeout: 15_000 });
+        await expect(page.locator(".downloaderHistory")).toBeVisible();
+        await expect(page.locator(".downloaderHead h2")).toHaveText("Download History");
+        await page.locator(".downloaderClose").click();
+        await expect(page.locator(".downloaderPanel")).toHaveCount(0);
+        await page.locator('.browserTabStrip button[title="Close browser"]').click();
+        await expect(page.locator(".browserHost")).toHaveCount(0);
+        console.log("BROWSER_DOWNLOADS_BUBBLE_OK");
 
         const recentPath = path.join(libraryDir, "browser-clip.webm");
         await expect

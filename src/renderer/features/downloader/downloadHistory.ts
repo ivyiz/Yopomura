@@ -107,7 +107,7 @@ export const useDownloadHistoryRecorder = (): void => {
             addDownloadHistory({
                 id: download.id,
                 source: "browser",
-                title: download.filename,
+                title: window.path.basename(download.savePath || download.filename) || download.filename,
                 url: download.url,
                 path: download.savePath,
                 status,

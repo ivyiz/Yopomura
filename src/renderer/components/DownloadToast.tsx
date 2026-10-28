@@ -1,6 +1,5 @@
 import type { DownloaderJob } from "@common/types/downloader";
-import { formatBytes } from "@features/media/mediaLibrary";
-import { faFile, faFilm } from "@fortawesome/free-solid-svg-icons";
+import { faFile } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useAppContext } from "@renderer/App";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -12,13 +11,10 @@ type ToastData = {
     status: string;
     detail: string;
     progress: number;
-    video: boolean;
     autoHide: boolean;
 };
 
-const isVideo = (value: string): boolean => /\.(mp4|webm)(\?|#|$)/i.test(value);
-
-/** Browser-style download bubble for browser and Downloader jobs. */
+/** Bottom-right toast for Downloader jobs; browser downloads use the toolbar bubble. */
 const DownloadToast = () => {
     const { openDownloader } = useAppContext();
     const [toast, setToast] = useState<ToastData | null>(null);
@@ -35,40 +31,6 @@ const DownloadToast = () => {
     }, []);
 
     useEffect(() => {
-        const offBrowser = window.electron.on("browser:download", (download) => {
-            const video = isVideo(download.savePath || download.filename);
-            if (download.state === "progressing") {
-                show({
-                    id: download.id,
-                    title: download.filename,
-                    status: "Downloading",
-                    detail:
-                        download.total > 0
-                            ? `${formatBytes(download.received)} of ${formatBytes(download.total)}`
-                            : "Starting…",
-                    progress: download.total > 0 ? Math.round((download.received / download.total) * 100) : 0,
-                    video,
-                    autoHide: false,
-                });
-                return;
-            }
-            const status =
-                download.state === "completed"
-                    ? "Done"
-                    : download.state === "interrupted"
-                      ? "Interrupted"
-                      : "Cancelled";
-            show({
-                id: download.id,
-                title: download.filename,
-                status,
-                detail: `${formatBytes(download.received)} · ${status}`,
-                progress: 100,
-                video,
-                autoHide: true,
-            });
-        });
-
         const offDownloader = window.electron.on("downloader:state", (state) => {
             const jobs: DownloaderJob[] = state.jobs;
             const active =
@@ -89,7 +51,6 @@ const DownloadToast = () => {
                             ? `${active.downloaded}/${active.total} images`
                             : active.message || "Starting…",
                     progress: Math.round(active.progress),
-                    video: false,
                     autoHide: false,
                 });
                 return;
@@ -115,13 +76,11 @@ const DownloadToast = () => {
                         ? `${latest.total} images · Done`
                         : `${status}${latest.error ? ` · ${latest.error}` : ""}`,
                 progress: 100,
-                video: false,
                 autoHide: true,
             });
         });
 
         return () => {
-            offBrowser();
             offDownloader();
             if (timerRef.current !== null) window.clearTimeout(timerRef.current);
         };
@@ -140,7 +99,7 @@ const DownloadToast = () => {
             }}
         >
             <span className="downloadToastIcon" aria-hidden>
-                <FontAwesomeIcon icon={toast.video ? faFilm : faFile} />
+                <FontAwesomeIcon icon={faFile} />
             </span>
             <span className="downloadToastBody">
                 <span className="downloadToastTitle">{toast.title}</span>

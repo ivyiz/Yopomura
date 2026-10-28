@@ -343,31 +343,309 @@
     }
 }
 
-.browserDownloads {
-    flex: 0 0 auto;
-    padding: 5px 10px;
-    border-top: 1px solid var(--divider-color);
-    background: var(--body-bg-color);
+.browserDownloadsBtn {
+    position: relative;
+
+    &.is-active {
+        border-color: color-mix(in srgb, var(--btn-color-focus) 55%, transparent);
+    }
+
+    &.has-unseen:not(.is-open) {
+        color: var(--btn-color-focus);
+    }
+}
+
+.browserDownloadRing {
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    background: conic-gradient(
+        var(--btn-color-focus) var(--download-progress, 0%),
+        rgba(127, 127, 127, 0.22) 0
+    );
+    pointer-events: none;
+    mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+
+    &.is-indeterminate {
+        background: conic-gradient(var(--btn-color-focus) 26%, rgba(127, 127, 127, 0.22) 0);
+        animation: browserDownloadSpin 1s linear infinite;
+    }
+}
+
+.browserDownloadDot {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--btn-color-focus);
+    box-shadow: 0 0 0 2px var(--body-bg-color);
+    pointer-events: none;
+}
+
+.browserDownloadsBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 3199990;
+    background: transparent;
+}
+
+.browserDownloadsBubble {
+    position: fixed;
+    z-index: 3200000;
+    width: min(380px, calc(100vw - 24px));
+    max-height: min(520px, calc(100vh - 96px));
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    font-size: 0.7rem;
+    overflow: hidden;
+    border: 1px solid var(--divider-color);
+    border-radius: 12px;
+    background: var(--body-bg-color);
+    color: var(--font-color);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+    animation: browserDownloadsIn 140ms ease-out;
+}
+
+.browserDownloadsHead {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 12px 9px 16px;
+
+    strong {
+        flex: 1 1 auto;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+}
+
+.browserDownloadsClose {
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    padding: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
     color: var(--font-color-secondary);
+    cursor: pointer;
 
-    div {
-        display: flex;
-        gap: 10px;
-        justify-content: space-between;
+    &:hover {
+        background: var(--btn-color-hover);
+        color: var(--font-color);
+    }
+}
 
-        span:first-child {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        span:last-child {
-            flex: 0 0 auto;
+.browserDownloadsList {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 8px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.browserDownloadsEmpty {
+    margin: 0;
+    padding: 22px 8px;
+    text-align: center;
+    color: var(--font-color-secondary);
+    font-size: 0.78rem;
+}
+
+.browserDownloadRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 8px;
+    border-radius: 8px;
+
+    &:hover,
+    &:focus-within {
+        background: var(--btn-color);
+    }
+}
+
+.browserDownloadType {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+    background: rgba(127, 127, 127, 0.1);
+    color: var(--font-color-secondary);
+    font-size: 0.85rem;
+
+    &.is-video {
+        color: #7fb4ff;
+        background: rgba(82, 139, 255, 0.12);
+    }
+
+    &.is-archive {
+        color: #f3c56b;
+        background: rgba(243, 197, 107, 0.12);
+    }
+
+    &.is-image {
+        color: #7ed6a5;
+        background: rgba(126, 214, 165, 0.12);
+    }
+
+    &.is-document {
+        color: #8dc8ff;
+        background: rgba(141, 200, 255, 0.12);
+    }
+
+    &.is-executable {
+        color: #c4a3ff;
+        background: rgba(196, 163, 255, 0.12);
+    }
+}
+
+.browserDownloadText {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.browserDownloadName {
+    overflow: hidden;
+    color: var(--font-color);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.browserDownloadMeta {
+    overflow: hidden;
+    color: var(--font-color-secondary);
+    font-size: 0.69rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.browserDownloadRow.is-error .browserDownloadMeta {
+    color: #ff8a9a;
+}
+
+.browserDownloadBar {
+    display: block;
+    height: 3px;
+    margin-top: 3px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(127, 127, 127, 0.2);
+
+    span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--btn-color-focus);
+        transition: width 160ms linear;
+    }
+
+    &.is-indeterminate span {
+        animation: browserDownloadBarPulse 1s ease-in-out infinite alternate;
+    }
+}
+
+.browserDownloadActions {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 120ms ease;
+
+    button {
+        width: 26px;
+        height: 26px;
+        padding: 0 !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--font-color-secondary);
+        font-size: 0.72rem;
+
+        &:hover {
+            background: var(--btn-color-hover);
             color: var(--font-color);
         }
+    }
+}
+
+.browserDownloadRow:hover .browserDownloadActions,
+.browserDownloadRow:focus-within .browserDownloadActions,
+.browserDownloadRow.is-progressing .browserDownloadActions {
+    opacity: 1;
+}
+
+.browserDownloadsFull {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 11px 16px;
+    border: 0;
+    border-top: 1px solid var(--divider-color);
+    border-radius: 0;
+    background: transparent;
+    color: var(--font-color);
+    font-size: 0.78rem;
+    cursor: pointer;
+
+    span {
+        flex: 1 1 auto;
+        text-align: left;
+    }
+
+    svg {
+        color: var(--font-color-secondary);
+        font-size: 0.75rem;
+    }
+
+    &:hover {
+        background: var(--btn-color);
+    }
+}
+
+@keyframes browserDownloadSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes browserDownloadBarPulse {
+    from {
+        opacity: 0.45;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes browserDownloadsIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 

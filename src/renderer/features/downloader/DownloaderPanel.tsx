@@ -30,6 +30,10 @@ type DownloaderPanelProps = {
     /** Shared draft; browser sends append to it and it survives closing the pane. */
     draft: string;
     onDraftChange: (draft: string) => void;
+    /** Queue on normal open, history when opened from the browser Downloads bubble. */
+    initialView?: "queue" | "history";
+    /** Changes on every open request so an already-mounted panel still switches views. */
+    viewRequest?: number;
     onClose: () => void;
     onOpenOutput: (path: string) => void;
 };
@@ -66,7 +70,14 @@ const historyHost = (url: string): string => {
 const isVideoHistory = (entry: DownloadHistoryEntry): boolean =>
     /\.(mp4|webm)$/i.test(entry.path) || /\.(mp4|webm)$/i.test(entry.title);
 
-const DownloaderPanel = ({ draft, onDraftChange, onClose, onOpenOutput }: DownloaderPanelProps) => {
+const DownloaderPanel = ({
+    draft,
+    onDraftChange,
+    initialView = "queue",
+    viewRequest = 0,
+    onClose,
+    onOpenOutput,
+}: DownloaderPanelProps) => {
     const folders = useAppSelector((store) => store.mainSettings.library.folders);
     const defaultDir =
         getDefaultLocationPath(folders) || window.path.join(window.electron.app.getPath("userData"), "downloads");
@@ -74,8 +85,14 @@ const DownloaderPanel = ({ draft, onDraftChange, onClose, onOpenOutput }: Downlo
     const [keepFolder, setKeepFolder] = useState(false);
     const [state, setState] = useState<DownloaderState>({ ready: false, activeId: null, paused: false, jobs: [] });
     const [busy, setBusy] = useState(false);
-    const [view, setView] = useState<"queue" | "history">("queue");
+    const [view, setView] = useState<"queue" | "history">(initialView);
     const [history, setHistory] = useState<DownloadHistoryEntry[]>(readDownloadHistory);
+
+    useEffect(() => {
+        // Re-apply when the same view is requested again after a manual toggle.
+        void viewRequest;
+        setView(initialView);
+    }, [initialView, viewRequest]);
 
     useEffect(() => {
         const sync = () => setHistory(readDownloadHistory());
