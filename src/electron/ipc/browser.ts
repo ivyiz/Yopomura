@@ -1,5 +1,6 @@
 import { getAdblockState, setAdblockEnabled } from "@electron/browser/adblock";
 import { BrowserManager } from "@electron/browser/BrowserManager";
+import { getSiteIconDataUrls } from "@electron/browser/siteIcons";
 import { app, BrowserWindow } from "electron";
 import { ipc } from "./utils";
 
@@ -82,6 +83,7 @@ export const registerBrowserHandlers = (): void => {
     ipc.handle("browser:scanLinks", (event, { tabId }) => managerFor(event).scanLinks(tabId));
     ipc.handle("browser:getAdblock", () => getAdblockState());
     ipc.handle("browser:setAdblock", (_event, { enabled }) => setAdblockEnabled(enabled));
+    ipc.handle("browser:getSiteIcons", (_event, { hosts }) => getSiteIconDataUrls(hosts));
 };
 
 export const destroyBrowserManagers = (): void => {

@@ -151,12 +151,20 @@ test("mega features smoke", async () => {
         await page.locator(".mediaPanelDescription").scrollIntoViewIfNeeded();
         await expect(page.locator(".mediaPanelDescriptionPath")).toBeVisible();
         console.log("MEDIA_PANEL_OK");
-        await page.keyboard.press("Escape");
+        // Switching to another TopBar panel must close the media panel, not stack behind it.
+        await page.locator(".downloaderToggle").click();
+        await expect(page.locator(".downloaderPanel")).toBeVisible();
         await expect(page.locator(".mediaPanelOverlay")).toHaveCount(0);
+        await page.locator(".downloaderFoot button", { hasText: "Close" }).click();
 
         // Full browser
         await page.locator(".browserToggle").click();
         await page.waitForSelector(".browserHost.is-full", { timeout: 15_000 });
+        await page.waitForSelector(".browserStart", { timeout: 15_000 });
+        await expect(page.locator(".browserStartCard")).toHaveCount(8);
+        await expect(page.locator(".browserStartIcon")).toHaveCount(8);
+        await expect(page.locator(".browserStartBadge")).toHaveCount(5);
+        console.log("BROWSER_START_OK");
         await page.locator(".browserAddress").fill(`http://127.0.0.1:${port}/`);
         await page.locator(".browserAddress").press("Enter");
         await expect
@@ -186,6 +194,16 @@ test("mega features smoke", async () => {
 
         await page.locator(".browserNewTab").click();
         await expect(page.locator(".browserTab")).toHaveCount(2);
+        await page.waitForSelector(".browserStart", { timeout: 15_000 });
+        const startSearch = page.locator(".browserStartSearch input");
+        await startSearch.fill(`http://127.0.0.1:${port}/`);
+        await startSearch.press("Enter");
+        await expect
+            .poll(async () => (await page.locator(".browserTab.is-active").innerText()).trim(), {
+                timeout: 20_000,
+            })
+            .toContain("Test Browser Page");
+        console.log("BROWSER_NEWTAB_OK");
         await page.locator('.browserTabStrip button[title="Close browser"]').click();
         await expect(page.locator(".browserHost")).toHaveCount(0);
 
@@ -193,6 +211,15 @@ test("mega features smoke", async () => {
         await page.locator(".browserToggle").click();
         await page.waitForSelector(".browserHost.is-full", { timeout: 15_000 });
         await page.locator(".browserToggle").click();
+        await expect(page.locator(".browserHost")).toHaveCount(0);
+
+        // Opening the browser from the media panel closes the media panel.
+        await page.locator(".mediaToggle").click();
+        await page.waitForSelector(".mediaPanelOverlay", { timeout: 15_000 });
+        await page.locator(".browserToggle").click();
+        await page.waitForSelector(".browserHost.is-full", { timeout: 15_000 });
+        await expect(page.locator(".mediaPanelOverlay")).toHaveCount(0);
+        await page.locator('.browserTabStrip button[title="Close browser"]').click();
         await expect(page.locator(".browserHost")).toHaveCount(0);
 
         // Side pane from Location toggles too.

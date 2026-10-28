@@ -447,6 +447,8 @@ export type BrowserChannels = {
     "browser:scanLinks": ChannelDefinition<{ tabId?: string }, BrowserScannedLink[]>;
     "browser:getAdblock": ChannelDefinition<void, BrowserAdblockState>;
     "browser:setAdblock": ChannelDefinition<{ enabled: boolean }, BrowserAdblockState>;
+    /** Cached data URLs for the New Tab site tiles. */
+    "browser:getSiteIcons": ChannelDefinition<{ hosts: string[] }, Record<string, string>>;
     "browser:state": ChannelDefinition<BrowserState, void, "m2r">;
     "browser:download": ChannelDefinition<BrowserDownload, void, "m2r">;
     "browser:contextMenu": ChannelDefinition<BrowserContextMenuRequest, void, "m2r">;

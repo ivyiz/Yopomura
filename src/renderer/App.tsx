@@ -94,6 +94,8 @@ interface AppContext {
     trashOpen: boolean;
     /** Open the dedicated media library/player panel. */
     openMedia: () => void;
+    /** Close the media panel (used when switching to another TopBar panel). */
+    closeMedia: () => void;
     /** True while the media panel is mounted. */
     mediaOpen: boolean;
     /** True while the video player overlay is mounted. */
@@ -145,10 +147,19 @@ const App = (): ReactElement => {
     }, []);
 
     const [downloaderOpen, setDownloaderOpen] = useState(false);
-    const openDownloader = useCallback(() => setDownloaderOpen(true), []);
     const [trashOpen, setTrashOpen] = useState(false);
-    const openTrash = useCallback(() => setTrashOpen(true), []);
     const [mediaOpen, setMediaOpen] = useState(false);
+
+    /** Media is a full panel; opening another app panel must close it, not sit behind it. */
+    const closeMedia = useCallback(() => setMediaOpen(false), []);
+    const openDownloader = useCallback(() => {
+        setMediaOpen(false);
+        setDownloaderOpen(true);
+    }, []);
+    const openTrash = useCallback(() => {
+        setMediaOpen(false);
+        setTrashOpen(true);
+    }, []);
     /** TopBar Media icon toggles the panel. */
     const openMedia = useCallback(() => setMediaOpen((open) => !open), []);
     const importedDownloadJobs = useRef(new Set<string>());
@@ -844,6 +855,7 @@ const App = (): ReactElement => {
                 openTrash,
                 trashOpen,
                 openMedia,
+                closeMedia,
                 mediaOpen,
                 videoOpen: Boolean(videoLink),
                 validateDirectory,

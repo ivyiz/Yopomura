@@ -25,6 +25,7 @@ import { useAppContext } from "@renderer/App";
 import { useAppSelector } from "@store/hooks";
 import { selectModalOverlayOpen } from "@store/ui";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import BrowserStartPage from "./BrowserStartPage";
 import type { BrowserMode, ToggleBrowserDetail } from "./browserEvents";
 import "./browserHost.scss";
 
@@ -94,6 +95,7 @@ const BrowserHost = () => {
 
     const [mode, setMode] = useState<BrowserMode | null>(null);
     const [state, setState] = useState<BrowserState>(EMPTY_STATE);
+    const newTabPage = !state.activeId || !state.url || state.url === "about:blank";
     const [address, setAddress] = useState("");
     const [engine, setEngine] = useState<BrowserSearchEngine>(readSavedEngine);
     const [sideWidth, setSideWidth] = useState(460);
@@ -218,9 +220,9 @@ const BrowserHost = () => {
     // biome-ignore lint/correctness/useExhaustiveDependencies: the address bar must refresh on tab switch even when two tabs share a URL
     useEffect(() => {
         if (!mode) return;
-        const next = state.url || "";
+        const next = newTabPage ? "" : state.url || "";
         if (!addressFocused.current) setAddress(next);
-    }, [state.url, state.activeId, mode]);
+    }, [state.url, state.activeId, mode, newTabPage]);
 
     useEffect(() => {
         if (mode) return;
@@ -239,13 +241,16 @@ const BrowserHost = () => {
         !trashOpen &&
         !mediaOpen;
 
+    /* The React start page owns the content area for about:blank tabs. */
+    const showNative = visible && !newTabPage;
+
     useEffect(() => {
-        void window.electron.invoke("browser:setVisible", { visible });
-        if (visible) {
+        void window.electron.invoke("browser:setVisible", { visible: showNative });
+        if (showNative) {
             lastBounds.current = "";
             requestAnimationFrame(syncBounds);
         }
-    }, [visible, syncBounds]);
+    }, [showNative, syncBounds]);
 
     useLayoutEffect(() => {
         if (!mode) return;
@@ -318,6 +323,37 @@ const BrowserHost = () => {
             input: address,
         });
         if (!ok) setError("Invalid URL or search query");
+    };
+
+    const openStartUrl = (url: string, newTab: boolean) => {
+        setError("");
+        void (async () => {
+            if (!state.activeId || newTab) {
+                await window.electron.invoke("browser:createTab", { url });
+                return;
+            }
+            const ok = await window.electron.invoke("browser:navigate", { id: state.activeId, input: url });
+            if (!ok) setError("Invalid URL or search query");
+        })();
+    };
+
+    const searchFromStart = (input: string) => {
+        const value = input.trim();
+        if (!value) return;
+        setError("");
+        void (async () => {
+            if (state.activeId) {
+                const ok = await window.electron.invoke("browser:navigate", {
+                    id: state.activeId,
+                    input: value,
+                });
+                if (!ok) setError("Invalid URL or search query");
+                return;
+            }
+            const { id } = await window.electron.invoke("browser:createTab", { url: "about:blank" });
+            const ok = await window.electron.invoke("browser:navigate", { id, input: value });
+            if (!ok) setError("Invalid URL or search query");
+        })();
     };
 
     const addToDownloader = async (url: string) => {
@@ -489,14 +525,16 @@ const BrowserHost = () => {
                                     event.preventDefault();
                                     void window.electron.invoke("browser:activateTab", { id: tab.id });
                                 }}
-                                title={tab.title || tab.url}
+                                title={tab.url === "about:blank" || !tab.url ? "New Tab" : tab.title || tab.url}
                             >
                                 {tab.favicon ? (
                                     <img src={tab.favicon} alt="" draggable={false} />
                                 ) : (
                                     <FontAwesomeIcon icon={faGlobe} />
                                 )}
-                                <span>{tab.title || tab.url || "New Tab"}</span>
+                                <span>
+                                    {tab.url === "about:blank" || !tab.url ? "New Tab" : tab.title || tab.url}
+                                </span>
                                 {tab.loading ? <span className="browserTabLoading" /> : null}
                                 <button
                                     type="button"
@@ -664,10 +702,14 @@ const BrowserHost = () => {
 
                 {error ? <div className="browserError">{error}</div> : null}
                 <div className="browserContent" ref={contentRef}>
-                    <div className="browserContentFallback">
-                        <FontAwesomeIcon icon={faGlobe} />
-                        <span>{state.loading ? "Loading…" : "Browser"}</span>
-                    </div>
+                    {newTabPage ? (
+                        <BrowserStartPage engine={engine} onOpenUrl={openStartUrl} onSearch={searchFromStart} />
+                    ) : (
+                        <div className="browserContentFallback">
+                            <FontAwesomeIcon icon={faGlobe} />
+                            <span>{state.loading ? "Loading…" : "Browser"}</span>
+                        </div>
+                    )}
                 </div>
 
                 {downloads.length > 0 ? (

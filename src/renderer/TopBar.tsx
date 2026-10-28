@@ -31,8 +31,16 @@ import LibraryScanStatusButton from "./components/LibraryScanStatusButton";
 const TopBar = (): ReactElement => {
     const { t } = useTranslation("common");
     const [title, setTitle] = useState<string>("Yokomura");
-    const { pageNumberInputRef, bookProgressRef, closeReader, openDownloader, openMedia, openTrash, mediaOpen } =
-        useAppContext();
+    const {
+        pageNumberInputRef,
+        bookProgressRef,
+        closeReader,
+        openDownloader,
+        openMedia,
+        closeMedia,
+        openTrash,
+        mediaOpen,
+    } = useAppContext();
     const [isMaximized, setMaximized] = useState(window.electron.currentWindow.isMaximized() || false);
     const [pageNumberChangeDisabled, setPageNumberChangeDisabled] = useState(false);
     const readerContentLink = useAppSelector((store) => store.reader.content?.link ?? "");
@@ -192,7 +200,10 @@ const TopBar = (): ReactElement => {
                     className="browserToggle"
                     tabIndex={-1}
                     onFocus={(e) => e.currentTarget.blur()}
-                    onClick={() => toggleBrowser("full")}
+                    onClick={() => {
+                        closeMedia();
+                        toggleBrowser("full");
+                    }}
                     data-tooltip={t("topBar.browser")}
                 >
                     <FontAwesomeIcon icon={faGlobe} />

@@ -301,6 +301,7 @@ export const installPreloadMocks = (): void => {
     onInvoke("browser:scanLinks", () => []);
     onInvoke("browser:getAdblock", () => ({ enabled: true, ready: false }));
     onInvoke("browser:setAdblock", () => ({ enabled: true, ready: false }));
+    onInvoke("browser:getSiteIcons", () => ({}));
     onInvoke("profileBackup:create", () => ({ ok: false, message: "not mocked" }));
     onInvoke("profileBackup:restore", () => ({ ok: false, message: "not mocked" }));
     onInvoke("db:library:getAllAndProgress", () => []);
