@@ -27,8 +27,8 @@ export const BROWSER_TOOLS: readonly BrowserToolDefinition[] = [
     },
     {
         id: "download",
-        label: "Add page to Downloader",
-        description: "Queue this page with your default folder.",
+        label: "Send page to Downloader",
+        description: "Open this page in the Downloader so you can choose the folder and options.",
         kind: "action",
         icon: faDownload,
     },

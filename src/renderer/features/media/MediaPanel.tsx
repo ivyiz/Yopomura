@@ -1165,36 +1165,38 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                         <output className="mediaPanelAutoplayNotice">{autoplayNotice}</output>
                                     ) : null}
 
-                                    <MediaPlayerControls
-                                        src={videoSrc}
-                                        playing={playing}
-                                        currentTime={currentTime}
-                                        duration={duration}
-                                        bufferedTime={bufferedTime}
-                                        volume={volume}
-                                        muted={muted}
-                                        rate={rate}
-                                        fullscreen={isFullscreen}
-                                        theater={theater}
-                                        pipActive={pipActive}
-                                        pipSupported={pipSupported}
-                                        autoplayNext={autoplayNext}
-                                        canNavigate={visible.length > 1}
-                                        speedMenuOpen={speedMenuOpen}
-                                        onTogglePlay={togglePlay}
-                                        onSeek={seekTo}
-                                        onToggleMute={toggleMute}
-                                        onVolumeChange={changeVolume}
-                                        onRateChange={setRate}
-                                        onPrevious={goPrev}
-                                        onNext={goNext}
-                                        onToggleFullscreen={toggleFullscreen}
-                                        onToggleTheater={() => setTheater((previous) => !previous)}
-                                        onTogglePictureInPicture={togglePictureInPicture}
-                                        onToggleAutoplay={toggleAutoplay}
-                                        onToggleSpeedMenu={() => setSpeedMenuOpen((open) => !open)}
-                                        onCloseSpeedMenu={() => setSpeedMenuOpen(false)}
-                                    />
+                                    <div className="mediaPanelControlsDock">
+                                        <MediaPlayerControls
+                                            src={videoSrc}
+                                            playing={playing}
+                                            currentTime={currentTime}
+                                            duration={duration}
+                                            bufferedTime={bufferedTime}
+                                            volume={volume}
+                                            muted={muted}
+                                            rate={rate}
+                                            fullscreen={isFullscreen}
+                                            theater={theater}
+                                            pipActive={pipActive}
+                                            pipSupported={pipSupported}
+                                            autoplayNext={autoplayNext}
+                                            canNavigate={visible.length > 1}
+                                            speedMenuOpen={speedMenuOpen}
+                                            onTogglePlay={togglePlay}
+                                            onSeek={seekTo}
+                                            onToggleMute={toggleMute}
+                                            onVolumeChange={changeVolume}
+                                            onRateChange={setRate}
+                                            onPrevious={goPrev}
+                                            onNext={goNext}
+                                            onToggleFullscreen={toggleFullscreen}
+                                            onToggleTheater={() => setTheater((previous) => !previous)}
+                                            onTogglePictureInPicture={togglePictureInPicture}
+                                            onToggleAutoplay={toggleAutoplay}
+                                            onToggleSpeedMenu={() => setSpeedMenuOpen((open) => !open)}
+                                            onCloseSpeedMenu={() => setSpeedMenuOpen(false)}
+                                        />
+                                    </div>
                                 </div>
 
                                 <div className="mediaPanelDetail">

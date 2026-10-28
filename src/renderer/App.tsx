@@ -84,8 +84,8 @@ interface AppContext {
     openInNewWindow: (link: string) => void;
     /** Open an MP4/WebM in the built-in media player overlay. */
     openVideo: (link: string) => void;
-    /** Open the downloader queue overlay. */
-    openDownloader: () => void;
+    /** Open the downloader queue overlay; the optional URL is only prefilled, never queued. */
+    openDownloader: (initialUrls?: string) => void;
     /** True while the downloader panel is mounted. */
     downloaderOpen: boolean;
     /** Open the Recently Deleted panel. */
@@ -147,13 +147,15 @@ const App = (): ReactElement => {
     }, []);
 
     const [downloaderOpen, setDownloaderOpen] = useState(false);
+    const [downloaderDraft, setDownloaderDraft] = useState("");
     const [trashOpen, setTrashOpen] = useState(false);
     const [mediaOpen, setMediaOpen] = useState(false);
 
     /** Media is a full panel; opening another app panel must close it, not sit behind it. */
     const closeMedia = useCallback(() => setMediaOpen(false), []);
-    const openDownloader = useCallback(() => {
+    const openDownloader = useCallback((initialUrls?: string) => {
         setMediaOpen(false);
+        setDownloaderDraft(initialUrls ?? "");
         setDownloaderOpen(true);
     }, []);
     const openTrash = useCallback(() => {
@@ -879,7 +881,11 @@ const App = (): ReactElement => {
             ) : null}
             {downloaderOpen ? (
                 <DownloaderPanel
-                    onClose={() => setDownloaderOpen(false)}
+                    initialUrls={downloaderDraft}
+                    onClose={() => {
+                        setDownloaderOpen(false);
+                        setDownloaderDraft("");
+                    }}
                     onOpenOutput={(path) => void openInReaderIfValid(path)}
                 />
             ) : null}

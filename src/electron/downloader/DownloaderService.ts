@@ -15,6 +15,21 @@ import { app } from "electron";
 
 const log = createMainLogger("downloader/service");
 
+/** Optional private extractor shipped outside the public core. */
+const privateExtractorPath = (): string | null => {
+    const candidates = [
+        process.env.YOPOMURA_DOWNLOADER_EXTRACTOR_PATH,
+        app.isPackaged
+            ? path.join(process.resourcesPath, "private", "downloader_extractor.py")
+            : path.join(app.getAppPath(), "private", "downloader_extractor.py"),
+        path.join(app.getPath("userData"), "private", "downloader_extractor.py"),
+    ];
+    for (const candidate of candidates) {
+        if (candidate && fs.existsSync(candidate)) return candidate;
+    }
+    return null;
+};
+
 type WorkerEvent = {
     event: "ready" | "job" | "log";
     id?: string;
@@ -155,6 +170,7 @@ class DownloaderService extends EventEmitter {
             return;
         }
         try {
+            const extractorPath = privateExtractorPath();
             const worker = spawn(command.file, command.args, {
                 cwd: command.cwd,
                 windowsHide: true,
@@ -162,6 +178,7 @@ class DownloaderService extends EventEmitter {
                 env: {
                     ...process.env,
                     ...getProxyEnvironment(),
+                    ...(extractorPath ? { YOPOMURA_DOWNLOADER_EXTRACTOR_PATH: extractorPath } : {}),
                     PYTHONIOENCODING: "utf-8",
                     PYTHONUNBUFFERED: "1",
                 },

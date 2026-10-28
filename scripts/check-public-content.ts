@@ -19,6 +19,7 @@ const BLOCKED = [
     "hanime.tv",
     "watchhentai.net",
     "hentaihaven.xxx",
+    "damconuong.icu",
     "curl_cffi",
 ] as const;
 

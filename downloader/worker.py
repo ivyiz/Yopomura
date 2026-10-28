@@ -8,6 +8,7 @@ See README.md for the protocol.
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import json
 import os
 import re
@@ -344,10 +345,26 @@ def extract_manga_info(target_url):
     return extract_generic_page(target_url)
 
 
+_patched_path = os.environ.get("YOPOMURA_DOWNLOADER_EXTRACTOR_PATH") or os.environ.get(
+    "YOMIKIRU_DOWNLOADER_EXTRACTOR_PATH"
+)
 _patched_module = os.environ.get("YOPOMURA_DOWNLOADER_EXTRACTOR_MODULE") or os.environ.get(
     "YOMIKIRU_DOWNLOADER_EXTRACTOR_MODULE"
 )
-if _patched_module:
+if _patched_path:
+    try:
+        if not os.path.isfile(_patched_path):
+            raise FileNotFoundError(_patched_path)
+        _spec = importlib.util.spec_from_file_location("yopomura_private_extractor", _patched_path)
+        if _spec is None or _spec.loader is None:
+            raise ImportError(f"cannot load extractor file {_patched_path}")
+        _module = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(_module)
+        extract_manga_info = _module.extract_manga_info
+    except Exception as exc:
+        print(f"worker: cannot load extractor file {_patched_path}: {exc}", file=sys.stderr)
+        raise SystemExit(2)
+elif _patched_module:
     try:
         extract_manga_info = importlib.import_module(_patched_module).extract_manga_info
     except Exception as exc:

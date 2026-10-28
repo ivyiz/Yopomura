@@ -7,7 +7,8 @@ its stdin and reads one JSON event per line from its stdout.
 The public worker is generic: it downloads direct image/archive URLs and images
 found on ordinary HTML pages, with an optional `gallery-dl` fallback. It does
 not ship site-specific extractors. Private builds can provide an extractor
-module through `YOPOMURA_DOWNLOADER_EXTRACTOR_MODULE`.
+module through `YOPOMURA_DOWNLOADER_EXTRACTOR_MODULE` or a Python file through
+`YOPOMURA_DOWNLOADER_EXTRACTOR_PATH`.
 
 ## Requirements
 
@@ -202,7 +203,7 @@ proc.wait()
 ### Custom extractor hook
 
 For tests or private sites, set `YOPOMURA_DOWNLOADER_EXTRACTOR_MODULE` to an
-importable module name. Its `extract_manga_info(url)` must return
-`(title, [image_urls], headers)`. The smoke test uses this hook to avoid real
-network traffic. Stderr is reserved for diagnostics and is never part of the
-protocol.
+importable module name, or `YOPOMURA_DOWNLOADER_EXTRACTOR_PATH` to a Python
+file. Its `extract_manga_info(url)` must return `(title, [image_urls], headers)`.
+The smoke test uses the module hook to avoid real network traffic. Stderr is
+reserved for diagnostics and is never part of the protocol.

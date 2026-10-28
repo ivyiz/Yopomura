@@ -98,15 +98,10 @@ const readSavedAdblock = (): boolean => {
 const BrowserHost = () => {
     const { openDownloader, downloaderOpen, videoOpen, trashOpen, mediaOpen } = useAppContext();
     const dispatch = useAppDispatch();
-    const folders = useAppSelector((store) => store.mainSettings.library.folders);
     const defaultOutDir = useAppSelector((store) => {
         const folder = store.mainSettings.library.folders.find((row) => row.isDefaultLocation);
         return folder?.path ?? "";
     });
-    const appDownloadsDir = useMemo(
-        () => window.path.join(window.electron.app.getPath("userData"), "downloads"),
-        [],
-    );
     const modalOverlayOpen = useAppSelector(selectModalOverlayOpen);
 
     const [mode, setMode] = useState<BrowserMode | null>(null);
@@ -513,11 +508,11 @@ const BrowserHost = () => {
         })();
     };
 
-    const addToDownloader = async (url: string) => {
+    const addToDownloader = (url: string) => {
         if (!url) return;
-        const outDir = defaultOutDir || folders[0]?.path || appDownloadsDir;
-        await window.electron.invoke("downloader:add", { url, outDir, keepFolder: false });
-        openDownloader();
+        /* Prefill only: the user reviews the folder and presses Add to queue. */
+        closeExtensions();
+        openDownloader(url);
     };
 
     const closeScan = useCallback(() => {
@@ -587,57 +582,16 @@ const BrowserHost = () => {
         setScanSelected((prev) => [...new Set([...prev, ...filteredScanLinks.map((link) => link.url)])]);
     };
 
-    const addScannedLinks = async () => {
+    const addScannedLinks = () => {
         const urls = scanLinks.filter((link) => scanSelected.includes(link.url)).map((link) => link.url);
         if (urls.length === 0) {
             setScanError("Select at least one link");
             return;
         }
 
-        setScanLoading(true);
-        setScanError("");
-        const outDir = defaultOutDir || folders[0]?.path || appDownloadsDir;
-
-        const queued = new Set<string>();
-        try {
-            const downloaderState = await window.electron.invoke("downloader:getState");
-            for (const job of downloaderState.jobs) {
-                if (
-                    job.status === "queued" ||
-                    job.status === "resolving" ||
-                    job.status === "downloading" ||
-                    job.status === "packing"
-                ) {
-                    queued.add(job.url);
-                }
-            }
-        } catch {
-            // If the queue state is unavailable, still try to add the links.
-        }
-
-        let added = 0;
-        const failed: string[] = [];
-        for (const url of urls) {
-            if (queued.has(url)) continue;
-            try {
-                await window.electron.invoke("downloader:add", { url, outDir, keepFolder: false });
-                added += 1;
-            } catch {
-                failed.push(url);
-            }
-        }
-
-        setScanLoading(false);
-        if (added === 0 && failed.length === 0) {
-            setScanError("All selected links are already in the Downloader");
-            return;
-        }
-
-        openDownloader();
+        /* Prefill only; queueing happens after the user reviews the panel. */
         closeScan();
-        if (failed.length > 0) {
-            setError(`${failed.length} link(s) could not be added to the Downloader`);
-        }
+        openDownloader(urls.join("\n"));
     };
 
     const changeEngine = (next: BrowserSearchEngine) => {
@@ -821,7 +775,7 @@ const BrowserHost = () => {
                     type="button"
                     className="browserToolTile"
                     data-tool="download"
-                    title="Add current page to Downloader"
+                    title="Send current page to Downloader"
                     disabled={!canUsePage}
                     onClick={() => void addToDownloader(activeTab?.url ?? "")}
                 >
@@ -1177,7 +1131,7 @@ const BrowserHost = () => {
                                     disabled={scanLoading || scanSelected.length === 0}
                                     onClick={() => void addScannedLinks()}
                                 >
-                                    Add selected to Downloader
+                                    Open selected in Downloader
                                 </button>
                                 <button type="button" className="browserScanAction" onClick={closeScan}>
                                     Cancel
@@ -1205,7 +1159,7 @@ const BrowserHost = () => {
                                     Copy link
                                 </button>
                                 <button type="button" onClick={() => void contextAction("download")}>
-                                    Add to Downloader
+                                    Send link to Downloader
                                 </button>
                             </>
                         ) : (
@@ -1224,7 +1178,7 @@ const BrowserHost = () => {
                                     {activeBookmark ? "Remove bookmark" : "Bookmark this page"}
                                 </button>
                                 <button type="button" onClick={() => void contextAction("download")}>
-                                    Add page to Downloader
+                                    Send page to Downloader
                                 </button>
                                 {darkAvailable ? (
                                     <button

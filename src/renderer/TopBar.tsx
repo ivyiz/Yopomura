@@ -237,7 +237,7 @@ const TopBar = (): ReactElement => {
                     className="downloaderToggle"
                     tabIndex={-1}
                     onFocus={(e) => e.currentTarget.blur()}
-                    onClick={openDownloader}
+                    onClick={() => openDownloader()}
                     data-tooltip={t("topBar.downloader")}
                 >
                     <FontAwesomeIcon icon={faDownload} />

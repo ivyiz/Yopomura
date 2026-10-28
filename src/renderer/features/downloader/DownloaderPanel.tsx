@@ -9,6 +9,8 @@ import { useTranslation } from "react-i18next";
 import "./downloaderPanel.scss";
 
 type DownloaderPanelProps = {
+    /** Prefilled links from a browser action; adding them still requires Add to queue. */
+    initialUrls?: string;
     onClose: () => void;
     onOpenOutput: (path: string) => void;
 };
@@ -27,16 +29,21 @@ const STATUS_LABEL: Record<DownloaderJob["status"], string> = {
 /** Statuses that mean the worker still owes this job work. */
 const PENDING_STATUSES: DownloaderJob["status"][] = ["queued", "resolving", "downloading", "paused", "packing"];
 
-const DownloaderPanel = ({ onClose, onOpenOutput }: DownloaderPanelProps) => {
+const DownloaderPanel = ({ initialUrls = "", onClose, onOpenOutput }: DownloaderPanelProps) => {
     const { t } = useTranslation("home");
     const folders = useAppSelector((store) => store.mainSettings.library.folders);
     const defaultDir =
         getDefaultLocationPath(folders) || window.path.join(window.electron.app.getPath("userData"), "downloads");
-    const [urls, setUrls] = useState("");
+    const [urls, setUrls] = useState(initialUrls);
     const [outDir, setOutDir] = useState(defaultDir);
     const [keepFolder, setKeepFolder] = useState(false);
     const [state, setState] = useState<DownloaderState>({ ready: false, activeId: null, paused: false, jobs: [] });
     const [busy, setBusy] = useState(false);
+
+    /* A browser action can prefill while the panel is already open. */
+    useEffect(() => {
+        if (initialUrls) setUrls(initialUrls);
+    }, [initialUrls]);
 
     useEffect(() => {
         let cancelled = false;

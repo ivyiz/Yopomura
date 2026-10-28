@@ -25,3 +25,6 @@ test-results
 *.log
 __pycache__/
 downloader/MangaDownloaderWorker.exe
+
+# Private NSFW extractor overlay (never commit or ship in public builds)
+/private/

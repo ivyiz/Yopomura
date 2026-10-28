@@ -103,6 +103,7 @@ const MediaPlayerControls = ({
     const previewSeekTimerRef = useRef<number | null>(null);
     const draggingRef = useRef(false);
     const [preview, setPreview] = useState<{ time: number; left: number } | null>(null);
+    const [scrubbing, setScrubbing] = useState(false);
 
     /* A click anywhere outside the speed popover dismisses it, like a native menu. */
     useEffect(() => {
@@ -216,7 +217,7 @@ const MediaPlayerControls = ({
     };
 
     return (
-        <div className="mediaPanelControls">
+        <div className={`mediaPanelControls${speedMenuOpen || scrubbing ? " is-visible" : ""}`}>
             <div className="mediaPanelSeekRow">
                 <span className="mediaPanelTime">{formatTime(currentTime)}</span>
                 <div
@@ -225,14 +226,17 @@ const MediaPlayerControls = ({
                     onPointerMove={(event) => updatePreview(event.clientX)}
                     onPointerDown={(event) => {
                         draggingRef.current = true;
+                        setScrubbing(true);
                         updatePreview(event.clientX);
                     }}
                     onPointerUp={() => {
                         draggingRef.current = false;
+                        setScrubbing(false);
                         hidePreview();
                     }}
                     onPointerCancel={() => {
                         draggingRef.current = false;
+                        setScrubbing(false);
                         hidePreview();
                     }}
                     onPointerLeave={() => {
