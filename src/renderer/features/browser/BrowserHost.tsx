@@ -827,6 +827,22 @@ const BrowserHost = () => {
         }
     };
 
+    const openStartBookmarkBubble = async (bookmark: BrowserBookmark) => {
+        await capturePageSnapshot();
+        setMenu(null);
+        setDownloadsOpen(false);
+        setExtensionsOpen(false);
+        setScanOpen(false);
+        setBookmarkBubble({
+            mode: "edit",
+            bookmarkId: bookmark.id,
+            url: bookmark.url,
+            title: bookmark.title,
+            favicon: bookmark.favicon,
+            category: bookmark.category,
+        });
+    };
+
     const togglePinnedTool = (id: BrowserToolId) => {
         const next = pinnedTools.includes(id)
             ? pinnedTools.filter((toolId) => toolId !== id)
@@ -1240,6 +1256,7 @@ const BrowserHost = () => {
                             bookmarks={bookmarks}
                             onOpenUrl={openStartUrl}
                             onSearch={searchFromStart}
+                            onRenameBookmark={(bookmark) => void openStartBookmarkBubble(bookmark)}
                             onRemoveBookmark={(id) => void removeBookmarkById(id)}
                         />
                     ) : snapshot ? (

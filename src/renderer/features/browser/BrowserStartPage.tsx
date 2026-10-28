@@ -12,6 +12,7 @@ type BrowserStartPageProps = {
     bookmarks: BrowserBookmark[];
     onOpenUrl: (url: string, newTab: boolean) => void;
     onSearch: (input: string) => void;
+    onRenameBookmark: (bookmark: BrowserBookmark) => void;
     onRemoveBookmark: (id: string) => void;
 };
 
@@ -32,10 +33,12 @@ const bookmarkHost = (url: string): string => {
 const BookmarkRow = ({
     bookmark,
     onOpen,
+    onRename,
     onRemove,
 }: {
     bookmark: BrowserBookmark;
     onOpen: (url: string, newTab: boolean) => void;
+    onRename: (bookmark: BrowserBookmark) => void;
     onRemove: (id: string) => void;
 }) => {
     const { setContextMenuData } = useAppContext();
@@ -65,6 +68,10 @@ const BookmarkRow = ({
                         {
                             label: "Copy link",
                             action: () => void window.electron.clipboard.writeText(bookmark.url),
+                        },
+                        {
+                            label: "Rename bookmark",
+                            action: () => onRename(bookmark),
                         },
                         window.contextMenu.template.divider(),
                         {
@@ -105,7 +112,14 @@ const BookmarkRow = ({
 };
 
 /** New Tab page rendered inside the browser panel for `about:blank`. */
-const BrowserStartPage = ({ engine, bookmarks, onOpenUrl, onSearch, onRemoveBookmark }: BrowserStartPageProps) => {
+const BrowserStartPage = ({
+    engine,
+    bookmarks,
+    onOpenUrl,
+    onSearch,
+    onRenameBookmark,
+    onRemoveBookmark,
+}: BrowserStartPageProps) => {
     const [query, setQuery] = useState("");
     const groups = useMemo(() => groupBookmarksByCategory(bookmarks), [bookmarks]);
 
@@ -161,6 +175,7 @@ const BrowserStartPage = ({ engine, bookmarks, onOpenUrl, onSearch, onRemoveBook
                                         key={bookmark.id}
                                         bookmark={bookmark}
                                         onOpen={onOpenUrl}
+                                        onRename={onRenameBookmark}
                                         onRemove={onRemoveBookmark}
                                     />
                                 ))}

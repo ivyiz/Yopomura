@@ -279,6 +279,15 @@ test("mega features smoke", async () => {
         expect(bookmarkGeometry.padding).toBe("0px");
         expect(bookmarkGeometry.innerWidth).toBeCloseTo(bookmarkGeometry.outerWidth - 2, 0);
         expect(bookmarkGeometry.iconWidth).toBeCloseTo(44, 0);
+
+        await page.locator(".browserStartBookmark").first().click({ button: "right" });
+        await page.locator(".contextMenu li", { hasText: "Rename bookmark" }).click();
+        await expect(page.locator(".browserBookmarkBubble")).toBeVisible();
+        await page.locator('.browserBookmarkBubble input[aria-label="Bookmark name"]').fill("Renamed Bookmark");
+        await page.locator(".browserBookmarkBubble").getByRole("button", { name: "Done" }).click();
+        await expect(page.locator(".browserBookmarkBubble")).toHaveCount(0);
+        await expect(page.locator(".browserStartBookmarkTitle")).toContainText("Renamed Bookmark");
+
         await page.locator(".browserStartBookmark").first().click({ button: "right" });
         await page.locator(".contextMenu li", { hasText: "Remove bookmark" }).click();
         await expect(page.locator(".browserStartCategory")).toHaveCount(0);
