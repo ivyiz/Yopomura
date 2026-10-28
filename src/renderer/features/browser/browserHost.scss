@@ -371,6 +371,13 @@
     }
 }
 
+.browserContextMenuBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 3199990;
+    background: transparent;
+}
+
 .browserContextMenu {
     position: fixed;
     z-index: 3200000;

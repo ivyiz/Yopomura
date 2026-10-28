@@ -355,6 +355,21 @@ def main():
             assert not list(out_main.glob("*.part")), "partial file left behind"
             print("PASS job-main: ZIP downloaded, packed and verified")
 
+            # A second job with the same title must not overwrite the first ZIP.
+            worker.send({
+                "cmd": "add",
+                "id": "job-main-dup",
+                "url": server.base_url + "/plain",
+                "outDir": str(out_main),
+                "keepFolder": False,
+            })
+            done_dup, _ = wait_terminal(worker, "job-main-dup")
+            assert done_dup["status"] == "done", done_dup
+            assert done_dup["outputPath"] == str(out_main / "Smoke Manga (2).zip"), done_dup
+            check_zip(done_dup["outputPath"], images, ["001.png", "002.png", "003.png"])
+            assert Path(done["outputPath"]).is_file(), "duplicate job replaced the first ZIP"
+            print("PASS job-main-dup: duplicate output names are numbered, nothing overwritten")
+
             out_keep = temp_root / "out-keep"
             worker.send({
                 "cmd": "add",

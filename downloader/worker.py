@@ -133,6 +133,20 @@ def safe_child(base, name):
     return target
 
 
+def unique_output_paths(base, title, keep_folder):
+    """Pick a free ZIP/folder name, adding ' (2)', ' (3)' instead of replacing."""
+    for index in range(1, 10_000):
+        suffix = "" if index == 1 else f" ({index})"
+        zip_path = safe_child(base, f"{title}{suffix}.zip")
+        folder_path = safe_child(base, f"{title}{suffix}")
+        if os.path.exists(zip_path):
+            continue
+        if keep_folder and os.path.exists(folder_path):
+            continue
+        return zip_path, folder_path
+    raise DownloadFailed("Could not find a free output filename")
+
+
 def image_extension(url):
     ext = os.path.splitext(urlparse(url).path)[1].lower()
     if ext == ".jpeg":
@@ -668,7 +682,7 @@ class Downloader:
         self._log(job.id, "info", f"Found {job.total} image(s): {job.title}")
 
         temp_dir = tempfile.mkdtemp(prefix=f"_temp_{job.title[:48]}_", dir=job.out_dir)
-        zip_path = safe_child(job.out_dir, f"{job.title}.zip")
+        zip_path, folder_path = unique_output_paths(job.out_dir, job.title, job.keep_folder)
         zip_part = zip_path + ".part"
         keep_temp = False
         reporter = ProgressReporter(job, self.emit, self._paused)
@@ -694,7 +708,6 @@ class Downloader:
             os.replace(zip_part, zip_path)
 
             if job.keep_folder:
-                folder_path = safe_child(job.out_dir, job.title)
                 if os.path.isdir(folder_path):
                     shutil.rmtree(folder_path)
                 elif os.path.exists(folder_path):

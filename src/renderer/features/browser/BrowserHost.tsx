@@ -131,6 +131,8 @@ const BrowserHost = () => {
     const contentRef = useRef<HTMLDivElement>(null);
     const lastBounds = useRef("");
     const addressFocused = useRef(false);
+    const menuOpenRef = useRef(false);
+    menuOpenRef.current = Boolean(menu);
 
     const activeTab = state.tabs.find((tab) => tab.id === state.activeId);
     const activeBookmark = useMemo(
@@ -390,11 +392,19 @@ const BrowserHost = () => {
     const showNative = visible && !newTabPage;
 
     useEffect(() => {
-        void window.electron.invoke("browser:setVisible", { visible: showNative });
+        let cancelled = false;
+        void window.electron.invoke("browser:setVisible", { visible: showNative }).then(() => {
+            if (cancelled || !showNative || menuOpenRef.current) return;
+            // Keep the frozen frame until Chromium has shown the native view again.
+            setSnapshot("");
+        });
         if (showNative) {
             lastBounds.current = "";
             requestAnimationFrame(syncBounds);
         }
+        return () => {
+            cancelled = true;
+        };
     }, [showNative, syncBounds]);
 
     useLayoutEffect(() => {
@@ -428,6 +438,10 @@ const BrowserHost = () => {
             }
             if (event.key !== "Escape") return;
             if (modalOverlayOpen || mediaOpen || trashOpen || downloaderOpen || videoOpen) return;
+            if (menu) {
+                setMenu(null);
+                return;
+            }
             if (bookmarkBubble) {
                 setBookmarkBubble(null);
                 setSnapshot("");
@@ -464,6 +478,7 @@ const BrowserHost = () => {
         scanOpen,
         extensionsOpen,
         bookmarkBubble,
+        menu,
         openBookmarkBubble,
         syncBounds,
         modalOverlayOpen,
@@ -706,8 +721,6 @@ const BrowserHost = () => {
 
     const closeMenu = () => {
         setMenu(null);
-        setSnapshot("");
-        requestAnimationFrame(syncBounds);
     };
 
     const contextAction = async (action: "open" | "new-tab" | "copy" | "download" | "external") => {
@@ -716,7 +729,7 @@ const BrowserHost = () => {
         if (action === "open" && menu.linkURL) {
             await window.electron.invoke("browser:navigate", { id: menu.tabId, input: menu.linkURL });
         } else if (action === "new-tab" && menu.linkURL) {
-            await window.electron.invoke("browser:createTab", { url: menu.linkURL });
+            await window.electron.invoke("browser:createTab", { url: menu.linkURL, activate: false });
         } else if (action === "copy" && url) {
             await window.electron.clipboard.writeText(url);
         } else if (action === "download" && url) {
@@ -1167,66 +1180,72 @@ const BrowserHost = () => {
                 ) : null}
 
                 {menu ? (
-                    <div
-                        className="browserContextMenu"
-                        style={{ left: menu.menuX, top: menu.menuY }}
-                        onMouseLeave={closeMenu}
-                    >
-                        {menu.linkURL ? (
-                            <>
-                                <button type="button" onClick={() => void contextAction("open")}>
-                                    Open link
-                                </button>
-                                <button type="button" onClick={() => void contextAction("new-tab")}>
-                                    Open in new tab
-                                </button>
-                                <button type="button" onClick={() => void contextAction("copy")}>
-                                    Copy link
-                                </button>
-                                <button type="button" onClick={() => void contextAction("download")}>
-                                    Send link to Downloader
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        closeMenu();
-                                        if (activeBookmark) {
-                                            void removeBookmarkById(activeBookmark.id);
-                                        } else {
-                                            void openBookmarkBubble();
-                                        }
-                                    }}
-                                >
-                                    {activeBookmark ? "Remove bookmark" : "Bookmark this page"}
-                                </button>
-                                <button type="button" onClick={() => void contextAction("download")}>
-                                    Send page to Downloader
-                                </button>
-                                {darkAvailable ? (
+                    <>
+                        <div
+                            className="browserContextMenuBackdrop"
+                            onMouseDown={closeMenu}
+                            onContextMenu={(event) => {
+                                event.preventDefault();
+                                closeMenu();
+                            }}
+                        />
+                        <div className="browserContextMenu" style={{ left: menu.menuX, top: menu.menuY }}>
+                            {menu.linkURL ? (
+                                <>
+                                    <button type="button" onClick={() => void contextAction("open")}>
+                                        Open link
+                                    </button>
+                                    <button type="button" onClick={() => void contextAction("new-tab")}>
+                                        Open in new tab
+                                    </button>
+                                    <button type="button" onClick={() => void contextAction("copy")}>
+                                        Copy link
+                                    </button>
+                                    <button type="button" onClick={() => void contextAction("download")}>
+                                        Send link to Downloader
+                                    </button>
+                                </>
+                            ) : (
+                                <>
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            toggleDarkForSite();
                                             closeMenu();
+                                            if (activeBookmark) {
+                                                void removeBookmarkById(activeBookmark.id);
+                                            } else {
+                                                void openBookmarkBubble();
+                                            }
                                         }}
                                     >
-                                        {currentDisabled
-                                            ? "Enable dark for this site"
-                                            : "Disable dark for this site"}
+                                        {activeBookmark ? "Remove bookmark" : "Bookmark this page"}
                                     </button>
-                                ) : null}
-                                <button type="button" onClick={() => void contextAction("copy")}>
-                                    Copy page URL
-                                </button>
-                            </>
-                        )}
-                        <button type="button" onClick={() => void contextAction("external")}>
-                            Open in default browser
-                        </button>
-                    </div>
+                                    <button type="button" onClick={() => void contextAction("download")}>
+                                        Send page to Downloader
+                                    </button>
+                                    {darkAvailable ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                toggleDarkForSite();
+                                                closeMenu();
+                                            }}
+                                        >
+                                            {currentDisabled
+                                                ? "Enable dark for this site"
+                                                : "Disable dark for this site"}
+                                        </button>
+                                    ) : null}
+                                    <button type="button" onClick={() => void contextAction("copy")}>
+                                        Copy page URL
+                                    </button>
+                                </>
+                            )}
+                            <button type="button" onClick={() => void contextAction("external")}>
+                                Open in default browser
+                            </button>
+                        </div>
+                    </>
                 ) : null}
             </div>
         </div>

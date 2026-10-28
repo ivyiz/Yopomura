@@ -1,0 +1,87 @@
+.downloadToast {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 2400000;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: min(360px, calc(100vw - 36px));
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--divider-color);
+    background: var(--body-bg-color);
+    color: var(--font-color);
+    text-align: left;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+    animation: downloadToastIn 180ms ease-out;
+
+    &:hover {
+        border-color: var(--btn-color-focus);
+    }
+}
+
+.downloadToastIcon {
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    background: var(--btn-color);
+    color: var(--font-color-secondary);
+    font-size: 0.9rem;
+}
+
+.downloadToastBody {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.downloadToastTitle {
+    overflow: hidden;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.downloadToastMeta {
+    overflow: hidden;
+    color: var(--font-color-secondary);
+    font-size: 0.72rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.downloadToastProgress {
+    display: block;
+    height: 3px;
+    margin-top: 4px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(127, 127, 127, 0.24);
+
+    span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--btn-color-focus);
+        transition: width 160ms linear;
+    }
+}
+
+@keyframes downloadToastIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

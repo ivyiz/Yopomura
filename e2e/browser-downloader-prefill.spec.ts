@@ -86,7 +86,7 @@ test("browser add to downloader prefills without starting a job", async () => {
         await page.locator(".downloaderOverlay").screenshot({ path: "test-results/downloader-side-pane.png" });
         console.log("DOWNLOADER_PREFILL_OK");
 
-        await page.locator(".downloaderFoot button", { hasText: "Close" }).click();
+        await page.locator(".downloaderClose").click();
         await expect(page.locator("body")).not.toHaveClass(/downloaderSideOpen/);
         await expect(page.locator(".browserHost.is-full")).toBeVisible();
         const restored = await page.evaluate(

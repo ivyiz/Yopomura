@@ -157,7 +157,7 @@ test("mega features smoke", async () => {
         await page.locator(".downloaderToggle").click();
         await expect(page.locator(".downloaderPanel")).toBeVisible();
         await expect(page.locator(".mediaPanelOverlay")).toHaveCount(1);
-        await page.locator(".downloaderFoot button", { hasText: "Close" }).click();
+        await page.locator(".downloaderClose").click();
         await expect(page.locator(".mediaPanelOverlay")).toBeVisible();
 
         // Full browser
@@ -404,7 +404,7 @@ test("mega features smoke", async () => {
             .toBe(true);
         console.log("DOWNLOADER_OK");
         await expect(page.locator(".downloaderPause")).toBeDisabled();
-        await page.locator(".downloaderFoot button", { hasText: "Close" }).click();
+        await page.locator(".downloaderClose").click();
 
         console.log("PAGE_ERRORS", errors);
         expect(errors).toEqual([]);

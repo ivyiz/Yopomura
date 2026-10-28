@@ -96,7 +96,7 @@ test("side browser across classic, history, and gallery views", async () => {
             return Boolean(probe?.closest(".downloaderOverlay"));
         });
         expect(downloaderHits).toBe(true);
-        await page.locator(".downloaderFoot button", { hasText: "Close" }).click();
+        await page.locator(".downloaderClose").click();
 
         // Back to classic and close from the Location toolbar button.
         await page.locator(".viewToggle button").click();

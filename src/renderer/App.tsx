@@ -48,6 +48,7 @@ import {
     useRef,
     useState,
 } from "react";
+import DownloadToast from "./components/DownloadToast";
 import UiBlockOverlay from "./components/UiBlockOverlay";
 import BrowserHost from "./features/browser/BrowserHost";
 import DownloaderPanel from "./features/downloader/DownloaderPanel";
@@ -69,6 +70,14 @@ import {
 import { createRendererLogger } from "./utils/logger";
 
 const log = createRendererLogger("App");
+
+/** Appends unique URL lines to the downloader draft. */
+const appendDownloadDraft = (current: string, incoming: string): string => {
+    const lines = [...current.split(/\r?\n/), ...incoming.split(/\r?\n/)]
+        .map((line) => line.trim())
+        .filter(Boolean);
+    return [...new Set(lines)].join("\n");
+};
 
 interface AppContext {
     pageNumberInputRef: React.RefObject<HTMLInputElement>;
@@ -154,7 +163,9 @@ const App = (): ReactElement => {
     /** Media is a full panel; opening another app panel must close it, not sit behind it. */
     const closeMedia = useCallback(() => setMediaOpen(false), []);
     const openDownloader = useCallback((initialUrls?: string) => {
-        setDownloaderDraft(initialUrls ?? "");
+        if (initialUrls?.trim()) {
+            setDownloaderDraft((current) => appendDownloadDraft(current, initialUrls));
+        }
         setDownloaderOpen(true);
     }, []);
     const openTrash = useCallback(() => {
@@ -880,11 +891,9 @@ const App = (): ReactElement => {
             ) : null}
             {downloaderOpen ? (
                 <DownloaderPanel
-                    initialUrls={downloaderDraft}
-                    onClose={() => {
-                        setDownloaderOpen(false);
-                        setDownloaderDraft("");
-                    }}
+                    draft={downloaderDraft}
+                    onDraftChange={setDownloaderDraft}
+                    onClose={() => setDownloaderOpen(false)}
                     onOpenOutput={(path) => void openInReaderIfValid(path)}
                 />
             ) : null}
@@ -892,6 +901,7 @@ const App = (): ReactElement => {
             {mediaOpen ? <MediaPanel onClose={() => setMediaOpen(false)} /> : null}
             <BrowserHost />
             <TrashToast />
+            <DownloadToast />
             <UiBlockOverlay />
         </AppContext.Provider>
     );

@@ -35,7 +35,7 @@ test("side panes and settings layer above media and trash", async () => {
         await page.locator(".downloaderToggle").click();
         await page.waitForSelector(".downloaderPanel", { timeout: 15_000 });
         await expect(page.locator(".mediaPanelOverlay")).toHaveCount(1);
-        await page.locator(".downloaderFoot button", { hasText: "Close" }).click();
+        await page.locator(".downloaderClose").click();
 
         await page.locator(".settingsBtn").click();
         await expect(page.locator("#settings")).toHaveAttribute("data-state", "open");
@@ -64,7 +64,7 @@ test("side panes and settings layer above media and trash", async () => {
         await page.locator(".downloaderToggle").click();
         await page.waitForSelector(".downloaderPanel", { timeout: 15_000 });
         await expect(page.locator(".trashPanel")).toHaveCount(1);
-        await page.locator(".downloaderFoot button", { hasText: "Close" }).click();
+        await page.locator(".downloaderClose").click();
         await expect(page.locator(".trashPanel")).toBeVisible();
         await page.locator(".settingsBtn").click();
         await expect(page.locator("#settings")).toHaveAttribute("data-state", "open");

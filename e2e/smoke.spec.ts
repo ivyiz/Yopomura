@@ -6,8 +6,11 @@ import { _electron as electron, expect, test } from "@playwright/test";
 
 const nodeRequire = createRequire(__filename);
 const repoRoot = path.resolve(__dirname, "..");
-/** Forge Webpack main entry (`package.json` `"main"`). */
-const mainEntry = path.join(repoRoot, ".webpack", "main");
+/** Forge Webpack main entry (`package.json` `"main"`), or its per-arch output. */
+const mainEntry =
+    [path.join(repoRoot, ".webpack", "main"), path.join(repoRoot, ".webpack", "x64", "main")].find((candidate) =>
+        fs.existsSync(candidate),
+    ) ?? path.join(repoRoot, ".webpack", "main");
 
 /**
  * Launches the packaged Webpack main under Electron with an isolated userData dir.

@@ -1027,7 +1027,6 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                         </span>
                         <span className="mediaPanelBrandText">
                             <span className="mediaPanelBrandTitle">Media</span>
-                            <span className="mediaPanelBrandSubtitle">Local videos</span>
                         </span>
                     </div>
 

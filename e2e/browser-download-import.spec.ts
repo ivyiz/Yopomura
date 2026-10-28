@@ -96,6 +96,7 @@ test("browser downloads land in the library and recent Media playlist", async ()
         };
 
         await download("browser-manga.cbz", `http://127.0.0.1:${port}/browser-manga.cbz`);
+        await expect(page.locator(".downloadToast")).toBeVisible({ timeout: 15_000 });
         await expect
             .poll(
                 async () =>
@@ -127,6 +128,17 @@ test("browser downloads land in the library and recent Media playlist", async ()
         });
 
         const recentPath = path.join(libraryDir, "browser-clip.webm");
+        await expect
+            .poll(
+                async () =>
+                    page.evaluate(() => {
+                        const raw = window.localStorage.getItem("yokomura-download-history");
+                        const rows = raw ? (JSON.parse(raw) as Array<{ source: string; status: string }>) : [];
+                        return rows.filter((row) => row.source === "browser" && row.status === "done").length;
+                    }),
+                { timeout: 20_000 },
+            )
+            .toBeGreaterThanOrEqual(2);
         const stored = await page.evaluate(() => {
             const raw = window.localStorage.getItem("yokomura-media-recent-downloads");
             return raw ? (JSON.parse(raw) as Array<{ path: string }>) : [];
@@ -135,6 +147,8 @@ test("browser downloads land in the library and recent Media playlist", async ()
 
         await page.locator(".mediaToggle").click();
         await page.waitForSelector(".mediaPanelOverlay", { timeout: 15_000 });
+        await expect(page.locator(".mediaPanelBrandTitle")).toHaveText("Media");
+        await expect(page.locator(".mediaPanelBrandSubtitle")).toHaveCount(0);
         await expect(page.locator(".mediaPanelRecentTitle")).toContainText("Recently Downloaded");
         await expect(page.locator(".mediaPanelRecentTitle")).toHaveCSS("text-transform", "none");
         await expect(page.locator(".mediaPanelRecentList li", { hasText: "browser-clip" })).toHaveCount(1);
@@ -157,6 +171,23 @@ test("browser downloads land in the library and recent Media playlist", async ()
         await page.keyboard.press("Escape");
         await expect(page.locator(".mediaPanelOverlay")).toHaveCount(0);
         console.log("BROWSER_DOWNLOAD_RECENT_OK");
+
+        // A duplicate browser download asks first, then saves a numbered copy.
+        await app.evaluate(({ dialog }) => {
+            const globalWithCounter = globalThis as unknown as { __dupDialogCount: number };
+            globalWithCounter.__dupDialogCount = 0;
+            (dialog as unknown as { showMessageBox: unknown }).showMessageBox = async () => {
+                globalWithCounter.__dupDialogCount += 1;
+                return { response: 1, checkboxChecked: false };
+            };
+        });
+        await download("browser-manga (1).cbz", `http://127.0.0.1:${port}/browser-manga.cbz`);
+        expect(fs.existsSync(path.join(libraryDir, "browser-manga (1).cbz"))).toBe(true);
+        const duplicatePrompts = await app.evaluate(
+            () => (globalThis as unknown as { __dupDialogCount: number }).__dupDialogCount,
+        );
+        expect(duplicatePrompts).toBe(1);
+        console.log("BROWSER_DOWNLOAD_DUPLICATE_OK");
 
         console.log("PAGE_ERRORS", errors);
         expect(errors).toEqual([]);

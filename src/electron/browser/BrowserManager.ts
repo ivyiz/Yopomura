@@ -6,6 +6,7 @@ import { applyProxyToSession } from "@electron/network/proxySettings";
 import {
     type BrowserWindow,
     type DownloadItem,
+    dialog,
     session as electronSession,
     nativeTheme,
     type Session,
@@ -146,8 +147,54 @@ export class BrowserManager extends EventEmitter {
     private readonly handleWillDownload = (_event: Electron.Event, item: DownloadItem): void => {
         if (this.destroyed) return;
 
-        const id = `download-${this.nextDownloadId++}`;
         const filename = item.getFilename() || "download";
+        const dir = this.downloadDir;
+        const existing = dir ? path.join(dir, sanitizeDownloadFilename(filename)) : "";
+
+        if (existing && fs.existsSync(existing)) {
+            try {
+                item.pause();
+            } catch (error) {
+                logger.warn("could not pause duplicate download", error);
+            }
+            if (this.window.isDestroyed()) {
+                item.cancel();
+                return;
+            }
+            void dialog
+                .showMessageBox(this.window, {
+                    type: "question",
+                    title: "Download again?",
+                    message: `"${filename}" already exists in the download folder.`,
+                    detail: "Choose Download again to save another copy with a number.",
+                    buttons: ["Cancel", "Download again"],
+                    defaultId: 0,
+                    cancelId: 0,
+                    noLink: true,
+                })
+                .then(({ response }) => {
+                    if (this.destroyed || response !== 1) {
+                        item.cancel();
+                        return;
+                    }
+                    this.startDownload(item, filename, true);
+                })
+                .catch((error: unknown) => {
+                    logger.warn("duplicate download confirmation failed", error);
+                    try {
+                        item.cancel();
+                    } catch {
+                        // already gone
+                    }
+                });
+            return;
+        }
+
+        this.startDownload(item, filename, false);
+    };
+
+    private startDownload(item: DownloadItem, filename: string, resume: boolean): void {
+        const id = `download-${this.nextDownloadId++}`;
         const savePath = this.prepareDownloadPath(filename, item);
 
         this.activeDownloads.set(id, { item, filename, savePath });
@@ -171,7 +218,15 @@ export class BrowserManager extends EventEmitter {
             }
             this.activeDownloads.delete(id);
         });
-    };
+
+        if (resume) {
+            try {
+                item.resume();
+            } catch (error) {
+                logger.warn("could not resume duplicate download", error);
+            }
+        }
+    }
 
     private searchEngine: BrowserSearchEngine;
     private downloadDir: string | null = null;
@@ -412,6 +467,9 @@ export class BrowserManager extends EventEmitter {
         if (visible) {
             const view = this.activeTab()?.view;
             if (view && !view.webContents.isDestroyed()) view.webContents.focus();
+        } else if (!this.window.isDestroyed()) {
+            // The native view is detached, so hand keyboard focus back to the app UI.
+            this.window.webContents.focus();
         }
 
         if (changed) this.emitState();

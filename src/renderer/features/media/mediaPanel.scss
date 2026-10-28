@@ -226,14 +226,6 @@
     letter-spacing: 0.01em;
 }
 
-.mediaPanelBrandSubtitle {
-    color: var(--mediaPanel-muted);
-    font-size: 0.66rem;
-    font-weight: 500;
-    line-height: 1.2;
-    letter-spacing: 0.13em;
-}
-
 .mediaPanelSearch {
     position: relative;
     flex: 1 1 280px;
@@ -1695,10 +1687,6 @@
 }
 
 @media (max-width: 720px) {
-    .mediaPanelBrandSubtitle {
-        display: none;
-    }
-
     .mediaPanelVolumeRange {
         width: 52px;
     }
