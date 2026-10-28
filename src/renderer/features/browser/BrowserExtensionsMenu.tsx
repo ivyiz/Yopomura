@@ -1,26 +1,31 @@
 import type { BrowserSearchEngine } from "@common/types/browser";
 import type { ProxyState } from "@common/types/network";
-import { faPuzzlePiece, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faPuzzlePiece, faThumbtack, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useAppDispatch } from "@store/hooks";
 import { requestSettingsNav } from "@store/ui";
 import { useEffect, useState } from "react";
+import type { BrowserToolId, BrowserToolKind } from "./browserTools";
 import "./browserExtensions.scss";
+
+/** One built-in tool as rendered in the extensions popover. */
+export type BrowserToolEntry = {
+    id: BrowserToolId;
+    label: string;
+    description: string;
+    kind: BrowserToolKind;
+    pinned: boolean;
+    active: boolean;
+    disabled: boolean;
+    onAction: () => void;
+};
 
 type BrowserExtensionsMenuProps = {
     engine: BrowserSearchEngine;
     onEngineChange: (engine: BrowserSearchEngine) => void;
-    adblockEnabled: boolean;
-    onToggleAdblock: () => void;
-    /** Force-dark is enabled for the active host. */
-    darkEnabled: boolean;
-    /** False on the New Tab page where there is no host to toggle. */
-    darkAvailable: boolean;
-    onToggleDark: () => void;
-    /** False on the New Tab page where page actions do not apply. */
-    canUsePage: boolean;
-    onScanLinks: () => void;
-    onAddPage: () => void;
+    tools: BrowserToolEntry[];
+    onTogglePin: (id: BrowserToolId) => void;
+    onResetPins: () => void;
     onClose: () => void;
 };
 
@@ -39,22 +44,53 @@ const proxySummary = (state: ProxyState | null): string => {
     return applied ? rules : `${rules} · not applied`;
 };
 
+const ToolRow = ({ tool, onTogglePin }: { tool: BrowserToolEntry; onTogglePin: (id: BrowserToolId) => void }) => (
+    <div className={`browserExtensionsRow ${tool.pinned ? "is-pinned" : ""}`} data-tool={tool.id}>
+        <button
+            type="button"
+            className="browserExtensionsRowMain"
+            data-action={tool.id}
+            aria-pressed={tool.kind === "toggle" ? tool.active : undefined}
+            disabled={tool.disabled}
+            onClick={tool.onAction}
+        >
+            <span className="browserExtensionsRowText">
+                <strong>{tool.label}</strong>
+                <small>{tool.description}</small>
+            </span>
+            {tool.kind === "toggle" ? (
+                <span className={`browserExtensionsSwitch ${tool.active ? "is-on" : ""}`} aria-hidden>
+                    <span />
+                </span>
+            ) : null}
+        </button>
+        <button
+            type="button"
+            className={`browserExtensionsPin ${tool.pinned ? "is-pinned" : ""}`}
+            data-pin={tool.id}
+            aria-label={tool.pinned ? `Unpin ${tool.label}` : `Pin ${tool.label}`}
+            aria-pressed={tool.pinned}
+            title={tool.pinned ? "Unpin from toolbar" : "Pin to toolbar"}
+            onClick={() => onTogglePin(tool.id)}
+        >
+            <FontAwesomeIcon icon={faThumbtack} aria-hidden />
+        </button>
+    </div>
+);
+
 /** Chrome-style extensions popover holding Yokomura's built-in browser tools. */
 const BrowserExtensionsMenu = ({
     engine,
     onEngineChange,
-    adblockEnabled,
-    onToggleAdblock,
-    darkEnabled,
-    darkAvailable,
-    onToggleDark,
-    canUsePage,
-    onScanLinks,
-    onAddPage,
+    tools,
+    onTogglePin,
+    onResetPins,
     onClose,
 }: BrowserExtensionsMenuProps) => {
     const dispatch = useAppDispatch();
     const [proxy, setProxy] = useState<ProxyState | null>(null);
+    const pinnedTools = tools.filter((tool) => tool.pinned);
+    const moreTools = tools.filter((tool) => !tool.pinned);
 
     useEffect(() => {
         let cancelled = false;
@@ -114,72 +150,29 @@ const BrowserExtensionsMenu = ({
                         </select>
                     </label>
 
-                    <button
-                        type="button"
-                        className="browserExtensionsRow"
-                        data-action="adblock"
-                        aria-pressed={adblockEnabled}
-                        onClick={onToggleAdblock}
-                    >
-                        <span className="browserExtensionsRowText">
-                            <strong>Ad blocking</strong>
-                            <small>Hide ads and trackers on every page.</small>
-                        </span>
-                        <span className={`browserExtensionsSwitch ${adblockEnabled ? "is-on" : ""}`} aria-hidden>
-                            <span />
-                        </span>
-                    </button>
+                    {pinnedTools.length > 0 ? (
+                        <div className="browserExtensionsSection">
+                            <div className="browserExtensionsSectionTitle">
+                                <span>Pinned to toolbar</span>
+                                <span>{pinnedTools.length}</span>
+                            </div>
+                            {pinnedTools.map((tool) => (
+                                <ToolRow key={tool.id} tool={tool} onTogglePin={onTogglePin} />
+                            ))}
+                        </div>
+                    ) : null}
 
-                    <button
-                        type="button"
-                        className="browserExtensionsRow"
-                        data-action="dark"
-                        aria-pressed={darkEnabled}
-                        disabled={!darkAvailable}
-                        onClick={onToggleDark}
-                    >
-                        <span className="browserExtensionsRowText">
-                            <strong>Dark mode on this site</strong>
-                            <small>
-                                {darkAvailable
-                                    ? darkEnabled
-                                        ? "Forced dark is on."
-                                        : "Disabled for this site."
-                                    : "Open a page first."}
-                            </small>
-                        </span>
-                        <span className={`browserExtensionsSwitch ${darkEnabled ? "is-on" : ""}`} aria-hidden>
-                            <span />
-                        </span>
-                    </button>
-
-                    <div className="browserExtensionsSeparator" aria-hidden />
-
-                    <button
-                        type="button"
-                        className="browserExtensionsRow is-action"
-                        data-action="scan"
-                        disabled={!canUsePage}
-                        onClick={onScanLinks}
-                    >
-                        <span className="browserExtensionsRowText">
-                            <strong>Scan links</strong>
-                            <small>Find downloadable links on this page.</small>
-                        </span>
-                    </button>
-
-                    <button
-                        type="button"
-                        className="browserExtensionsRow is-action"
-                        data-action="download"
-                        disabled={!canUsePage}
-                        onClick={onAddPage}
-                    >
-                        <span className="browserExtensionsRowText">
-                            <strong>Add page to Downloader</strong>
-                            <small>Queue this page with your default folder.</small>
-                        </span>
-                    </button>
+                    {moreTools.length > 0 ? (
+                        <div className="browserExtensionsSection">
+                            <div className="browserExtensionsSectionTitle">
+                                <span>More tools</span>
+                                <span>{moreTools.length}</span>
+                            </div>
+                            {moreTools.map((tool) => (
+                                <ToolRow key={tool.id} tool={tool} onTogglePin={onTogglePin} />
+                            ))}
+                        </div>
+                    ) : null}
 
                     <div className="browserExtensionsSeparator" aria-hidden />
 
@@ -194,9 +187,14 @@ const BrowserExtensionsMenu = ({
                     </div>
                 </div>
 
-                <p className="browserExtensionsNote">
-                    Built-in tools only. Chrome Web Store extensions are not supported in this build.
-                </p>
+                <div className="browserExtensionsFooter">
+                    <p className="browserExtensionsNote">
+                        Built-in tools only. Chrome Web Store extensions are not supported in this build.
+                    </p>
+                    <button type="button" className="browserExtensionsReset" onClick={onResetPins}>
+                        Reset toolbar
+                    </button>
+                </div>
             </div>
         </>
     );

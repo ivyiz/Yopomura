@@ -67,6 +67,16 @@ export type BrowserScannedLink = {
     text: string;
 };
 
+/** One saved browser bookmark. */
+export type BrowserBookmark = {
+    id: string;
+    url: string;
+    title: string;
+    favicon: string;
+    /** Unix milliseconds. */
+    createdAt: number;
+};
+
 /** Ad-blocking state for the integrated browser session. */
 export type BrowserAdblockState = {
     enabled: boolean;

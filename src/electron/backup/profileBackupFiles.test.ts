@@ -70,6 +70,7 @@ describe("collectProfileEntries", () => {
         const userData = makeTempDirectory();
         writeFile(path.join(userData, "data.db"));
         writeFile(path.join(userData, "settings.json"), "{}");
+        writeFile(path.join(userData, "browser-bookmarks.json"), "{}");
         writeFile(path.join(userData, "announcements.txt"), "hello");
         writeFile(path.join(userData, "covers", "1.webp"));
         writeFile(path.join(userData, "trash", "2.webp"));
@@ -78,6 +79,7 @@ describe("collectProfileEntries", () => {
         expect(collectProfileEntries(userData)).toEqual([
             "data.db",
             "settings.json",
+            "browser-bookmarks.json",
             "announcements.txt",
             "covers/",
             "trash-journal.json",

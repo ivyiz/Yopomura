@@ -165,18 +165,28 @@ test("mega features smoke", async () => {
         await expect(page.locator(".browserStartIcon")).toHaveCount(8);
         await expect(page.locator(".browserStartBadge")).toHaveCount(0);
         await expect(page.locator(".browserStartCardBlurb")).toHaveCount(0);
-        await expect(page.locator(".browserToolTile")).toHaveCount(6);
+        await expect(page.locator(".browserToolTile")).toHaveCount(7);
         console.log("BROWSER_START_OK");
 
         // Extensions button opens the built-in tools popover.
         await page.locator(".browserExtensionsBtn").click();
         await expect(page.locator(".browserExtensions")).toBeVisible();
-        const popoverAdblock = page.locator('.browserExtensionsRow[data-action="adblock"]');
+        const popoverAdblock = page.locator('.browserExtensionsRowMain[data-action="adblock"]');
         await expect(popoverAdblock).toHaveAttribute("aria-pressed", "true");
         await popoverAdblock.click();
         await expect(popoverAdblock).toHaveAttribute("aria-pressed", "false");
         await popoverAdblock.click();
         await expect(popoverAdblock).toHaveAttribute("aria-pressed", "true");
+
+        // Pin/unpin moves a tool between the toolbar and the "More tools" section.
+        const adblockTile = page.locator('.browserToolTile[data-tool="adblock"]');
+        const adblockPin = page.locator('.browserExtensionsPin[data-pin="adblock"]');
+        await expect(adblockTile).toHaveCount(1);
+        await adblockPin.click();
+        await expect(adblockTile).toHaveCount(0);
+        await expect(page.locator(".browserExtensionsSectionTitle", { hasText: "More tools" })).toBeVisible();
+        await adblockPin.click();
+        await expect(adblockTile).toHaveCount(1);
         await page.keyboard.press("Escape");
         await expect(page.locator(".browserExtensions")).toHaveCount(0);
         await expect(page.locator(".browserHost.is-full")).toBeVisible();
@@ -189,6 +199,17 @@ test("mega features smoke", async () => {
             })
             .toContain("Test Browser Page");
         console.log("BROWSER_TITLE", await page.locator(".browserTab.is-active").innerText());
+
+        // Bookmark this tab, rename it in the Brave-style bubble, then remove it from New Tab.
+        const bookmarkTile = page.locator('.browserToolTile[data-tool="bookmark"]');
+        await expect(bookmarkTile).toHaveAttribute("aria-pressed", "false");
+        await bookmarkTile.click();
+        await expect(page.locator(".browserBookmarkBubble")).toBeVisible();
+        await page.locator(".browserBookmarkBubble input").fill("Test Page Bookmark");
+        await page.locator(".browserBookmarkBubble").getByRole("button", { name: "Done" }).click();
+        await expect(page.locator(".browserBookmarkBubble")).toHaveCount(0);
+        await expect(bookmarkTile).toHaveAttribute("aria-pressed", "true");
+        console.log("BROWSER_BOOKMARK_OK");
 
         // Adblock is on by default; the shield toggles it.
         const shield = page.locator('.browserToolbar button[title^="Ad blocking"]');
@@ -211,6 +232,11 @@ test("mega features smoke", async () => {
         await page.locator(".browserNewTab").click();
         await expect(page.locator(".browserTab")).toHaveCount(2);
         await page.waitForSelector(".browserStart", { timeout: 15_000 });
+        await expect(page.locator(".browserStartBookmarks")).toBeVisible();
+        await expect(page.locator(".browserStartBookmarkTitle")).toContainText("Test Page Bookmark");
+        await page.locator('.browserStartBookmarkRemove[aria-label^="Remove bookmark"]').first().click();
+        await expect(page.locator(".browserStartBookmarks")).toHaveCount(0);
+        console.log("BROWSER_BOOKMARK_NEWTAB_OK");
         const startSearch = page.locator(".browserStartSearch input");
         await startSearch.fill(`http://127.0.0.1:${port}/`);
         await startSearch.press("Enter");

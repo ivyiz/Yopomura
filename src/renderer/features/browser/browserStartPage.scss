@@ -224,6 +224,126 @@
     opacity: 0.9;
 }
 
+.browserStartBookmarkGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 8px;
+}
+
+.browserStartBookmark {
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    min-width: 0;
+    padding: 3px;
+    border: 1px solid var(--divider-color);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--body-bg-color) 88%, var(--font-color) 4%);
+    transition: border-color 0.14s ease;
+
+    &:hover {
+        border-color: var(--btn-color-focus);
+    }
+}
+
+.browserStartBookmarkMain {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 5px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--font-color);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--btn-color-hover);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--btn-color-focus);
+        outline-offset: -1px;
+    }
+}
+
+.browserStartBookmarkIcon {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--divider-color);
+    border-radius: 7px;
+    background: var(--text-input-bg);
+    color: var(--font-color-secondary);
+    font-size: 0.72rem;
+
+    img {
+        width: 17px;
+        height: 17px;
+        object-fit: contain;
+    }
+}
+
+.browserStartBookmarkText {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.browserStartBookmarkTitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.browserStartBookmarkDomain {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--font-color-secondary);
+    font-size: 0.66rem;
+    opacity: 0.9;
+}
+
+.browserStartBookmarkRemove {
+    width: 26px;
+    flex: 0 0 26px;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--font-color-secondary);
+    font-family: inherit;
+    font-size: 0.68rem;
+    cursor: pointer;
+    opacity: 0.55;
+
+    &:hover {
+        background: var(--btn-color-hover);
+        color: var(--font-color);
+        opacity: 1;
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--btn-color-focus);
+        outline-offset: 1px;
+    }
+}
+
 @media (max-width: 720px) {
     .browserStartInner {
         width: calc(100% - 28px);
@@ -231,6 +351,10 @@
     }
 
     .browserStartGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .browserStartBookmarkGrid {
         grid-template-columns: 1fr;
     }
 

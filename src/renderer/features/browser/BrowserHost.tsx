@@ -1,13 +1,16 @@
 import type {
+    BrowserBookmark,
     BrowserContextMenuRequest,
     BrowserDownload,
     BrowserScannedLink,
     BrowserSearchEngine,
     BrowserState,
 } from "@common/types/browser";
+import { faBookmark as faBookmarkRegular } from "@fortawesome/free-regular-svg-icons";
 import {
     faArrowLeft,
     faArrowRight,
+    faBookmark as faBookmarkSolid,
     faDownload,
     faGlobe,
     faLink,
@@ -25,10 +28,19 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useAppContext } from "@renderer/App";
 import { useAppSelector } from "@store/hooks";
 import { selectModalOverlayOpen } from "@store/ui";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import BrowserExtensionsMenu from "./BrowserExtensionsMenu";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import BrowserBookmarkBubble from "./BrowserBookmarkBubble";
+import BrowserExtensionsMenu, { type BrowserToolEntry } from "./BrowserExtensionsMenu";
 import BrowserStartPage from "./BrowserStartPage";
 import type { BrowserMode, ToggleBrowserDetail } from "./browserEvents";
+import {
+    BROWSER_TOOLS,
+    type BrowserToolId,
+    DEFAULT_PINNED_TOOL_IDS,
+    normalizePinnedToolIds,
+    readPinnedToolIds,
+    savePinnedToolIds,
+} from "./browserTools";
 import "./browserHost.scss";
 
 type ContextMenuState = BrowserContextMenuRequest & {
@@ -57,6 +69,17 @@ const hostOf = (url: string): string => {
         return "";
     }
 };
+
+/** Compares pages using URL normalization so trailing slashes do not matter. */
+const samePageUrl = (left: string, right: string): boolean => {
+    try {
+        return new URL(left).href === new URL(right).href;
+    } catch {
+        return left === right;
+    }
+};
+
+const isBookmarkableUrl = (url: string | undefined): boolean => Boolean(url && /^https?:\/\//i.test(url));
 
 const readSavedEngine = (): BrowserSearchEngine => {
     const saved = window.localStorage.getItem("yokomura-browser-engine");
@@ -112,12 +135,53 @@ const BrowserHost = () => {
     const [scanFilter, setScanFilter] = useState("");
     const [scanError, setScanError] = useState("");
     const [extensionsOpen, setExtensionsOpen] = useState(false);
+    const [bookmarks, setBookmarks] = useState<BrowserBookmark[]>([]);
+    const [bookmarkBubble, setBookmarkBubble] = useState<{
+        bookmark: BrowserBookmark;
+        created: boolean;
+    } | null>(null);
+    const [pinnedTools, setPinnedTools] = useState<BrowserToolId[]>(readPinnedToolIds);
     const [adblockEnabled, setAdblockEnabled] = useState<boolean>(readSavedAdblock);
     const modeRef = useRef<BrowserMode | null>(null);
     const paneRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const lastBounds = useRef("");
     const addressFocused = useRef(false);
+
+    const activeTab = state.tabs.find((tab) => tab.id === state.activeId);
+    const activeBookmark = useMemo(
+        () =>
+            activeTab?.url ? bookmarks.find((bookmark) => samePageUrl(bookmark.url, activeTab.url)) : undefined,
+        [bookmarks, activeTab?.url],
+    );
+    const bookmarkable = isBookmarkableUrl(activeTab?.url);
+
+    const openBookmarkBubble = useCallback(async () => {
+        const tab = activeTab;
+        if (!tab || !isBookmarkableUrl(tab.url)) return;
+        setMenu(null);
+        setExtensionsOpen(false);
+        setScanOpen(false);
+        if (activeBookmark) {
+            setBookmarkBubble({ bookmark: activeBookmark, created: false });
+            return;
+        }
+
+        try {
+            const created = await window.electron.invoke("browser:addBookmark", {
+                url: tab.url,
+                title: tab.title || hostOf(tab.url),
+                favicon: tab.favicon,
+            });
+            if (!created) return;
+            setBookmarks((previous) =>
+                previous.some((bookmark) => bookmark.id === created.id) ? previous : [created, ...previous],
+            );
+            setBookmarkBubble({ bookmark: created, created: true });
+        } catch (failure) {
+            setError(failure instanceof Error ? failure.message : "Could not save this bookmark");
+        }
+    }, [activeBookmark, activeTab]);
 
     const filteredScanLinks = useMemo(() => {
         const query = scanFilter.trim().toLowerCase();
@@ -174,6 +238,7 @@ const BrowserHost = () => {
             setMode(next);
             setMenu(null);
             setExtensionsOpen(false);
+            setBookmarkBubble(null);
             if (!next) return;
 
             const saved = readSavedEngine();
@@ -214,12 +279,35 @@ const BrowserHost = () => {
                 return [download, ...next].slice(0, 8);
             });
         });
+        const offBookmarks = window.electron.on("browser:bookmarks", (next) => {
+            setBookmarks(next);
+        });
         return () => {
             offState();
             offMenu();
             offDownload();
+            offBookmarks();
         };
     }, [contentBounds]);
+
+    useEffect(() => {
+        if (!mode) return;
+        let cancelled = false;
+        void window.electron
+            .invoke("browser:getBookmarks")
+            .then((next) => {
+                if (!cancelled) setBookmarks(next);
+            })
+            .catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [mode]);
+
+    // biome-ignore lint/correctness/useExhaustiveDependencies: close the bubble whenever the page changes
+    useEffect(() => {
+        setBookmarkBubble(null);
+    }, [state.activeId, state.url]);
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: the address bar must refresh on tab switch even when two tabs share a URL
     useEffect(() => {
@@ -241,6 +329,7 @@ const BrowserHost = () => {
         !menu &&
         !scanOpen &&
         !extensionsOpen &&
+        !bookmarkBubble &&
         !downloaderOpen &&
         !videoOpen &&
         !trashOpen &&
@@ -283,12 +372,23 @@ const BrowserHost = () => {
         modeRef.current = null;
         setMode(null);
         setExtensionsOpen(false);
+        setBookmarkBubble(null);
     }, [readerActive, mode]);
 
     useEffect(() => {
         if (!mode) return;
         const onKeyDown = (event: KeyboardEvent) => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d") {
+                event.preventDefault();
+                void openBookmarkBubble();
+                return;
+            }
             if (event.key !== "Escape") return;
+            if (bookmarkBubble) {
+                setBookmarkBubble(null);
+                requestAnimationFrame(syncBounds);
+                return;
+            }
             if (extensionsOpen) {
                 setExtensionsOpen(false);
                 requestAnimationFrame(syncBounds);
@@ -309,9 +409,8 @@ const BrowserHost = () => {
         };
         window.addEventListener("keydown", onKeyDown);
         return () => window.removeEventListener("keydown", onKeyDown);
-    }, [mode, scanOpen, extensionsOpen, syncBounds]);
+    }, [mode, scanOpen, extensionsOpen, bookmarkBubble, openBookmarkBubble, syncBounds]);
 
-    const activeTab = state.tabs.find((tab) => tab.id === state.activeId);
     const currentDisabled = activeTab ? disabledHosts.includes(hostOf(activeTab.url)) : false;
     const darkAvailable = Boolean(activeTab && hostOf(activeTab.url));
     const canUsePage = Boolean(activeTab?.url && activeTab.url !== "about:blank");
@@ -327,6 +426,7 @@ const BrowserHost = () => {
         setMenu(null);
         setScanOpen(false);
         setExtensionsOpen(false);
+        setBookmarkBubble(null);
     };
 
     const navigate = async () => {
@@ -386,6 +486,11 @@ const BrowserHost = () => {
 
     const closeExtensions = useCallback(() => {
         setExtensionsOpen(false);
+        requestAnimationFrame(syncBounds);
+    }, [syncBounds]);
+
+    const closeBookmarkBubble = useCallback(() => {
+        setBookmarkBubble(null);
         requestAnimationFrame(syncBounds);
     }, [syncBounds]);
 
@@ -502,6 +607,52 @@ const BrowserHost = () => {
         void window.electron.invoke("browser:setAdblock", { enabled: next });
     };
 
+    const saveBookmarkTitle = async (title: string) => {
+        const current = bookmarkBubble;
+        if (!current) return;
+        try {
+            const updated = await window.electron.invoke("browser:updateBookmark", {
+                id: current.bookmark.id,
+                title,
+            });
+            if (updated) {
+                setBookmarks((previous) =>
+                    previous.map((bookmark) => (bookmark.id === updated.id ? updated : bookmark)),
+                );
+            }
+            setBookmarkBubble(null);
+        } catch (failure) {
+            setError(failure instanceof Error ? failure.message : "Could not rename this bookmark");
+        }
+    };
+
+    const removeBookmarkById = async (id: string) => {
+        try {
+            const removed = await window.electron.invoke("browser:removeBookmark", { id });
+            if (removed) {
+                setBookmarks((previous) => previous.filter((bookmark) => bookmark.id !== id));
+            }
+            setBookmarkBubble((previous) => (previous?.bookmark.id === id ? null : previous));
+        } catch (failure) {
+            setError(failure instanceof Error ? failure.message : "Could not remove this bookmark");
+        }
+    };
+
+    const togglePinnedTool = (id: BrowserToolId) => {
+        const next = pinnedTools.includes(id)
+            ? pinnedTools.filter((toolId) => toolId !== id)
+            : [...pinnedTools, id];
+        const normalized = normalizePinnedToolIds(next);
+        setPinnedTools(normalized);
+        savePinnedToolIds(normalized);
+    };
+
+    const resetPinnedTools = () => {
+        const defaults = [...DEFAULT_PINNED_TOOL_IDS];
+        setPinnedTools(defaults);
+        savePinnedToolIds(defaults);
+    };
+
     const closeMenu = () => {
         setMenu(null);
         requestAnimationFrame(syncBounds);
@@ -522,6 +673,161 @@ const BrowserHost = () => {
             void window.electron.openExternal(url);
         }
         closeMenu();
+    };
+
+    const toolEntries: BrowserToolEntry[] = BROWSER_TOOLS.map((definition) => {
+        const pinned = pinnedTools.includes(definition.id);
+        if (definition.id === "bookmark") {
+            return {
+                ...definition,
+                label: activeBookmark ? "Edit bookmark" : definition.label,
+                description: activeBookmark ? "Rename or remove this saved page." : definition.description,
+                pinned,
+                active: Boolean(activeBookmark),
+                disabled: !bookmarkable,
+                onAction: () => {
+                    setExtensionsOpen(false);
+                    void openBookmarkBubble();
+                },
+            };
+        }
+        if (definition.id === "forceDark") {
+            return {
+                ...definition,
+                pinned,
+                active: darkAvailable && !currentDisabled,
+                disabled: !darkAvailable,
+                description: !darkAvailable
+                    ? "Open a page first."
+                    : currentDisabled
+                      ? "Disabled for this site."
+                      : "Forced dark is on.",
+                onAction: toggleDarkForSite,
+            };
+        }
+        if (definition.id === "adblock") {
+            return {
+                ...definition,
+                pinned,
+                active: adblockEnabled,
+                disabled: false,
+                onAction: toggleAdblock,
+            };
+        }
+        if (definition.id === "download") {
+            return {
+                ...definition,
+                pinned,
+                active: false,
+                disabled: !canUsePage,
+                onAction: () => {
+                    closeExtensions();
+                    void addToDownloader(activeTab?.url ?? "");
+                },
+            };
+        }
+        if (definition.id === "scan") {
+            return {
+                ...definition,
+                pinned,
+                active: false,
+                disabled: !canUsePage,
+                onAction: () => {
+                    closeExtensions();
+                    void scanPageLinks();
+                },
+            };
+        }
+        return {
+            ...definition,
+            pinned,
+            active: false,
+            disabled: !canUsePage,
+            onAction: () => {
+                closeExtensions();
+                if (activeTab?.url) void window.electron.openExternal(activeTab.url);
+            },
+        };
+    });
+
+    const pinnedRightTools = pinnedTools.filter((id) => id !== "bookmark");
+
+    const renderToolTile = (id: BrowserToolId) => {
+        if (id === "forceDark") {
+            return (
+                <button
+                    type="button"
+                    className={`browserToolTile ${darkAvailable && !currentDisabled ? "is-on" : ""}`}
+                    data-tool="forceDark"
+                    title={currentDisabled ? "Enable dark for this site" : "Disable dark for this site"}
+                    aria-label="Toggle dark mode for this site"
+                    aria-pressed={darkAvailable && !currentDisabled}
+                    disabled={!darkAvailable}
+                    onClick={toggleDarkForSite}
+                >
+                    <FontAwesomeIcon icon={currentDisabled ? faSun : faMoon} />
+                </button>
+            );
+        }
+        if (id === "adblock") {
+            return (
+                <button
+                    type="button"
+                    className={`browserToolTile ${adblockEnabled ? "is-on" : ""}`}
+                    data-tool="adblock"
+                    title={
+                        adblockEnabled ? "Ad blocking on (click to disable)" : "Ad blocking off (click to enable)"
+                    }
+                    aria-pressed={adblockEnabled}
+                    onClick={toggleAdblock}
+                >
+                    <FontAwesomeIcon icon={adblockEnabled ? faShield : faShieldHalved} />
+                </button>
+            );
+        }
+        if (id === "download") {
+            return (
+                <button
+                    type="button"
+                    className="browserToolTile"
+                    data-tool="download"
+                    title="Add current page to Downloader"
+                    disabled={!canUsePage}
+                    onClick={() => void addToDownloader(activeTab?.url ?? "")}
+                >
+                    <FontAwesomeIcon icon={faDownload} />
+                </button>
+            );
+        }
+        if (id === "scan") {
+            return (
+                <button
+                    type="button"
+                    className="browserToolTile is-secondary"
+                    data-tool="scan"
+                    title="Scan links on this page"
+                    disabled={!canUsePage}
+                    onClick={() => void scanPageLinks()}
+                >
+                    <FontAwesomeIcon icon={faLink} />
+                </button>
+            );
+        }
+        if (id === "external") {
+            return (
+                <button
+                    type="button"
+                    className="browserToolTile is-secondary"
+                    data-tool="external"
+                    title="Open in default browser"
+                    disabled={!canUsePage}
+                    onClick={() => activeTab?.url && void window.electron.openExternal(activeTab.url)}
+                >
+                    <FontAwesomeIcon icon={faUpRightFromSquare} />
+                </button>
+            );
+        }
+        return null;
     };
 
     if (!mode) return null;
@@ -636,6 +942,20 @@ const BrowserHost = () => {
                     >
                         <FontAwesomeIcon icon={state.loading ? faXmark : faRotate} />
                     </button>
+                    {pinnedTools.includes("bookmark") ? (
+                        <button
+                            type="button"
+                            className={`browserToolTile browserBookmarkBtn ${activeBookmark ? "is-on" : ""}`}
+                            data-tool="bookmark"
+                            title={activeBookmark ? "Edit bookmark" : "Bookmark this tab (Ctrl+D)"}
+                            aria-label={activeBookmark ? "Edit bookmark" : "Bookmark this tab"}
+                            aria-pressed={Boolean(activeBookmark)}
+                            disabled={!bookmarkable}
+                            onClick={() => void openBookmarkBubble()}
+                        >
+                            <FontAwesomeIcon icon={activeBookmark ? faBookmarkSolid : faBookmarkRegular} />
+                        </button>
+                    ) : null}
                     <input
                         className="browserAddress"
                         value={address}
@@ -669,55 +989,10 @@ const BrowserHost = () => {
                         <option value="google">Google</option>
                         <option value="duckduckgo">DuckDuckGo</option>
                     </select>
-                    <div className="browserToolbarDivider" aria-hidden />
-                    <button
-                        type="button"
-                        className={`browserToolTile ${currentDisabled ? "" : "is-on"}`}
-                        title={currentDisabled ? "Enable dark for this site" : "Disable dark for this site"}
-                        aria-label="Toggle dark mode for this site"
-                        aria-pressed={!currentDisabled}
-                        onClick={toggleDarkForSite}
-                    >
-                        <FontAwesomeIcon icon={currentDisabled ? faSun : faMoon} />
-                    </button>
-                    <button
-                        type="button"
-                        className={`browserToolTile ${adblockEnabled ? "is-on" : ""}`}
-                        title={
-                            adblockEnabled
-                                ? "Ad blocking on (click to disable)"
-                                : "Ad blocking off (click to enable)"
-                        }
-                        aria-pressed={adblockEnabled}
-                        onClick={toggleAdblock}
-                    >
-                        <FontAwesomeIcon icon={adblockEnabled ? faShield : faShieldHalved} />
-                    </button>
-                    <button
-                        type="button"
-                        className="browserToolTile"
-                        title="Add current page to Downloader"
-                        onClick={() => void addToDownloader(state.url)}
-                    >
-                        <FontAwesomeIcon icon={faDownload} />
-                    </button>
-                    <button
-                        type="button"
-                        className="browserToolTile is-secondary"
-                        title="Scan links on this page"
-                        disabled={!state.activeId}
-                        onClick={() => void scanPageLinks()}
-                    >
-                        <FontAwesomeIcon icon={faLink} />
-                    </button>
-                    <button
-                        type="button"
-                        className="browserToolTile is-secondary"
-                        title="Open in default browser"
-                        onClick={() => state.url && void window.electron.openExternal(state.url)}
-                    >
-                        <FontAwesomeIcon icon={faUpRightFromSquare} />
-                    </button>
+                    {pinnedRightTools.length > 0 ? <div className="browserToolbarDivider" aria-hidden /> : null}
+                    {pinnedRightTools.map((id) => (
+                        <Fragment key={id}>{renderToolTile(id)}</Fragment>
+                    ))}
                     <div className="browserToolbarDivider" aria-hidden />
                     <button
                         type="button"
@@ -729,6 +1004,7 @@ const BrowserHost = () => {
                         onClick={() => {
                             setMenu(null);
                             setScanOpen(false);
+                            setBookmarkBubble(null);
                             setExtensionsOpen((previous) => !previous);
                         }}
                     >
@@ -738,21 +1014,19 @@ const BrowserHost = () => {
                         <BrowserExtensionsMenu
                             engine={engine}
                             onEngineChange={changeEngine}
-                            adblockEnabled={adblockEnabled}
-                            onToggleAdblock={toggleAdblock}
-                            darkEnabled={darkAvailable && !currentDisabled}
-                            darkAvailable={darkAvailable}
-                            onToggleDark={toggleDarkForSite}
-                            canUsePage={canUsePage}
-                            onScanLinks={() => {
-                                setExtensionsOpen(false);
-                                void scanPageLinks();
-                            }}
-                            onAddPage={() => {
-                                setExtensionsOpen(false);
-                                void addToDownloader(state.url);
-                            }}
+                            tools={toolEntries}
+                            onTogglePin={togglePinnedTool}
+                            onResetPins={resetPinnedTools}
                             onClose={closeExtensions}
+                        />
+                    ) : null}
+                    {bookmarkBubble ? (
+                        <BrowserBookmarkBubble
+                            bookmark={bookmarkBubble.bookmark}
+                            created={bookmarkBubble.created}
+                            onSave={(title) => void saveBookmarkTitle(title)}
+                            onRemove={() => void removeBookmarkById(bookmarkBubble.bookmark.id)}
+                            onClose={closeBookmarkBubble}
                         />
                     ) : null}
                 </div>
@@ -760,7 +1034,13 @@ const BrowserHost = () => {
                 {error ? <div className="browserError">{error}</div> : null}
                 <div className="browserContent" ref={contentRef}>
                     {newTabPage ? (
-                        <BrowserStartPage engine={engine} onOpenUrl={openStartUrl} onSearch={searchFromStart} />
+                        <BrowserStartPage
+                            engine={engine}
+                            bookmarks={bookmarks}
+                            onOpenUrl={openStartUrl}
+                            onSearch={searchFromStart}
+                            onRemoveBookmark={(id) => void removeBookmarkById(id)}
+                        />
                     ) : (
                         <div className="browserContentFallback">
                             <FontAwesomeIcon icon={faGlobe} />
@@ -903,6 +1183,19 @@ const BrowserHost = () => {
                             </>
                         ) : (
                             <>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        closeMenu();
+                                        if (activeBookmark) {
+                                            void removeBookmarkById(activeBookmark.id);
+                                        } else {
+                                            void openBookmarkBubble();
+                                        }
+                                    }}
+                                >
+                                    {activeBookmark ? "Remove bookmark" : "Bookmark this page"}
+                                </button>
                                 <button type="button" onClick={() => void contextAction("download")}>
                                     Add page to Downloader
                                 </button>

@@ -3,6 +3,7 @@ import type { KeymapEditIpcResult, KeymapEditOp, KeymapSnapshot, NativeKeymapAct
 import type { MainSettingsType } from "@common/mainSettings";
 import type {
     BrowserAdblockState,
+    BrowserBookmark,
     BrowserBounds,
     BrowserContextMenuRequest,
     BrowserDownload,
@@ -450,7 +451,15 @@ export type BrowserChannels = {
     "browser:setAdblock": ChannelDefinition<{ enabled: boolean }, BrowserAdblockState>;
     /** Cached data URLs for the New Tab site tiles. */
     "browser:getSiteIcons": ChannelDefinition<{ hosts: string[] }, Record<string, string>>;
+    "browser:getBookmarks": ChannelDefinition<void, BrowserBookmark[]>;
+    "browser:addBookmark": ChannelDefinition<
+        { url: string; title?: string; favicon?: string },
+        BrowserBookmark | null
+    >;
+    "browser:updateBookmark": ChannelDefinition<{ id: string; title: string }, BrowserBookmark | null>;
+    "browser:removeBookmark": ChannelDefinition<{ id: string }, boolean>;
     "browser:state": ChannelDefinition<BrowserState, void, "m2r">;
+    "browser:bookmarks": ChannelDefinition<BrowserBookmark[], void, "m2r">;
     "browser:download": ChannelDefinition<BrowserDownload, void, "m2r">;
     "browser:contextMenu": ChannelDefinition<BrowserContextMenuRequest, void, "m2r">;
 };

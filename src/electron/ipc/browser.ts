@@ -1,10 +1,31 @@
+import path from "node:path";
 import { getAdblockState, setAdblockEnabled } from "@electron/browser/adblock";
 import { BrowserManager } from "@electron/browser/BrowserManager";
+import { type BookmarkStore, BROWSER_BOOKMARKS_FILE, createBookmarkStore } from "@electron/browser/bookmarks";
 import { getSiteIconDataUrls } from "@electron/browser/siteIcons";
 import { app, BrowserWindow } from "electron";
 import { ipc } from "./utils";
 
 const managers = new Map<number, BrowserManager>();
+let bookmarkStore: BookmarkStore | null = null;
+
+const getBookmarkStore = (): BookmarkStore => {
+    bookmarkStore ??= createBookmarkStore(path.join(app.getPath("userData"), BROWSER_BOOKMARKS_FILE));
+    return bookmarkStore;
+};
+
+/** Pushes the current bookmark list to every open window. */
+const broadcastBookmarks = (): void => {
+    const bookmarks = getBookmarkStore().list();
+    for (const window of BrowserWindow.getAllWindows()) {
+        if (window.isDestroyed() || window.webContents.isDestroyed()) continue;
+        try {
+            ipc.send(window.webContents, "browser:bookmarks", bookmarks);
+        } catch {
+            // window closed while broadcasting
+        }
+    }
+};
 
 const managerFor = (event: Electron.IpcMainInvokeEvent): BrowserManager => {
     const window = BrowserWindow.fromWebContents(event.sender);
@@ -84,6 +105,22 @@ export const registerBrowserHandlers = (): void => {
     ipc.handle("browser:getAdblock", () => getAdblockState());
     ipc.handle("browser:setAdblock", (_event, { enabled }) => setAdblockEnabled(enabled));
     ipc.handle("browser:getSiteIcons", (_event, { hosts }) => getSiteIconDataUrls(hosts));
+    ipc.handle("browser:getBookmarks", () => getBookmarkStore().list());
+    ipc.handle("browser:addBookmark", (_event, input) => {
+        const bookmark = getBookmarkStore().add(input);
+        if (bookmark) broadcastBookmarks();
+        return bookmark;
+    });
+    ipc.handle("browser:updateBookmark", (_event, { id, title }) => {
+        const bookmark = getBookmarkStore().update(id, title);
+        if (bookmark) broadcastBookmarks();
+        return bookmark;
+    });
+    ipc.handle("browser:removeBookmark", (_event, { id }) => {
+        const removed = getBookmarkStore().remove(id);
+        if (removed) broadcastBookmarks();
+        return removed;
+    });
 };
 
 export const destroyBrowserManagers = (): void => {

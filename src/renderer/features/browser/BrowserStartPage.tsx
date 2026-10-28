@@ -1,5 +1,6 @@
-import type { BrowserSearchEngine } from "@common/types/browser";
-import { faArrowRight, faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
+import type { BrowserBookmark, BrowserSearchEngine } from "@common/types/browser";
+import { faBookmark as faBookmarkRegular } from "@fortawesome/free-regular-svg-icons";
+import { faArrowRight, faMagnifyingGlass, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -12,8 +13,10 @@ import "./browserStartPage.scss";
 
 type BrowserStartPageProps = {
     engine: BrowserSearchEngine;
+    bookmarks: BrowserBookmark[];
     onOpenUrl: (url: string, newTab: boolean) => void;
     onSearch: (input: string) => void;
+    onRemoveBookmark: (id: string) => void;
 };
 
 type SiteIconProps = {
@@ -39,6 +42,66 @@ const SiteIcon = ({ site, icon }: SiteIconProps) => {
                 <span className="browserStartIconLetter">{site.name.charAt(0).toUpperCase()}</span>
             )}
         </span>
+    );
+};
+
+const bookmarkHost = (url: string): string => {
+    try {
+        return new URL(url).hostname;
+    } catch {
+        return url;
+    }
+};
+
+const BookmarkRow = ({
+    bookmark,
+    onOpen,
+    onRemove,
+}: {
+    bookmark: BrowserBookmark;
+    onOpen: (url: string, newTab: boolean) => void;
+    onRemove: (id: string) => void;
+}) => {
+    const [failedIcon, setFailedIcon] = useState<string | undefined>(undefined);
+    const failed = Boolean(bookmark.favicon) && failedIcon === bookmark.favicon;
+
+    return (
+        <div className="browserStartBookmark" title={bookmark.url}>
+            <button
+                type="button"
+                className="browserStartBookmarkMain"
+                onClick={(event) => onOpen(bookmark.url, event.ctrlKey || event.metaKey || event.shiftKey)}
+                onAuxClick={(event) => {
+                    if (event.button === 1) onOpen(bookmark.url, true);
+                }}
+            >
+                <span className="browserStartBookmarkIcon" aria-hidden>
+                    {bookmark.favicon && !failed ? (
+                        <img
+                            src={bookmark.favicon}
+                            alt=""
+                            draggable={false}
+                            onError={() => setFailedIcon(bookmark.favicon)}
+                        />
+                    ) : (
+                        <FontAwesomeIcon icon={faBookmarkRegular} />
+                    )}
+                </span>
+                <span className="browserStartBookmarkText">
+                    <span className="browserStartBookmarkTitle">{bookmark.title}</span>
+                    <span className="browserStartBookmarkDomain">{bookmarkHost(bookmark.url)}</span>
+                </span>
+            </button>
+            <button
+                type="button"
+                className="browserStartBookmarkRemove"
+                aria-label={`Remove bookmark ${bookmark.title}`}
+                title="Remove bookmark"
+                onClick={() => onRemove(bookmark.id)}
+            >
+                <FontAwesomeIcon icon={faXmark} />
+            </button>
+        </div>
     );
 };
 
@@ -69,7 +132,7 @@ const SiteCard = ({
 );
 
 /** Chrome-style New Tab page rendered inside the browser panel for `about:blank`. */
-const BrowserStartPage = ({ engine, onOpenUrl, onSearch }: BrowserStartPageProps) => {
+const BrowserStartPage = ({ engine, bookmarks, onOpenUrl, onSearch, onRemoveBookmark }: BrowserStartPageProps) => {
     const [query, setQuery] = useState("");
     const [icons, setIcons] = useState<Record<string, string>>({});
     const hosts = useMemo(() => browserStartHosts(), []);
@@ -138,6 +201,28 @@ const BrowserStartPage = ({ engine, onOpenUrl, onSearch }: BrowserStartPageProps
                         <FontAwesomeIcon icon={faArrowRight} />
                     </button>
                 </form>
+
+                {bookmarks.length > 0 ? (
+                    <section
+                        className="browserStartSection browserStartBookmarks"
+                        aria-labelledby="browserStart-bookmarks"
+                    >
+                        <div className="browserStartSectionHead">
+                            <h2 id="browserStart-bookmarks">Bookmarks</h2>
+                            <span>{bookmarks.length} saved</span>
+                        </div>
+                        <div className="browserStartBookmarkGrid">
+                            {bookmarks.map((bookmark) => (
+                                <BookmarkRow
+                                    key={bookmark.id}
+                                    bookmark={bookmark}
+                                    onOpen={onOpenUrl}
+                                    onRemove={onRemoveBookmark}
+                                />
+                            ))}
+                        </div>
+                    </section>
+                ) : null}
 
                 {groups.map((group) => (
                     <section

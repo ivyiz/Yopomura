@@ -25,6 +25,7 @@ const PROFILE_ENTRY_CANDIDATES = [
     "reader-presets.json",
     "shortcuts.json",
     "themes.json",
+    "browser-bookmarks.json",
     "announcements.txt",
     "covers/",
     "trash-journal.json",
