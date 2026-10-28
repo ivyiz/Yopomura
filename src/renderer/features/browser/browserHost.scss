@@ -42,6 +42,7 @@
     background: var(--body-bg-color);
     border-left: 1px solid var(--divider-color);
     overflow: hidden;
+    container-type: inline-size;
 }
 
 .browserTabStrip {
@@ -190,15 +191,93 @@
     margin-left: 2px;
 }
 
+.browserTabStrip .browserIconBtn {
+    width: 26px;
+    height: 26px;
+    flex: 0 0 26px;
+    align-self: center;
+    padding: 0;
+    border-radius: 6px;
+}
+
+.browserToolbar .browserIconBtn {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    padding: 0;
+    border-radius: 8px;
+}
+
 .browserToolbar {
+    position: relative;
     flex: 0 0 46px;
     display: flex;
     align-items: center;
-    gap: 3px;
+    gap: 4px;
     padding: 6px 8px;
     background: var(--body-bg-color);
     border-bottom: 1px solid var(--divider-color);
     min-width: 0;
+}
+
+.browserToolbarDivider {
+    width: 1px;
+    height: 20px;
+    flex: 0 0 1px;
+    margin: 0 3px;
+    background: var(--divider-color);
+}
+
+.browserToolTile {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--divider-color) 80%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--body-bg-color) 84%, var(--font-color) 4%);
+    color: var(--font-color-secondary);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition:
+        background-color 0.12s ease,
+        border-color 0.12s ease,
+        color 0.12s ease;
+
+    &:hover:not(:disabled) {
+        background: var(--topBar-btn-hover);
+        border-color: var(--divider-color);
+        color: var(--font-color);
+    }
+
+    &:disabled {
+        opacity: 0.35;
+        cursor: default;
+    }
+
+    &.is-on {
+        color: var(--btn-color-focus);
+        border-color: color-mix(in srgb, var(--btn-color-focus) 42%, transparent);
+        background: color-mix(in srgb, var(--btn-color-focus) 14%, transparent);
+    }
+
+    &.is-open {
+        color: var(--font-color);
+        border-color: var(--btn-color-focus);
+        background: var(--btn-color-hover);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--btn-color-focus);
+        outline-offset: 1px;
+    }
+}
+
+.browserExtensionsBtn {
+    margin-left: 1px;
 }
 
 .browserAddress {
@@ -486,4 +565,37 @@
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+@container (max-width: 620px) {
+    .browserEngine {
+        display: none;
+    }
+}
+
+@container (max-width: 500px) {
+    .browserToolTile.is-secondary {
+        display: none;
+    }
+}
+
+@container (max-width: 420px) {
+    .browserToolbar {
+        gap: 2px;
+        padding-inline: 5px;
+    }
+
+    .browserToolbarDivider {
+        margin: 0 1px;
+    }
+
+    .browserToolTile {
+        width: 30px;
+        flex-basis: 30px;
+    }
+
+    .browserAddress {
+        min-width: 60px;
+        padding-inline: 8px;
+    }
 }

@@ -1,5 +1,5 @@
 import type { BrowserSearchEngine } from "@common/types/browser";
-import { faArrowRight, faDownload, faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
+import { faArrowRight, faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -54,7 +54,7 @@ const SiteCard = ({
     <button
         type="button"
         className="browserStartCard"
-        title={`${site.name} — ${site.url}`}
+        title={`${site.name} — ${site.url}${site.downloaderSupported ? " · Downloader supported" : ""}`}
         onClick={(event) => onOpen(site, event.ctrlKey || event.metaKey || event.shiftKey)}
         onAuxClick={(event) => {
             if (event.button === 1) onOpen(site, true);
@@ -62,16 +62,7 @@ const SiteCard = ({
     >
         <SiteIcon site={site} icon={icon} />
         <span className="browserStartCardText">
-            <span className="browserStartCardTitle">
-                {site.name}
-                {site.downloaderSupported ? (
-                    <span className="browserStartBadge" title="Supported by the Downloader">
-                        <FontAwesomeIcon icon={faDownload} aria-hidden />
-                        Downloader
-                    </span>
-                ) : null}
-            </span>
-            <span className="browserStartCardBlurb">{site.blurb}</span>
+            <span className="browserStartCardTitle">{site.name}</span>
             <span className="browserStartCardDomain">{site.domain}</span>
         </span>
     </button>

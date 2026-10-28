@@ -13,6 +13,7 @@ import {
     faLink,
     faMoon,
     faPlus,
+    faPuzzlePiece,
     faRotate,
     faShield,
     faShieldHalved,
@@ -25,6 +26,7 @@ import { useAppContext } from "@renderer/App";
 import { useAppSelector } from "@store/hooks";
 import { selectModalOverlayOpen } from "@store/ui";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import BrowserExtensionsMenu from "./BrowserExtensionsMenu";
 import BrowserStartPage from "./BrowserStartPage";
 import type { BrowserMode, ToggleBrowserDetail } from "./browserEvents";
 import "./browserHost.scss";
@@ -109,6 +111,7 @@ const BrowserHost = () => {
     const [scanSelected, setScanSelected] = useState<string[]>([]);
     const [scanFilter, setScanFilter] = useState("");
     const [scanError, setScanError] = useState("");
+    const [extensionsOpen, setExtensionsOpen] = useState(false);
     const [adblockEnabled, setAdblockEnabled] = useState<boolean>(readSavedAdblock);
     const modeRef = useRef<BrowserMode | null>(null);
     const paneRef = useRef<HTMLDivElement>(null);
@@ -170,6 +173,7 @@ const BrowserHost = () => {
             modeRef.current = next;
             setMode(next);
             setMenu(null);
+            setExtensionsOpen(false);
             if (!next) return;
 
             const saved = readSavedEngine();
@@ -236,6 +240,7 @@ const BrowserHost = () => {
         !readerActive &&
         !menu &&
         !scanOpen &&
+        !extensionsOpen &&
         !downloaderOpen &&
         !videoOpen &&
         !trashOpen &&
@@ -277,12 +282,18 @@ const BrowserHost = () => {
         if (!readerActive || !mode) return;
         modeRef.current = null;
         setMode(null);
+        setExtensionsOpen(false);
     }, [readerActive, mode]);
 
     useEffect(() => {
         if (!mode) return;
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key !== "Escape") return;
+            if (extensionsOpen) {
+                setExtensionsOpen(false);
+                requestAnimationFrame(syncBounds);
+                return;
+            }
             if (scanOpen) {
                 setScanOpen(false);
                 setScanError("");
@@ -298,10 +309,12 @@ const BrowserHost = () => {
         };
         window.addEventListener("keydown", onKeyDown);
         return () => window.removeEventListener("keydown", onKeyDown);
-    }, [mode, scanOpen, syncBounds]);
+    }, [mode, scanOpen, extensionsOpen, syncBounds]);
 
     const activeTab = state.tabs.find((tab) => tab.id === state.activeId);
     const currentDisabled = activeTab ? disabledHosts.includes(hostOf(activeTab.url)) : false;
+    const darkAvailable = Boolean(activeTab && hostOf(activeTab.url));
+    const canUsePage = Boolean(activeTab?.url && activeTab.url !== "about:blank");
     const scanCountText = scanLoading
         ? "Scanning page…"
         : `${scanLinks.length} link${scanLinks.length === 1 ? "" : "s"} found · ${scanSelected.length} selected${
@@ -313,6 +326,7 @@ const BrowserHost = () => {
         setMode(null);
         setMenu(null);
         setScanOpen(false);
+        setExtensionsOpen(false);
     };
 
     const navigate = async () => {
@@ -367,6 +381,11 @@ const BrowserHost = () => {
         setScanOpen(false);
         setScanError("");
         setScanLoading(false);
+        requestAnimationFrame(syncBounds);
+    }, [syncBounds]);
+
+    const closeExtensions = useCallback(() => {
+        setExtensionsOpen(false);
         requestAnimationFrame(syncBounds);
     }, [syncBounds]);
 
@@ -455,6 +474,25 @@ const BrowserHost = () => {
         if (failed.length > 0) {
             setError(`${failed.length} link(s) could not be added to the Downloader`);
         }
+    };
+
+    const changeEngine = (next: BrowserSearchEngine) => {
+        setEngine(next);
+        window.localStorage.setItem("yokomura-browser-engine", next);
+        void window.electron.invoke("browser:setSearchEngine", { engine: next });
+    };
+
+    const toggleDarkForSite = () => {
+        if (!activeTab) return;
+        const host = hostOf(activeTab.url);
+        if (!host) return;
+        const nextHosts = currentDisabled ? disabledHosts.filter((row) => row !== host) : [...disabledHosts, host];
+        setDisabledHosts(nextHosts);
+        window.localStorage.setItem("yokomura-browser-disabled-hosts", JSON.stringify(nextHosts));
+        void window.electron.invoke("browser:setHostForceDark", {
+            hostOrUrl: host,
+            enabled: currentDisabled,
+        });
     };
 
     const toggleAdblock = () => {
@@ -624,45 +662,27 @@ const BrowserHost = () => {
                     <select
                         className="browserEngine"
                         value={engine}
-                        onChange={(event) => {
-                            const next = event.currentTarget.value as BrowserSearchEngine;
-                            setEngine(next);
-                            window.localStorage.setItem("yokomura-browser-engine", next);
-                            void window.electron.invoke("browser:setSearchEngine", { engine: next });
-                        }}
+                        onChange={(event) => changeEngine(event.currentTarget.value as BrowserSearchEngine)}
                         title="Search engine"
                     >
                         <option value="brave">Brave</option>
                         <option value="google">Google</option>
                         <option value="duckduckgo">DuckDuckGo</option>
                     </select>
+                    <div className="browserToolbarDivider" aria-hidden />
                     <button
                         type="button"
-                        className={`browserIconBtn ${currentDisabled ? "" : "is-on"}`}
+                        className={`browserToolTile ${currentDisabled ? "" : "is-on"}`}
                         title={currentDisabled ? "Enable dark for this site" : "Disable dark for this site"}
-                        onClick={() => {
-                            if (!activeTab) return;
-                            const host = hostOf(activeTab.url);
-                            if (!host) return;
-                            const nextHosts = currentDisabled
-                                ? disabledHosts.filter((row) => row !== host)
-                                : [...disabledHosts, host];
-                            setDisabledHosts(nextHosts);
-                            window.localStorage.setItem(
-                                "yokomura-browser-disabled-hosts",
-                                JSON.stringify(nextHosts),
-                            );
-                            void window.electron.invoke("browser:setHostForceDark", {
-                                hostOrUrl: host,
-                                enabled: currentDisabled,
-                            });
-                        }}
+                        aria-label="Toggle dark mode for this site"
+                        aria-pressed={!currentDisabled}
+                        onClick={toggleDarkForSite}
                     >
                         <FontAwesomeIcon icon={currentDisabled ? faSun : faMoon} />
                     </button>
                     <button
                         type="button"
-                        className={`browserIconBtn ${adblockEnabled ? "is-on" : ""}`}
+                        className={`browserToolTile ${adblockEnabled ? "is-on" : ""}`}
                         title={
                             adblockEnabled
                                 ? "Ad blocking on (click to disable)"
@@ -675,7 +695,7 @@ const BrowserHost = () => {
                     </button>
                     <button
                         type="button"
-                        className="browserIconBtn"
+                        className="browserToolTile"
                         title="Add current page to Downloader"
                         onClick={() => void addToDownloader(state.url)}
                     >
@@ -683,7 +703,7 @@ const BrowserHost = () => {
                     </button>
                     <button
                         type="button"
-                        className="browserIconBtn"
+                        className="browserToolTile is-secondary"
                         title="Scan links on this page"
                         disabled={!state.activeId}
                         onClick={() => void scanPageLinks()}
@@ -692,12 +712,49 @@ const BrowserHost = () => {
                     </button>
                     <button
                         type="button"
-                        className="browserIconBtn"
+                        className="browserToolTile is-secondary"
                         title="Open in default browser"
                         onClick={() => state.url && void window.electron.openExternal(state.url)}
                     >
                         <FontAwesomeIcon icon={faUpRightFromSquare} />
                     </button>
+                    <div className="browserToolbarDivider" aria-hidden />
+                    <button
+                        type="button"
+                        className={`browserToolTile browserExtensionsBtn ${extensionsOpen ? "is-open" : ""}`}
+                        title="Extensions"
+                        aria-label="Extensions"
+                        aria-haspopup="dialog"
+                        aria-expanded={extensionsOpen}
+                        onClick={() => {
+                            setMenu(null);
+                            setScanOpen(false);
+                            setExtensionsOpen((previous) => !previous);
+                        }}
+                    >
+                        <FontAwesomeIcon icon={faPuzzlePiece} />
+                    </button>
+                    {extensionsOpen ? (
+                        <BrowserExtensionsMenu
+                            engine={engine}
+                            onEngineChange={changeEngine}
+                            adblockEnabled={adblockEnabled}
+                            onToggleAdblock={toggleAdblock}
+                            darkEnabled={darkAvailable && !currentDisabled}
+                            darkAvailable={darkAvailable}
+                            onToggleDark={toggleDarkForSite}
+                            canUsePage={canUsePage}
+                            onScanLinks={() => {
+                                setExtensionsOpen(false);
+                                void scanPageLinks();
+                            }}
+                            onAddPage={() => {
+                                setExtensionsOpen(false);
+                                void addToDownloader(state.url);
+                            }}
+                            onClose={closeExtensions}
+                        />
+                    ) : null}
                 </div>
 
                 {error ? <div className="browserError">{error}</div> : null}

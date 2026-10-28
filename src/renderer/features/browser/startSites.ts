@@ -9,7 +9,6 @@ export type BrowserStartSite = {
     domain: string;
     category: BrowserStartCategory;
     downloaderSupported?: boolean;
-    blurb: string;
 };
 
 /**
@@ -24,7 +23,6 @@ export const BROWSER_START_SITES: readonly BrowserStartSite[] = [
         domain: "imhentai.xxx",
         category: "manga",
         downloaderSupported: true,
-        blurb: "Doujin & manga galleries",
     },
     {
         id: "nhentai",
@@ -33,7 +31,6 @@ export const BROWSER_START_SITES: readonly BrowserStartSite[] = [
         domain: "nhentai.net",
         category: "manga",
         downloaderSupported: true,
-        blurb: "Doujin library",
     },
     {
         id: "hitomi",
@@ -42,7 +39,6 @@ export const BROWSER_START_SITES: readonly BrowserStartSite[] = [
         domain: "hitomi.la",
         category: "manga",
         downloaderSupported: true,
-        blurb: "Doujin galleries",
     },
     {
         id: "hentaivn",
@@ -51,7 +47,6 @@ export const BROWSER_START_SITES: readonly BrowserStartSite[] = [
         domain: "hentaivnx.com",
         category: "manga",
         downloaderSupported: true,
-        blurb: "Vietnamese manga reader",
     },
     {
         id: "vi-hentai",
@@ -60,7 +55,6 @@ export const BROWSER_START_SITES: readonly BrowserStartSite[] = [
         domain: "vi-hentai.moe",
         category: "manga",
         downloaderSupported: true,
-        blurb: "Vietnamese doujin reader",
     },
     {
         id: "hanime",
@@ -68,7 +62,6 @@ export const BROWSER_START_SITES: readonly BrowserStartSite[] = [
         url: "https://hanime.tv/",
         domain: "hanime.tv",
         category: "video",
-        blurb: "Hentai streaming",
     },
     {
         id: "watchhentai",
@@ -76,7 +69,6 @@ export const BROWSER_START_SITES: readonly BrowserStartSite[] = [
         url: "https://watchhentai.net/",
         domain: "watchhentai.net",
         category: "video",
-        blurb: "Hentai streaming",
     },
     {
         id: "hentaihaven",
@@ -84,7 +76,6 @@ export const BROWSER_START_SITES: readonly BrowserStartSite[] = [
         url: "https://hentaihaven.xxx/",
         domain: "hentaihaven.xxx",
         category: "video",
-        blurb: "Hentai series & videos",
     },
 ];
 

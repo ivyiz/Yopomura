@@ -214,25 +214,6 @@
     font-weight: 600;
 }
 
-.browserStartBadge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 1px 6px;
-    border-radius: 999px;
-    border: 1px solid var(--divider-color);
-    color: var(--font-color-secondary);
-    font-size: 0.6rem;
-    font-weight: 500;
-    letter-spacing: 0.03em;
-    white-space: nowrap;
-
-    svg {
-        font-size: 0.55rem;
-    }
-}
-
-.browserStartCardBlurb,
 .browserStartCardDomain {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -240,11 +221,7 @@
     color: var(--font-color-secondary);
     font-size: 0.72rem;
     line-height: 1.35;
-}
-
-.browserStartCardDomain {
-    font-size: 0.68rem;
-    opacity: 0.75;
+    opacity: 0.9;
 }
 
 @media (max-width: 720px) {

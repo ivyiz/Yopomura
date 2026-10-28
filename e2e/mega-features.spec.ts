@@ -163,8 +163,24 @@ test("mega features smoke", async () => {
         await page.waitForSelector(".browserStart", { timeout: 15_000 });
         await expect(page.locator(".browserStartCard")).toHaveCount(8);
         await expect(page.locator(".browserStartIcon")).toHaveCount(8);
-        await expect(page.locator(".browserStartBadge")).toHaveCount(5);
+        await expect(page.locator(".browserStartBadge")).toHaveCount(0);
+        await expect(page.locator(".browserStartCardBlurb")).toHaveCount(0);
+        await expect(page.locator(".browserToolTile")).toHaveCount(6);
         console.log("BROWSER_START_OK");
+
+        // Extensions button opens the built-in tools popover.
+        await page.locator(".browserExtensionsBtn").click();
+        await expect(page.locator(".browserExtensions")).toBeVisible();
+        const popoverAdblock = page.locator('.browserExtensionsRow[data-action="adblock"]');
+        await expect(popoverAdblock).toHaveAttribute("aria-pressed", "true");
+        await popoverAdblock.click();
+        await expect(popoverAdblock).toHaveAttribute("aria-pressed", "false");
+        await popoverAdblock.click();
+        await expect(popoverAdblock).toHaveAttribute("aria-pressed", "true");
+        await page.keyboard.press("Escape");
+        await expect(page.locator(".browserExtensions")).toHaveCount(0);
+        await expect(page.locator(".browserHost.is-full")).toBeVisible();
+        console.log("BROWSER_EXTENSIONS_OK");
         await page.locator(".browserAddress").fill(`http://127.0.0.1:${port}/`);
         await page.locator(".browserAddress").press("Enter");
         await expect

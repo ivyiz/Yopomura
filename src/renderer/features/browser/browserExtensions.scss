@@ -1,0 +1,241 @@
+.browserExtensionsBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    background: transparent;
+}
+
+.browserExtensions {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 8px;
+    z-index: 30;
+    width: min(336px, calc(100% - 16px));
+    max-height: min(480px, calc(100vh - 140px));
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    border: 1px solid var(--divider-color);
+    border-radius: 12px;
+    background: var(--body-bg-color);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+    color: var(--font-color);
+    font-family: inherit;
+    font-size: 0.82rem;
+    overflow: hidden;
+}
+
+.browserExtensionsHeader {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 2px 4px 8px;
+}
+
+.browserExtensionsTitle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+
+    svg {
+        font-size: 0.72rem;
+        color: var(--font-color-secondary);
+    }
+}
+
+.browserExtensionsClose {
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--font-color-secondary);
+    font-family: inherit;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--topBar-btn-hover);
+        color: var(--font-color);
+    }
+}
+
+.browserExtensionsList {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.browserExtensionsRow,
+.browserExtensionsSelectRow,
+.browserExtensionsProxy {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+    padding: 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--font-color);
+    font-family: inherit;
+    font-size: 0.8rem;
+    text-align: left;
+}
+
+.browserExtensionsRow {
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        background: var(--btn-color-hover);
+    }
+
+    &:disabled {
+        opacity: 0.42;
+        cursor: default;
+    }
+
+    &.is-action {
+        padding-right: 12px;
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--btn-color-focus);
+        outline-offset: -2px;
+    }
+}
+
+.browserExtensionsSelectRow {
+    cursor: default;
+
+    &:hover {
+        background: var(--btn-color-hover);
+    }
+}
+
+.browserExtensionsProxy {
+    &:hover {
+        background: var(--btn-color-hover);
+    }
+}
+
+.browserExtensionsRowText {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    strong {
+        font-size: 0.8rem;
+        font-weight: 600;
+        line-height: 1.35;
+    }
+
+    small {
+        color: var(--font-color-secondary);
+        font-size: 0.68rem;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+}
+
+.browserExtensionsSwitch {
+    position: relative;
+    width: 28px;
+    height: 16px;
+    flex: 0 0 28px;
+    border: 1px solid var(--divider-color);
+    border-radius: 999px;
+    background: var(--text-input-bg);
+    transition:
+        background-color 0.14s ease,
+        border-color 0.14s ease;
+
+    > span {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--font-color-secondary);
+        transition:
+            transform 0.14s ease,
+            background-color 0.14s ease;
+    }
+
+    &.is-on {
+        border-color: var(--btn-color-focus);
+        background: color-mix(in srgb, var(--btn-color-focus) 32%, transparent);
+
+        > span {
+            transform: translateX(12px);
+            background: #fff;
+        }
+    }
+}
+
+.browserExtensionsSelect {
+    flex: 0 0 auto;
+    max-width: 116px;
+    height: 28px;
+    padding: 0 6px;
+    border: 1px solid var(--divider-color);
+    border-radius: 7px;
+    background: var(--text-input-bg);
+    color: var(--font-color);
+    font-family: inherit;
+    font-size: 0.72rem;
+    outline: none;
+
+    &:focus {
+        border-color: var(--btn-color-focus);
+    }
+}
+
+.browserExtensionsSettingsBtn {
+    flex: 0 0 auto;
+    height: 26px;
+    padding: 0 9px;
+    border: 1px solid var(--divider-color);
+    border-radius: 7px;
+    background: var(--btn-color);
+    color: var(--font-color);
+    font-family: inherit;
+    font-size: 0.72rem;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--btn-color-hover);
+    }
+}
+
+.browserExtensionsSeparator {
+    height: 1px;
+    flex: 0 0 auto;
+    margin: 5px 4px;
+    background: var(--divider-color);
+}
+
+.browserExtensionsNote {
+    flex: 0 0 auto;
+    margin: 8px 4px 2px;
+    color: var(--font-color-secondary);
+    font-size: 0.64rem;
+    line-height: 1.45;
+}
