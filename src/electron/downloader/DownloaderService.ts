@@ -9,6 +9,7 @@ import type {
     DownloaderJobStatus,
     DownloaderState,
 } from "@common/types/downloader";
+import { getProxyEnvironment } from "@electron/network/proxySettings";
 import { createMainLogger } from "@electron/util/logger";
 import { app } from "electron";
 
@@ -158,7 +159,12 @@ class DownloaderService extends EventEmitter {
                 cwd: command.cwd,
                 windowsHide: true,
                 stdio: ["pipe", "pipe", "pipe"],
-                env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUNBUFFERED: "1" },
+                env: {
+                    ...process.env,
+                    ...getProxyEnvironment(),
+                    PYTHONIOENCODING: "utf-8",
+                    PYTHONUNBUFFERED: "1",
+                },
             }) as ChildProcessWithoutNullStreams;
             this.worker = worker;
             worker.stdout.setEncoding("utf8");

@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import path from "node:path";
 import type { BrowserScannedLink } from "@common/types/browser";
+import { applyProxyToSession } from "@electron/network/proxySettings";
 import {
     type BrowserWindow,
     type DownloadItem,
@@ -592,6 +593,9 @@ export class BrowserManager extends EventEmitter {
         });
         this.session.on("will-download", this.handleWillDownload);
         enableAdblockInSession(this.session);
+        void applyProxyToSession(this.session).catch((error: unknown) =>
+            logger.warn("could not apply browser proxy", error),
+        );
     }
 
     private assertUsable(): void {

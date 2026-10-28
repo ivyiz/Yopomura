@@ -178,6 +178,10 @@
         "refreshing": "Refreshing…",
         "close": "Close"
     },
+    "proxy": {
+        "title": "Browser proxy",
+        "desc": "Route only the integrated browser through an HTTP, HTTPS or SOCKS5 proxy. Other apps and the reader stay on your normal connection."
+    },
     "profileBackup": {
         "title": "Profile backup",
         "desc": "Save your library database, settings, presets, shortcuts, themes, covers and trash to a ZIP file. Restoring replaces them on the next launch."

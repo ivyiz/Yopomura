@@ -304,6 +304,21 @@ export const installPreloadMocks = (): void => {
     onInvoke("browser:getSiteIcons", () => ({}));
     onInvoke("profileBackup:create", () => ({ ok: false, message: "not mocked" }));
     onInvoke("profileBackup:restore", () => ({ ok: false, message: "not mocked" }));
+    onInvoke("network:getProxy", () => ({
+        config: {
+            mode: "system",
+            protocol: "http",
+            host: "",
+            port: 0,
+            username: "",
+            bypass: "<local>,localhost,127.0.0.1",
+        },
+        hasPassword: false,
+        passwordProtected: true,
+        applied: true,
+    }));
+    onInvoke("network:setProxy", () => ({ ok: false, message: "not mocked" }));
+    onInvoke("network:testProxy", () => ({ ok: false, message: "not mocked" }));
     onInvoke("db:library:getAllAndProgress", () => []);
     onInvoke("keymap:nativeAction", () => undefined);
     registerDefaultKeymapHandlers();

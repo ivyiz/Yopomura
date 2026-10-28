@@ -16,6 +16,7 @@ import type {
     LibraryScanStartResult,
     LibraryScanStatus,
 } from "@common/types/libraryScan";
+import type { ProxyConfig, ProxySaveResult, ProxyState, ProxyTestResult } from "@common/types/network";
 import type {
     PurgeTrashResult,
     RestoreTrashResult,
@@ -470,6 +471,12 @@ export type ProfileBackupChannels = {
     >;
 };
 
+export type NetworkChannels = {
+    "network:getProxy": ChannelDefinition<void, ProxyState>;
+    "network:setProxy": ChannelDefinition<{ config: Partial<ProxyConfig>; password?: string }, ProxySaveResult>;
+    "network:testProxy": ChannelDefinition<{ config: Partial<ProxyConfig>; password?: string }, ProxyTestResult>;
+};
+
 export type IPCChannels = DatabaseChannels &
     DatabaseChangeChannels &
     WindowManagementChannels &
@@ -489,7 +496,8 @@ export type IPCChannels = DatabaseChannels &
     DownloaderChannels &
     TrashChannels &
     BrowserChannels &
-    ProfileBackupChannels;
+    ProfileBackupChannels &
+    NetworkChannels;
 
 export type MainToRendererChannels = {
     [K in keyof IPCChannels as IPCChannels[K] extends ChannelDefinition<unknown, unknown, "m2r">

@@ -1,0 +1,130 @@
+.proxyRow,
+.proxyGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 10px 0;
+}
+
+.proxyGrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: end;
+}
+
+.proxyField {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+
+    > span {
+        color: var(--font-color-secondary);
+        font-size: 0.68rem;
+        font-weight: 500;
+    }
+
+    input,
+    select {
+        height: 32px;
+        padding: 0 9px;
+        border: 1px solid var(--divider-color);
+        border-radius: 7px;
+        background: var(--text-input-bg);
+        color: var(--font-color);
+        font-family: inherit;
+        font-size: 0.82rem;
+        outline: none;
+
+        &:focus {
+            border-color: var(--btn-color-focus);
+        }
+    }
+
+    &.is-grow {
+        grid-column: span 2;
+    }
+
+    &.is-port {
+        max-width: 110px;
+    }
+
+    &.is-wide {
+        width: 100%;
+        margin: 4px 0 10px;
+    }
+}
+
+.proxyActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0 8px;
+
+    button {
+        padding: 7px 12px;
+        border: 1px solid var(--divider-color);
+        border-radius: 7px;
+        background: var(--btn-color);
+        color: var(--font-color);
+        font-family: inherit;
+        font-size: 0.8rem;
+        cursor: pointer;
+
+        &:hover:not(:disabled) {
+            background: var(--btn-color-hover);
+        }
+        &:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+    }
+}
+
+.proxyHint,
+.proxyWarning,
+.proxyMessage,
+.proxyError,
+.proxyTest {
+    display: block;
+    margin: 6px 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+.proxyHint {
+    color: var(--font-color-secondary);
+}
+
+.proxyWarning {
+    color: var(--warning-color, #e8c07a);
+}
+
+.proxyMessage,
+.proxyTest {
+    color: #7ee787;
+}
+
+.proxyError {
+    color: var(--error-color, #ff8a9a);
+}
+
+@media (max-width: 900px) {
+    .proxyGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .proxyField.is-grow {
+        grid-column: span 2;
+    }
+}
+
+@media (max-width: 600px) {
+    .proxyGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .proxyField.is-grow {
+        grid-column: auto;
+    }
+}

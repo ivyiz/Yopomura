@@ -253,6 +253,10 @@ export const SETTINGS_TARGETS_STATIC: readonly SettingsTarget[] = [
         keywords: ["backup", "restore", "zip", "profile", "covers", "trash"],
         contentPath: "profileBackup",
     }),
+    setting("setting:browser-proxy", "#settings-networkProxy", "proxy.title", {
+        keywords: ["proxy", "vpn", "network", "socks5", "http", "browser", "ip"],
+        contentPath: "proxy",
+    }),
     setting("setting:pdf", "#settings-pdfScale", "pdf.title", { keywords: ["pdf"], contentPath: "pdf" }),
     setting("setting:custom-stylesheet", "#settings-customStylesheet", "customStylesheet.title", {
         keywords: ["css"],

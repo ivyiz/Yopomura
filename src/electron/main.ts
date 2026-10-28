@@ -34,9 +34,11 @@ import { registerExplorerHandlers } from "./ipc/explorer";
 import { registerFSHandlers } from "./ipc/fs";
 import { nativeMenuAccelerator, registerKeymapHandlers, runNativeKeymapAction } from "./ipc/keymap";
 import { registerLibraryScanHandlers, stopLibraryScan } from "./ipc/libraryScan";
+import { registerNetworkHandlers } from "./ipc/network";
 import { registerProfileBackupHandlers } from "./ipc/profileBackup";
 import { registerTrashHandlers } from "./ipc/trash";
 import { registerUpdateHandlers } from "./ipc/update";
+import { applyProxyToBrowserSession } from "./network/proxySettings";
 import { startTrashScheduler, stopTrashScheduler } from "./trash/trashService";
 import {
     backupIfPendingMigrations,
@@ -245,6 +247,10 @@ app.on("ready", async () => {
         registerTrashHandlers();
         startTrashScheduler();
         registerBrowserHandlers();
+        registerNetworkHandlers();
+        await applyProxyToBrowserSession().catch((error: unknown) =>
+            logger.warn("could not apply saved browser proxy", error),
+        );
 
         WindowManager.createWindow(openFolderOnLaunch);
         TrayManager.initialize();

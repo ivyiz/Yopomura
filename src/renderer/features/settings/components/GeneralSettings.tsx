@@ -19,6 +19,7 @@ import GeneralThemeSettings from "./GeneralThemeSettings";
 import LanguageSettings from "./LanguageSettings";
 import LibrarySettings from "./LibrarySettings";
 import ProfileBackupSettings from "./ProfileBackupSettings";
+import ProxySettings from "./ProxySettings";
 import TrashManager from "./TrashManager";
 import ViewSizeSettings from "./ViewSizeSettings";
 
@@ -452,6 +453,7 @@ const GeneralSettings: React.FC = () => {
             </div>
             <DbBackupSettings />
             <ProfileBackupSettings />
+            <ProxySettings />
             <div className="settingItem2 dangerZone" id="settings-reset">
                 <h3>{t("reset.title")}</h3>
                 <div className="main row">
