@@ -114,12 +114,6 @@
         font-size: 0.95rem;
         font-weight: 600;
     }
-
-    span {
-        color: var(--font-color-secondary);
-        font-size: 0.72rem;
-        font-variant-numeric: tabular-nums;
-    }
 }
 
 .browserStartEmpty {
@@ -158,23 +152,26 @@
 
 .browserStartBookmarkGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 10px;
 }
 
 .browserStartBookmark {
     display: flex;
     align-items: stretch;
-    gap: 2px;
     min-width: 0;
-    padding: 3px;
+    padding: 0;
+    overflow: hidden;
     border: 1px solid var(--divider-color);
-    border-radius: 10px;
+    border-radius: 11px;
     background: color-mix(in srgb, var(--body-bg-color) 88%, var(--font-color) 4%);
-    transition: border-color 0.14s ease;
+    transition:
+        border-color 0.14s ease,
+        background-color 0.14s ease;
 
     &:hover {
         border-color: var(--btn-color-focus);
+        background: var(--btn-color-hover);
     }
 }
 
@@ -183,10 +180,10 @@
     min-width: 0;
     display: flex;
     align-items: center;
-    gap: 9px;
-    padding: 5px;
+    gap: 12px;
+    padding: 12px;
     border: 0;
-    border-radius: 7px;
+    border-radius: 10px;
     background: transparent;
     color: var(--font-color);
     font-family: inherit;
@@ -204,21 +201,21 @@
 }
 
 .browserStartBookmarkIcon {
-    width: 28px;
-    height: 28px;
-    flex: 0 0 28px;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border: 1px solid var(--divider-color);
-    border-radius: 7px;
+    border-radius: 10px;
     background: var(--text-input-bg);
     color: var(--font-color-secondary);
-    font-size: 0.72rem;
+    font-size: 1.05rem;
 
     img {
-        width: 17px;
-        height: 17px;
+        width: 30px;
+        height: 30px;
         object-fit: contain;
     }
 }
@@ -227,14 +224,14 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
 }
 
 .browserStartBookmarkTitle {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.78rem;
+    font-size: 0.9rem;
     font-weight: 600;
 }
 
@@ -243,7 +240,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--font-color-secondary);
-    font-size: 0.66rem;
+    font-size: 0.72rem;
     opacity: 0.9;
 }
 

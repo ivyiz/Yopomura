@@ -241,20 +241,23 @@ const BrowserHost = () => {
         !downloadsOpen && downloadHistory.some((entry) => entry.finishedAt > downloadsSeenAt);
 
     /** Freezes the page behind React menus; the native view is hidden while they are open. */
-    const capturePageSnapshot = useCallback(async (): Promise<string> => {
-        if (newTabPage) return "";
-        if (snapshot) return snapshot;
-        try {
-            const image = await Promise.race([
-                window.electron.invoke("browser:capturePage", {}),
-                new Promise<string>((resolve) => window.setTimeout(() => resolve(""), 1500)),
-            ]);
-            if (image) setSnapshot(image);
-            return image;
-        } catch {
-            return "";
-        }
-    }, [newTabPage, snapshot]);
+    const capturePageSnapshot = useCallback(
+        async (timeoutMs = 5000): Promise<string> => {
+            if (newTabPage) return "";
+            if (snapshot) return snapshot;
+            try {
+                const image = await Promise.race([
+                    window.electron.invoke("browser:capturePage", {}),
+                    new Promise<string>((resolve) => window.setTimeout(() => resolve(""), timeoutMs)),
+                ]);
+                if (image) setSnapshot(image);
+                return image;
+            } catch {
+                return "";
+            }
+        },
+        [newTabPage, snapshot],
+    );
 
     const openBookmarkBubble = useCallback(async () => {
         const tab = activeTab;
@@ -854,7 +857,7 @@ const BrowserHost = () => {
             return;
         }
         // Freeze the page before hiding the native view so the bubble never flashes the fallback.
-        await capturePageSnapshot();
+        await capturePageSnapshot(1200);
         setMenu(null);
         setScanOpen(false);
         setExtensionsOpen(false);

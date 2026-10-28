@@ -139,8 +139,13 @@ test("mega features smoke", async () => {
         await expect
             .poll(() => mediaVideo.evaluate((el) => (el as HTMLVideoElement).readyState), { timeout: 20_000 })
             .toBeGreaterThan(0);
-        await page.locator(".mediaPanelSeek").hover();
-        await expect(page.locator(".mediaPanelSeekPreview.is-visible")).toHaveCount(1);
+        const seekBox = await page.locator(".mediaPanelSeek").boundingBox();
+        if (seekBox) {
+            await page.mouse.move(seekBox.x + seekBox.width / 2, seekBox.y + seekBox.height / 2);
+        }
+        await expect(page.locator(".mediaPanelSeekPreview.is-visible")).toHaveCount(1, {
+            timeout: 10_000,
+        });
         if ((await page.locator(".mediaPanel.is-theater").count()) === 0) {
             await page.locator('.mediaPanelControlButton[aria-label="Theater mode"]').click();
         }
@@ -258,6 +263,22 @@ test("mega features smoke", async () => {
         await page.waitForSelector(".browserStart", { timeout: 15_000 });
         await expect(page.locator(".browserStartCategory", { hasText: "Research" })).toBeVisible();
         await expect(page.locator(".browserStartBookmarkTitle")).toContainText("Test Page Bookmark");
+        const newTabBookmark = page.locator(".browserStartBookmark").first();
+        await newTabBookmark.hover();
+        const bookmarkGeometry = await newTabBookmark.evaluate((element) => {
+            const outer = element.getBoundingClientRect();
+            const inner = element.querySelector(".browserStartBookmarkMain")?.getBoundingClientRect();
+            const icon = element.querySelector(".browserStartBookmarkIcon")?.getBoundingClientRect();
+            return {
+                padding: window.getComputedStyle(element).padding,
+                outerWidth: outer.width,
+                innerWidth: inner?.width ?? 0,
+                iconWidth: icon?.width ?? 0,
+            };
+        });
+        expect(bookmarkGeometry.padding).toBe("0px");
+        expect(bookmarkGeometry.innerWidth).toBeCloseTo(bookmarkGeometry.outerWidth - 2, 0);
+        expect(bookmarkGeometry.iconWidth).toBeCloseTo(44, 0);
         await page.locator(".browserStartBookmark").first().click({ button: "right" });
         await page.locator(".contextMenu li", { hasText: "Remove bookmark" }).click();
         await expect(page.locator(".browserStartCategory")).toHaveCount(0);

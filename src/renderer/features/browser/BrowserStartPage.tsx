@@ -154,10 +154,6 @@ const BrowserStartPage = ({ engine, bookmarks, onOpenUrl, onSearch, onRemoveBook
                         >
                             <div className="browserStartSectionHead">
                                 <h2 id={`browserStart-category-${index}`}>{group.category}</h2>
-                                <span>
-                                    {group.bookmarks.length} bookmark
-                                    {group.bookmarks.length === 1 ? "" : "s"}
-                                </span>
                             </div>
                             <div className="browserStartBookmarkGrid">
                                 {group.bookmarks.map((bookmark) => (
