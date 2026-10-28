@@ -296,6 +296,20 @@ const BrowserHost = () => {
     }, [ensureTab]);
 
     useEffect(() => {
+        const onClose = () => {
+            modeRef.current = null;
+            setMode(null);
+            setMenu(null);
+            setScanOpen(false);
+            setExtensionsOpen(false);
+            setBookmarkBubble(null);
+            setSnapshot("");
+        };
+        window.addEventListener("yokomura:close-browser", onClose);
+        return () => window.removeEventListener("yokomura:close-browser", onClose);
+    }, []);
+
+    useEffect(() => {
         const offState = window.electron.on("browser:state", (next) => {
             setState(next);
             setError("");

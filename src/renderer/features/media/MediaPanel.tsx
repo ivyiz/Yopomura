@@ -26,6 +26,7 @@ import {
     formatBytes,
     formatTime,
     isVideoPath,
+    matchesVideoQuery,
     normalizeVideoPath,
     readWatchedPosition,
     readWatchedPositions,
@@ -281,7 +282,18 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
     const [isFullscreen, setIsFullscreen] = useState(false);
 
     const pipSupported = useMemo(() => supportsPictureInPicture(), []);
-    const visible = useMemo(() => filterAndSortVideos(entries, { query, sort }), [entries, query, sort]);
+    const recentKeySet = useMemo(
+        () => new Set(recentDownloads.map((row) => normalizeVideoPath(row.path))),
+        [recentDownloads],
+    );
+    const libraryEntries = useMemo(
+        () => entries.filter((entry) => !recentKeySet.has(normalizeVideoPath(entry.path))),
+        [entries, recentKeySet],
+    );
+    const visible = useMemo(
+        () => filterAndSortVideos(libraryEntries, { query, sort }),
+        [libraryEntries, query, sort],
+    );
 
     const selected = useMemo(() => {
         if (!selectedPath) return null;
@@ -315,10 +327,14 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         const rows: { entry: VideoEntry; downloadedAt: number }[] = [];
         for (const row of recentDownloads) {
             const entry = byKey.get(normalizeVideoPath(row.path));
-            if (entry) rows.push({ entry, downloadedAt: row.downloadedAt });
+            if (entry && matchesVideoQuery(entry, query)) rows.push({ entry, downloadedAt: row.downloadedAt });
         }
         return rows;
-    }, [entries, recentDownloads]);
+    }, [entries, recentDownloads, query]);
+
+    const recentPlaylist = useMemo(() => recentRows.map((row) => row.entry), [recentRows]);
+    const selectedIsRecent = selected ? recentKeySet.has(normalizeVideoPath(selected.path)) : false;
+    const playbackList = selectedIsRecent && recentPlaylist.length > 0 ? recentPlaylist : visible;
 
     const clearRecent = () => {
         clearRecentDownloads();
@@ -575,15 +591,15 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
 
     const navigateVideo = useCallback(
         (delta: 1 | -1) => {
-            if (visible.length === 0) return;
+            if (playbackList.length === 0) return;
             const currentKey = normalizeVideoPath(pathRef.current ?? "");
-            let index = visible.findIndex((item) => normalizeVideoPath(item.path) === currentKey);
+            let index = playbackList.findIndex((item) => normalizeVideoPath(item.path) === currentKey);
             if (index < 0) index = delta > 0 ? -1 : 0;
-            const nextIndex = (index + delta + visible.length) % visible.length;
-            const target = visible[nextIndex];
+            const nextIndex = (index + delta + playbackList.length) % playbackList.length;
+            const target = playbackList[nextIndex];
             if (target) selectVideo(target.path);
         },
-        [selectVideo, visible],
+        [playbackList, selectVideo],
     );
 
     const goNext = useCallback(() => navigateVideo(1), [navigateVideo]);
@@ -716,7 +732,7 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         if (path) removeWatchedPosition(window.localStorage, path);
         lastTimeRef.current = 0;
         refreshWatched();
-        if (autoplayNext && visible.length > 1) navigateVideo(1);
+        if (autoplayNext && playbackList.length > 1) navigateVideo(1);
     };
 
     const handleError = (event: SyntheticEvent<HTMLVideoElement>) => {
@@ -1180,7 +1196,7 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                             pipActive={pipActive}
                                             pipSupported={pipSupported}
                                             autoplayNext={autoplayNext}
-                                            canNavigate={visible.length > 1}
+                                            canNavigate={playbackList.length > 1}
                                             speedMenuOpen={speedMenuOpen}
                                             onTogglePlay={togglePlay}
                                             onSeek={seekTo}
@@ -1392,19 +1408,19 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                         )}
                     </main>
 
-                    <aside className="mediaPanelSidebar" aria-label="Up next">
+                    <aside className="mediaPanelSidebar" aria-label="Media">
                         <div className="mediaPanelSidebarHead">
                             <div className="mediaPanelSidebarTitleBlock">
-                                <span className="mediaPanelSidebarTitle">Up next</span>
+                                <span className="mediaPanelSidebarTitle">Media</span>
                                 <span className="mediaPanelSidebarCount">
                                     {query.trim()
-                                        ? `${visible.length} of ${entries.length} videos`
+                                        ? `${visible.length + recentRows.length} of ${entries.length} videos`
                                         : `${entries.length} video${entries.length === 1 ? "" : "s"}`}
                                 </span>
                             </div>
                         </div>
 
-                        {recentRows.length > 0 && !query.trim() ? (
+                        {recentRows.length > 0 ? (
                             <section className="mediaPanelRecent" aria-labelledby="mediaPanelRecentTitle">
                                 <div className="mediaPanelRecentHead">
                                     <h2 id="mediaPanelRecentTitle" className="mediaPanelRecentTitle">
@@ -1444,9 +1460,11 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                                     <span className="mediaPanelListBody">
                                                         <span className="mediaPanelListTitle">{entry.title}</span>
                                                         <span className="mediaPanelListMeta">
-                                                            <span className="mediaPanelListFolder">
-                                                                {formatMediaDate(downloadedAt)}
+                                                            <span className="mediaPanelListCategory">
+                                                                Downloaded
                                                             </span>
+                                                            <span className="mediaPanelMetaDot" aria-hidden />
+                                                            <span>{formatMediaDate(downloadedAt)}</span>
                                                             <span className="mediaPanelMetaDot" aria-hidden />
                                                             <span>{formatBytes(entry.sizeBytes)}</span>
                                                             <span className="mediaPanelMetaDot" aria-hidden />
@@ -1463,6 +1481,15 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                             </section>
                         ) : null}
 
+                        <div className="mediaPanelLibraryHead">
+                            <span className="mediaPanelLibraryTitle">Library</span>
+                            <span className="mediaPanelLibraryCount">
+                                {query.trim()
+                                    ? `${visible.length} of ${libraryEntries.length} videos`
+                                    : `${libraryEntries.length} video${libraryEntries.length === 1 ? "" : "s"}`}
+                            </span>
+                        </div>
+
                         {scanState === "scanning" && entries.length === 0 ? (
                             <div className="mediaPanelListEmpty">
                                 <span className="mediaPanelSpinner" aria-hidden />
@@ -1472,13 +1499,15 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                             <div className="mediaPanelListEmpty">
                                 <FontAwesomeIcon icon={faFilm} aria-hidden />
                                 <span>
-                                    {entries.length === 0
-                                        ? "No videos in your library yet."
+                                    {libraryEntries.length === 0
+                                        ? recentRows.length > 0
+                                            ? "Everything here came from browser downloads."
+                                            : "No videos in your library yet."
                                         : "No videos match this search."}
                                 </span>
                             </div>
                         ) : (
-                            <ul className="mediaPanelList">
+                            <ul className="mediaPanelList mediaPanelLibraryList">
                                 {visible.map((item, index) => {
                                     const active = selected
                                         ? normalizeVideoPath(item.path) === normalizeVideoPath(selected.path)
@@ -1507,8 +1536,8 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                                 <span className="mediaPanelListBody">
                                                     <span className="mediaPanelListTitle">{item.title}</span>
                                                     <span className="mediaPanelListMeta">
-                                                        <span className="mediaPanelListFolder">
-                                                            {folderLabel(item.path)}
+                                                        <span className="mediaPanelListCategory">
+                                                            Folder · {folderLabel(item.path)}
                                                         </span>
                                                         <span className="mediaPanelMetaDot" aria-hidden />
                                                         <span>{formatBytes(item.sizeBytes)}</span>

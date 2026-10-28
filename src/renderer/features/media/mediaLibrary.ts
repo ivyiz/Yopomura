@@ -208,6 +208,17 @@ export const scanVideoEntries = async (
 };
 
 /**
+ * True when every whitespace-separated query term occurs in the title or path.
+ * Empty queries match everything.
+ */
+export const matchesVideoQuery = (entry: VideoEntry, query: string): boolean => {
+    const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (terms.length === 0) return true;
+    const haystack = `${entry.title}\n${entry.path}`.toLowerCase();
+    return terms.every((term) => haystack.includes(term));
+};
+
+/**
  * Filters by title/path and sorts without mutating the input.
  *
  * `newest` puts the most recently modified file first and unknown timestamps last; `name`
@@ -217,14 +228,8 @@ export const filterAndSortVideos = (
     entries: readonly VideoEntry[],
     options: VideoFilterOptions = {},
 ): VideoEntry[] => {
-    const terms = (options.query ?? "").trim().toLowerCase().split(/\s+/).filter(Boolean);
-
-    const filtered = terms.length
-        ? entries.filter((entry) => {
-              const haystack = `${entry.title}\n${entry.path}`.toLowerCase();
-              return terms.every((term) => haystack.includes(term));
-          })
-        : [...entries];
+    const query = options.query ?? "";
+    const filtered = query.trim() ? entries.filter((entry) => matchesVideoQuery(entry, query)) : [...entries];
 
     const sort = options.sort ?? "newest";
 

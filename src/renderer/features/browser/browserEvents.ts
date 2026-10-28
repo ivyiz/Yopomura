@@ -9,3 +9,8 @@ export type ToggleBrowserDetail = { mode: BrowserMode };
 export const toggleBrowser = (mode: BrowserMode): void => {
     window.dispatchEvent(new CustomEvent<ToggleBrowserDetail>("yokomura:toggle-browser", { detail: { mode } }));
 };
+
+/** Closes the browser regardless of its current mode, keeping its tabs alive. */
+export const closeBrowser = (): void => {
+    window.dispatchEvent(new Event("yokomura:close-browser"));
+};

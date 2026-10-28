@@ -101,7 +101,7 @@ test("side browser across classic, history, and gallery views", async () => {
         // Back to classic and close from the Location toolbar button.
         await page.locator(".viewToggle button").click();
         await page.waitForSelector(".locationRow", { timeout: 15_000 });
-        await page.locator('.listCont .tools button[data-tooltip="Browser"]').click();
+        // Opening the downloader replaced the side browser pane.
         await expect(page.locator(".browserHost")).toHaveCount(0);
         await page.locator('.listCont .tools button[data-tooltip="Browser"]').click();
         await page.waitForSelector(".browserHost.is-side", { timeout: 15_000 });

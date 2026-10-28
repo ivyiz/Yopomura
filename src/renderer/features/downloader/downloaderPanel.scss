@@ -1,26 +1,46 @@
+body.downloaderSideOpen #app {
+    width: calc(100vw - min(460px, 100vw));
+}
+
 .downloaderOverlay {
     position: fixed;
-    inset: 0;
+    top: var(--titleBar-height);
+    right: 0;
+    bottom: 0;
     z-index: 1000040;
+    width: min(460px, 100vw);
     display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    background: rgba(2, 2, 4, 0.72);
-    backdrop-filter: blur(10px);
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+    animation: downloaderSideIn 0.18s ease-out;
+}
+
+@keyframes downloaderSideIn {
+    from {
+        transform: translateX(18px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }
 
 .downloaderPanel {
-    width: min(980px, 96vw);
-    height: min(760px, 92vh);
+    width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
     min-height: 0;
-    border-radius: 16px;
-    border: 1px solid var(--divider-color);
+    border-radius: 0;
+    border: 0;
+    border-left: 1px solid var(--divider-color);
     background: var(--body-bg-color);
     color: var(--font-color);
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+    box-shadow: -14px 0 44px rgba(0, 0, 0, 0.5);
     overflow: hidden;
 
     button {
@@ -107,6 +127,20 @@
     gap: 10px;
     border-bottom: 1px solid var(--divider-color);
 
+    > label {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+        padding: 0;
+        border-radius: 0;
+        background: transparent;
+
+        &:hover {
+            background: transparent;
+        }
+    }
+
     label > span {
         display: block;
         margin-bottom: 6px;
@@ -139,9 +173,15 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    padding: 0;
+    background: transparent;
     color: var(--font-color-secondary);
     font-size: 0.8rem;
     white-space: nowrap;
+
+    &:hover {
+        background: transparent;
+    }
 
     input {
         accent-color: var(--btn-color);

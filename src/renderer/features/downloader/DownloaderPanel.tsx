@@ -4,7 +4,7 @@ import { faFolderOpen, faPause, faPlay, faTrash, faXmark } from "@fortawesome/fr
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useAppSelector } from "@store/hooks";
 import { promptSelectDir } from "@utils/file";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import "./downloaderPanel.scss";
 
@@ -39,6 +39,12 @@ const DownloaderPanel = ({ initialUrls = "", onClose, onOpenOutput }: Downloader
     const [keepFolder, setKeepFolder] = useState(false);
     const [state, setState] = useState<DownloaderState>({ ready: false, activeId: null, paused: false, jobs: [] });
     const [busy, setBusy] = useState(false);
+
+    /* The downloader is a layout-sharing right pane, not a modal overlay. */
+    useLayoutEffect(() => {
+        document.body.classList.add("downloaderSideOpen");
+        return () => document.body.classList.remove("downloaderSideOpen");
+    }, []);
 
     /* A browser action can prefill while the panel is already open. */
     useEffect(() => {

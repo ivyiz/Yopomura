@@ -50,6 +50,7 @@ import {
 } from "react";
 import UiBlockOverlay from "./components/UiBlockOverlay";
 import BrowserHost from "./features/browser/BrowserHost";
+import { closeBrowser } from "./features/browser/browserEvents";
 import DownloaderPanel from "./features/downloader/DownloaderPanel";
 import MediaPanel from "./features/media/MediaPanel";
 import VideoPlayer from "./features/media/VideoPlayer";
@@ -154,6 +155,7 @@ const App = (): ReactElement => {
     /** Media is a full panel; opening another app panel must close it, not sit behind it. */
     const closeMedia = useCallback(() => setMediaOpen(false), []);
     const openDownloader = useCallback((initialUrls?: string) => {
+        closeBrowser();
         setMediaOpen(false);
         setDownloaderDraft(initialUrls ?? "");
         setDownloaderOpen(true);

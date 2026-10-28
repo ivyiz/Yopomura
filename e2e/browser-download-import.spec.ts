@@ -136,10 +136,24 @@ test("browser downloads land in the library and recent Media playlist", async ()
         await page.locator(".mediaToggle").click();
         await page.waitForSelector(".mediaPanelOverlay", { timeout: 15_000 });
         await expect(page.locator(".mediaPanelRecentTitle")).toContainText("Recently Downloaded");
+        await expect(page.locator(".mediaPanelRecentTitle")).toHaveCSS("text-transform", "none");
         await expect(page.locator(".mediaPanelRecentList li", { hasText: "browser-clip" })).toHaveCount(1);
+        await expect(page.locator(".mediaPanelRecentList .mediaPanelListCategory").first()).toContainText(
+            "Downloaded",
+        );
+        await expect(page.locator(".mediaPanelLibraryList li", { hasText: "browser-clip" })).toHaveCount(0);
+        await expect(page.locator(".mediaPanelLibraryList .mediaPanelListCategory").first()).toContainText(
+            "Folder ·",
+        );
         await page.locator(".mediaPanelSidebar").screenshot({ path: "test-results/media-recent-downloads.png" });
         await page.locator(".mediaPanelRecentClear").click();
         await expect(page.locator(".mediaPanelRecent")).toHaveCount(0);
+        await expect(page.locator(".mediaPanelLibraryList li", { hasText: "browser-clip" })).toHaveCount(1);
+        await expect(
+            page
+                .locator(".mediaPanelLibraryList li", { hasText: "browser-clip" })
+                .locator(".mediaPanelListCategory"),
+        ).toContainText("Folder ·");
         await page.locator('button[aria-label="Close media panel"]').click();
         await expect(page.locator(".mediaPanelOverlay")).toHaveCount(0);
         console.log("BROWSER_DOWNLOAD_RECENT_OK");
