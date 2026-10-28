@@ -27,7 +27,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { BrowserAdblockState } from "@common/types/browser";
-import { app, type Session } from "electron";
+import { app, net, type Session } from "electron";
 import { createMainLogger } from "../util/logger";
 import {
     type AdblockRequest,
@@ -104,12 +104,19 @@ const userDataPath = (fileName: string): string | null => {
     }
 };
 
-/** Fetch wrapper with an abort timeout; structural `Fetch` for the engine. */
+/**
+ * Fetch wrapper with an abort timeout; structural `Fetch` for the engine.
+ *
+ * Uses Electron's Chromium-backed `net.fetch` instead of Node's global
+ * `fetch` (undici). Undici can raise an internal `assert(!this.paused)`
+ * assertion when the proxy settings change while several list downloads are
+ * in flight, which surfaces as a fatal uncaught exception at startup.
+ */
 const adblockFetch = async (url: string): Promise<Response> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
-        return await fetch(url, { signal: controller.signal });
+        return await net.fetch(url, { signal: controller.signal });
     } finally {
         clearTimeout(timer);
     }

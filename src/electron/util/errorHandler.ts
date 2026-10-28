@@ -8,6 +8,22 @@ import { createMainLogger } from "./logger";
 const logger = createMainLogger("errorHandler");
 
 /**
+ * Undici can assert inside `Parser.finish` when a TLS connection closes while
+ * a response body is paused (seen when proxy settings change during startup
+ * downloads). The fetch promise still rejects normally, so the assertion is
+ * noise rather than a crashed app; never show a Critical Error dialog for it.
+ */
+const isIgnorableUndiciAssertion = (error: unknown): boolean => {
+    if (!(error instanceof Error)) return false;
+    const code = (error as NodeJS.ErrnoException).code;
+    return (
+        error.name === "AssertionError" &&
+        code === "ERR_ASSERTION" &&
+        Boolean(error.stack?.includes("at Parser.finish (node:internal/deps/undici/undici"))
+    );
+};
+
+/**
  * Error severity levels for better categorization
  */
 export type ErrorSeverity = "low" | "medium" | "high" | "critical";
@@ -453,6 +469,10 @@ export class ErrorHandler {
     private setupGlobalHandlers(): void {
         // handle uncaught exceptions
         process.on("uncaughtException", (error) => {
+            if (isIgnorableUndiciAssertion(error)) {
+                logger.warn("ignored undici parser assertion after a closed HTTP connection", error);
+                return;
+            }
             this.handleUnhandledError(error, "critical", {
                 source: "uncaughtException",
             });
@@ -460,6 +480,10 @@ export class ErrorHandler {
 
         // handle unhandled promise rejections
         process.on("unhandledRejection", (reason) => {
+            if (isIgnorableUndiciAssertion(reason)) {
+                logger.warn("ignored undici parser assertion after a closed HTTP connection", reason);
+                return;
+            }
             this.handleUnhandledError(reason instanceof Error ? reason : new Error(String(reason)), "high", {
                 source: "unhandledRejection",
             });
