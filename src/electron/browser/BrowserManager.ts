@@ -462,6 +462,16 @@ export class BrowserManager extends EventEmitter {
 
         const changed = this.visible !== visible;
         this.visible = visible;
+        if (visible) {
+            const tab = this.activeTab();
+            if (tab && (!tab.view || tab.view.webContents.isDestroyed())) {
+                if (tab.url && tab.url !== "about:blank") {
+                    this.loadTabUrl(tab, tab.url);
+                } else {
+                    this.ensureView(tab);
+                }
+            }
+        }
         this.syncActiveView();
 
         if (visible) {
@@ -710,6 +720,8 @@ export class BrowserManager extends EventEmitter {
             this.emitState();
             return false;
         }
+        /* Reload/navigate can recreate a crashed view; attach it again. */
+        if (this.activeId === tab.id) this.syncActiveView();
 
         tab.pendingUrl = url;
         tab.loading = true;
@@ -849,6 +861,37 @@ export class BrowserManager extends EventEmitter {
 
         webContents.on("dom-ready", () => {
             this.applyForceDark(tab);
+        });
+
+        webContents.on("render-process-gone", (_event, details) => {
+            if (details.reason === "clean-exit" || this.destroyed || this.window.isDestroyed()) return;
+            logger.warn("browser renderer gone", {
+                tabId: tab.id,
+                url: tab.url,
+                reason: details.reason,
+                exitCode: details.exitCode,
+            });
+            if (tab.view !== view) return;
+            tab.view = null;
+            tab.loading = false;
+            tab.pendingUrl = null;
+            try {
+                this.window.contentView.removeChildView(view);
+            } catch (error) {
+                logger.debug("could not detach crashed view", error);
+            }
+            this.emitState();
+            /* The crashed webContents is already tearing down; recreate after it settles. */
+            setTimeout(() => {
+                if (this.destroyed || this.window.isDestroyed()) return;
+                if (this.activeId !== tab.id || !this.visible) return;
+                if (tab.url && tab.url !== "about:blank") {
+                    this.loadTabUrl(tab, tab.url);
+                } else {
+                    this.ensureView(tab);
+                    this.syncActiveView();
+                }
+            }, 0);
         });
 
         webContents.once("destroyed", () => {
