@@ -1,7 +1,8 @@
 import type { BrowserBookmark, BrowserSearchEngine } from "@common/types/browser";
 import { faBookmark as faBookmarkRegular } from "@fortawesome/free-regular-svg-icons";
-import { faArrowRight, faMagnifyingGlass, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faArrowRight, faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useAppContext } from "@renderer/App";
 import { useMemo, useState } from "react";
 import { groupBookmarksByCategory } from "./browserBookmarks";
 import "./browserStartPage.scss";
@@ -37,11 +38,43 @@ const BookmarkRow = ({
     onOpen: (url: string, newTab: boolean) => void;
     onRemove: (id: string) => void;
 }) => {
+    const { setContextMenuData } = useAppContext();
     const [failedIcon, setFailedIcon] = useState<string | undefined>(undefined);
     const failed = Boolean(bookmark.favicon) && failedIcon === bookmark.favicon;
 
     return (
-        <div className="browserStartBookmark" title={bookmark.url}>
+        <div
+            className="browserStartBookmark"
+            title={bookmark.url}
+            onContextMenu={(event) => {
+                event.preventDefault();
+                const focusBackElem = event.currentTarget.querySelector<HTMLElement>(".browserStartBookmarkMain");
+                setContextMenuData({
+                    clickX: event.clientX,
+                    clickY: event.clientY,
+                    focusBackElem,
+                    items: [
+                        {
+                            label: "Open",
+                            action: () => onOpen(bookmark.url, false),
+                        },
+                        {
+                            label: "Open in new tab",
+                            action: () => onOpen(bookmark.url, true),
+                        },
+                        {
+                            label: "Copy link",
+                            action: () => void window.electron.clipboard.writeText(bookmark.url),
+                        },
+                        window.contextMenu.template.divider(),
+                        {
+                            label: "Remove bookmark",
+                            action: () => onRemove(bookmark.id),
+                        },
+                    ],
+                });
+            }}
+        >
             <button
                 type="button"
                 className="browserStartBookmarkMain"
@@ -67,15 +100,6 @@ const BookmarkRow = ({
                     <span className="browserStartBookmarkDomain">{bookmarkHost(bookmark.url)}</span>
                 </span>
             </button>
-            <button
-                type="button"
-                className="browserStartBookmarkRemove"
-                aria-label={`Remove bookmark ${bookmark.title}`}
-                title="Remove bookmark"
-                onClick={() => onRemove(bookmark.id)}
-            >
-                <FontAwesomeIcon icon={faXmark} />
-            </button>
         </div>
     );
 };
@@ -89,12 +113,7 @@ const BrowserStartPage = ({ engine, bookmarks, onOpenUrl, onSearch, onRemoveBook
         <div className="browserStart">
             <div className="browserStartInner">
                 <header className="browserStartHeader">
-                    <span className="browserStartEyebrow">New tab</span>
                     <h1>Where do you want to go?</h1>
-                    <p>
-                        Search with {ENGINE_LABEL[engine]}, or bookmark pages to build categories here.
-                        Ctrl/Cmd-click a bookmark to open it in a new tab.
-                    </p>
                 </header>
 
                 <form

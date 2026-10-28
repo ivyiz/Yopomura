@@ -163,7 +163,9 @@ test("mega features smoke", async () => {
         await page.waitForSelector(".browserStart", { timeout: 15_000 });
         await expect(page.locator(".browserStartCard")).toHaveCount(0);
         await expect(page.locator(".browserStartEmpty")).toBeVisible();
-        await expect(page.locator(".browserToolTile")).toHaveCount(7);
+        await expect(page.locator(".browserStartEyebrow")).toHaveCount(0);
+        await expect(page.locator(".browserStartHeader p")).toHaveCount(0);
+        await expect(page.locator(".browserToolTile")).toHaveCount(6);
         console.log("BROWSER_START_OK");
 
         // Extensions button opens the built-in tools popover.
@@ -253,7 +255,8 @@ test("mega features smoke", async () => {
         await page.waitForSelector(".browserStart", { timeout: 15_000 });
         await expect(page.locator(".browserStartCategory", { hasText: "Research" })).toBeVisible();
         await expect(page.locator(".browserStartBookmarkTitle")).toContainText("Test Page Bookmark");
-        await page.locator('.browserStartBookmarkRemove[aria-label^="Remove bookmark"]').first().click();
+        await page.locator(".browserStartBookmark").first().click({ button: "right" });
+        await page.locator(".contextMenu li", { hasText: "Remove bookmark" }).click();
         await expect(page.locator(".browserStartCategory")).toHaveCount(0);
         await expect(page.locator(".browserStartEmpty")).toBeVisible();
         console.log("BROWSER_BOOKMARK_NEWTAB_OK");

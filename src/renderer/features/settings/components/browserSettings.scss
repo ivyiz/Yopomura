@@ -25,4 +25,67 @@
             border-color: var(--btn-color-focus);
         }
     }
+
+    input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--btn-color-focus);
+        cursor: pointer;
+    }
+}
+
+.browserSettingHint {
+    margin: -4px 0 10px;
+    color: var(--font-color-secondary);
+    font-size: 0.72rem;
+    line-height: 1.45;
+}
+
+.browserSettingSubhead {
+    margin: 14px 0 6px;
+    color: var(--font-color-secondary);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.browserExceptionList {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.browserExceptionRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 8px;
+    border: 1px solid var(--divider-color);
+    border-radius: 7px;
+    background: var(--text-input-bg);
+    font-size: 0.76rem;
+
+    > span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    button {
+        flex: 0 0 auto;
+        padding: 4px 8px;
+        border: 1px solid var(--divider-color);
+        border-radius: 6px;
+        background: var(--btn-color);
+        color: var(--font-color);
+        font-family: inherit;
+        font-size: 0.7rem;
+        cursor: pointer;
+
+        &:hover {
+            background: var(--btn-color-hover);
+        }
+    }
 }

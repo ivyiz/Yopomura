@@ -1,15 +1,8 @@
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
-import {
-    faBookmark,
-    faDownload,
-    faLink,
-    faMoon,
-    faShieldHalved,
-    faUpRightFromSquare,
-} from "@fortawesome/free-solid-svg-icons";
+import { faDownload, faLink, faShieldHalved, faUpRightFromSquare } from "@fortawesome/free-solid-svg-icons";
 
 /** Built-in browser tools that can be pinned to the toolbar. */
-export const BROWSER_TOOL_IDS = ["bookmark", "forceDark", "adblock", "download", "scan", "external"] as const;
+export const BROWSER_TOOL_IDS = ["adblock", "download", "scan", "external"] as const;
 
 export type BrowserToolId = (typeof BROWSER_TOOL_IDS)[number];
 
@@ -25,20 +18,6 @@ export type BrowserToolDefinition = {
 
 /** Toolbar tools in display order. */
 export const BROWSER_TOOLS: readonly BrowserToolDefinition[] = [
-    {
-        id: "bookmark",
-        label: "Bookmark this tab",
-        description: "Save this page so you can open it again later.",
-        kind: "action",
-        icon: faBookmark,
-    },
-    {
-        id: "forceDark",
-        label: "Dark mode on this site",
-        description: "Force the current site to use a dark theme.",
-        kind: "toggle",
-        icon: faMoon,
-    },
     {
         id: "adblock",
         label: "Ad blocking",

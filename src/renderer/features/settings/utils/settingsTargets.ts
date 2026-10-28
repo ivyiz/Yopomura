@@ -254,7 +254,18 @@ export const SETTINGS_TARGETS_STATIC: readonly SettingsTarget[] = [
         contentPath: "profileBackup",
     }),
     setting("setting:browser", "#settings-browser", "browser.title", {
-        keywords: ["search", "engine", "brave", "google", "duckduckgo", "browser"],
+        keywords: [
+            "search",
+            "engine",
+            "brave",
+            "google",
+            "duckduckgo",
+            "browser",
+            "dark mode",
+            "dark",
+            "theme",
+            "exceptions",
+        ],
         contentPath: "browser",
     }),
     setting("setting:browser-proxy", "#settings-networkProxy", "proxy.title", {

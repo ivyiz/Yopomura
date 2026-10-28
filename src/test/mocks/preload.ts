@@ -306,6 +306,9 @@ export const installPreloadMocks = (): void => {
     onInvoke("browser:addBookmark", () => null);
     onInvoke("browser:updateBookmark", () => null);
     onInvoke("browser:removeBookmark", () => false);
+    onInvoke("browser:getDisabledHosts", () => []);
+    onInvoke("browser:setForceDark", () => undefined);
+    onInvoke("browser:setHostForceDark", () => true);
     onInvoke("profileBackup:create", () => ({ ok: false, message: "not mocked" }));
     onInvoke("profileBackup:restore", () => ({ ok: false, message: "not mocked" }));
     onInvoke("network:getProxy", () => ({

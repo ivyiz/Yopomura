@@ -1,10 +1,11 @@
 /**
- * Brave-style ad blocking for the integrated browser.
+ * Ad blocking for the integrated browser.
  *
- * The primary implementation is the Ghostery Electron blocker configured with
- * EasyList + EasyPrivacy (`fromPrebuiltAdsAndTracking`). The parsed engine is
- * serialized to `<userData>/adblock-engine.bin` and restored on later launches
- * so filtering works offline and startup does not depend on a network fetch.
+ * The engine is Ghostery's Electron blocker, but the subscription set is
+ * aligned with Brave: uBlock Origin filters/privacy/unbreak/quick-fixes,
+ * EasyList, EasyPrivacy and Brave's own list. The parsed engine is serialized
+ * to `<userData>/adblock-engine-v2.bin` and restored on later launches so
+ * filtering works offline and startup does not depend on a network fetch.
  *
  * Toggling uses the blocker's own `enableBlockingInSession` /
  * `disableBlockingInSession` API (rather than rebuilding request handlers).
@@ -17,7 +18,7 @@
  *    `loadCosmeticFilters = false` (network filtering only).
  * 2. If the engine cannot be imported/created/attached at all, a
  *    `webRequest.onBeforeRequest` host blocker is installed using a curated
- *    list plus EasyList host rules cached in `<userData>/adblock-hosts.json`.
+ *    list plus Brave/uBO host rules cached in `<userData>/adblock-hosts-v2.json`.
  *
  * Main-frame navigation is never blocked. Failures are logged and never block
  * browsing.
@@ -39,13 +40,21 @@ import {
 
 const logger = createMainLogger("BrowserAdblock");
 
-const ENGINE_FILE_NAME = "adblock-engine.bin";
-const HOSTS_CACHE_FILE_NAME = "adblock-hosts.json";
+const ENGINE_FILE_NAME = "adblock-engine-v2.bin";
+const ENGINE_META_FILE_NAME = "adblock-engine-v2.meta.json";
+const HOSTS_CACHE_FILE_NAME = "adblock-hosts-v2.json";
 const HOSTS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const ENGINE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 45_000;
+const LEGACY_CACHE_FILE_NAMES = ["adblock-engine.bin", "adblock-hosts.json"] as const;
 const REMOTE_LIST_URLS = [
+    "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/filters.txt",
+    "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/privacy.txt",
+    "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/unbreak.txt",
+    "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/quick-fixes.txt",
     "https://easylist.to/easylist/easylist.txt",
     "https://easylist.to/easylist/easyprivacy.txt",
+    "https://raw.githubusercontent.com/brave/adblock-lists/master/brave-lists/brave-specific.txt",
 ] as const;
 
 type ElectronBlockerClass = typeof import("@ghostery/adblocker-electron").ElectronBlocker;
@@ -59,6 +68,20 @@ interface HostsCache {
     savedAt: number;
     hosts: string[];
 }
+
+/** Which subscription set produced the cached engine. */
+type EngineSource = "brave" | "prebuilt";
+
+interface EngineCacheMeta {
+    source: EngineSource;
+    savedAt: number;
+}
+
+type CachedEngine = {
+    engine: ElectronBlockerInstance;
+    source: EngineSource;
+    savedAt: number;
+};
 
 let enabled = true;
 let ready = false;
@@ -92,15 +115,46 @@ const adblockFetch = async (url: string): Promise<Response> => {
     }
 };
 
-const loadCachedEngine = (ElectronBlocker: ElectronBlockerClass): ElectronBlockerInstance | null => {
+const readEngineMeta = (): EngineCacheMeta | null => {
+    const metaPath = userDataPath(ENGINE_META_FILE_NAME);
+    if (!metaPath) return null;
+
+    try {
+        const parsed = JSON.parse(fs.readFileSync(metaPath, "utf8")) as EngineCacheMeta;
+        if (parsed?.source === "prebuilt" || parsed?.source === "brave") return parsed;
+    } catch {
+        // Missing or invalid metadata is handled by the caller.
+    }
+    return null;
+};
+
+/** Removes the pre-v2 engine/hosts caches once, so they cannot be reused. */
+const removeLegacyCaches = (): void => {
+    for (const fileName of LEGACY_CACHE_FILE_NAMES) {
+        const cachePath = userDataPath(fileName);
+        if (!cachePath) continue;
+        try {
+            fs.rmSync(cachePath, { force: true });
+        } catch (error) {
+            logger.debug("could not remove legacy adblock cache", cachePath, error);
+        }
+    }
+};
+
+const loadCachedEngine = (ElectronBlocker: ElectronBlockerClass): CachedEngine | null => {
     const enginePath = userDataPath(ENGINE_FILE_NAME);
     if (!enginePath) return null;
 
     try {
         const bytes = fs.readFileSync(enginePath);
         const restored = ElectronBlocker.deserialize(new Uint8Array(bytes));
-        logger.info("loaded cached adblock engine", enginePath);
-        return restored;
+        // A cache without metadata predates the source marker and was written
+        // from the full list set; treat it as Brave-aligned but stale so the
+        // next online launch refreshes it.
+        const meta = readEngineMeta();
+        const source = meta?.source ?? "brave";
+        logger.info("loaded cached adblock engine", enginePath, source);
+        return { engine: restored, source, savedAt: meta?.savedAt ?? 0 };
     } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
             logger.warn("could not restore cached adblock engine; fetching a fresh one", error);
@@ -109,13 +163,16 @@ const loadCachedEngine = (ElectronBlocker: ElectronBlockerClass): ElectronBlocke
     }
 };
 
-const cacheEngine = (engine: ElectronBlockerInstance): void => {
+const cacheEngine = (engine: ElectronBlockerInstance, source: EngineSource): void => {
     const enginePath = userDataPath(ENGINE_FILE_NAME);
-    if (!enginePath) return;
+    const metaPath = userDataPath(ENGINE_META_FILE_NAME);
+    if (!enginePath || !metaPath) return;
 
     try {
         fs.mkdirSync(path.dirname(enginePath), { recursive: true });
         fs.writeFileSync(enginePath, engine.serialize());
+        const meta: EngineCacheMeta = { source, savedAt: Date.now() };
+        fs.writeFileSync(metaPath, JSON.stringify(meta));
     } catch (error) {
         logger.warn("could not cache adblock engine", error);
     }
@@ -130,13 +187,29 @@ const loadBlocker = async (): Promise<ElectronBlockerInstance | null> => {
         return null;
     }
 
+    removeLegacyCaches();
     const cached = loadCachedEngine(ElectronBlocker);
-    if (cached) return cached;
+    if (cached?.source === "brave" && Date.now() - cached.savedAt < ENGINE_CACHE_TTL_MS) {
+        return cached.engine;
+    }
+
+    try {
+        const fetched = await ElectronBlocker.fromLists(adblockFetch, [...REMOTE_LIST_URLS]);
+        cacheEngine(fetched, "brave");
+        logger.info("adblock engine ready (Brave/uBO list set)");
+        return fetched;
+    } catch (error) {
+        logger.warn("could not download Brave/uBO adblock lists; trying Ghostery prebuilt", error);
+    }
+
+    // Keep a usable engine so the next online launch can retry the Brave list
+    // while filtering offline in the meantime.
+    if (cached) return cached.engine;
 
     try {
         const fetched = await ElectronBlocker.fromPrebuiltAdsAndTracking(adblockFetch);
-        cacheEngine(fetched);
-        logger.info("adblock engine ready (EasyList + EasyPrivacy)");
+        cacheEngine(fetched, "prebuilt");
+        logger.info("adblock engine ready (Ghostery prebuilt fallback)");
         return fetched;
     } catch (error) {
         logger.warn("could not download adblock lists; using host fallback", error);

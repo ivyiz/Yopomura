@@ -1,8 +1,8 @@
 /**
  * Host/URL matching for the ad-blocking fallback and unit tests.
  *
- * The primary path uses `@ghostery/adblocker-electron` (EasyList +
- * EasyPrivacy). If that engine cannot load or attach to an Electron session,
+ * The primary path uses `@ghostery/adblocker-electron` with a Brave/uBO list
+ * set. If that engine cannot load or attach to an Electron session,
  * `adblock.ts` registers a `webRequest.onBeforeRequest` handler driven by the
  * pure helpers in this module. Nothing here imports Electron so it stays unit
  * testable.

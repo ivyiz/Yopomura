@@ -29,8 +29,8 @@ describe("browser toolbar pins", () => {
         expect(normalizePinnedToolIds([])).toEqual([]);
     });
 
-    it("filters unknown ids, removes duplicates and restores toolbar order", () => {
-        expect(normalizePinnedToolIds(["scan", "nope", "bookmark", "scan"])).toEqual(["bookmark", "scan"]);
+    it("filters unknown and fixed ids, removes duplicates and restores toolbar order", () => {
+        expect(normalizePinnedToolIds(["scan", "nope", "bookmark", "forceDark", "scan"])).toEqual(["scan"]);
         expect(normalizePinnedToolIds("scan")).toEqual([...DEFAULT_PINNED_TOOL_IDS]);
     });
 
@@ -46,7 +46,7 @@ describe("browser toolbar pins", () => {
     });
 
     it("lists every id in the definition order", () => {
-        expect([...BROWSER_TOOL_IDS]).toHaveLength(6);
+        expect([...BROWSER_TOOL_IDS]).toHaveLength(4);
         expect(DEFAULT_PINNED_TOOL_IDS).toEqual([...BROWSER_TOOL_IDS]);
     });
 });

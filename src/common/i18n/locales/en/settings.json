@@ -180,8 +180,13 @@
     },
     "browser": {
         "title": "Browser",
-        "desc": "Choose the search engine used by the address bar and the New Tab page. You can also change it from the Extensions popover.",
-        "searchEngine": "Search engine"
+        "desc": "Choose the search engine and dark-mode behavior for the integrated browser. You can also change the search engine from the Extensions popover.",
+        "searchEngine": "Search engine",
+        "forceDark": "Force dark mode",
+        "forceDarkDesc": "Apply a forced dark theme to pages that support it. Disable it for individual sites from the browser page context menu.",
+        "exceptions": "Dark mode disabled on these sites",
+        "noExceptions": "No site exceptions.",
+        "enableSite": "Enable"
     },
     "proxy": {
         "title": "Browser proxy",

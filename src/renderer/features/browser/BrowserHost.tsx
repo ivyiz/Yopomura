@@ -14,13 +14,11 @@ import {
     faDownload,
     faGlobe,
     faLink,
-    faMoon,
     faPlus,
     faPuzzlePiece,
     faRotate,
     faShield,
     faShieldHalved,
-    faSun,
     faUpRightFromSquare,
     faXmark,
 } from "@fortawesome/free-solid-svg-icons";
@@ -38,6 +36,7 @@ import {
     readLastBookmarkCategory,
     saveLastBookmarkCategory,
 } from "./browserBookmarks";
+import { DISABLED_HOSTS_EVENT, publishDisabledHosts, readDisabledHosts, readForceDark } from "./browserDarkMode";
 import { applyBrowserEngine, BROWSER_ENGINE_EVENT, ENGINE_LABEL, readBrowserEngine } from "./browserEngine";
 import type { BrowserMode, ToggleBrowserDetail } from "./browserEvents";
 import {
@@ -88,19 +87,6 @@ const samePageUrl = (left: string, right: string): boolean => {
 
 const isBookmarkableUrl = (url: string | undefined): boolean => Boolean(url && /^https?:\/\//i.test(url));
 
-const readSavedDisabledHosts = (): string[] => {
-    try {
-        const saved = JSON.parse(
-            window.localStorage.getItem("yokomura-browser-disabled-hosts") ?? "[]",
-        ) as unknown;
-        return Array.isArray(saved)
-            ? saved.filter((host): host is string => typeof host === "string" && Boolean(host))
-            : [];
-    } catch {
-        return [];
-    }
-};
-
 /** Ad blocking defaults to on; localStorage stores "off" when disabled. */
 const readSavedAdblock = (): boolean => {
     return window.localStorage.getItem("yokomura-browser-adblock") !== "off";
@@ -126,7 +112,7 @@ const BrowserHost = () => {
     const [engine, setEngine] = useState<BrowserSearchEngine>(readBrowserEngine);
     const [sideWidth, setSideWidth] = useState(460);
     const [snapshot, setSnapshot] = useState("");
-    const [disabledHosts, setDisabledHosts] = useState<string[]>(readSavedDisabledHosts);
+    const [disabledHosts, setDisabledHosts] = useState<string[]>(readDisabledHosts);
     const [menu, setMenu] = useState<ContextMenuState | null>(null);
     const [downloads, setDownloads] = useState<BrowserDownload[]>([]);
     const [error, setError] = useState("");
@@ -264,6 +250,15 @@ const BrowserHost = () => {
     }, []);
 
     useEffect(() => {
+        const onHostsChange = (event: Event) => {
+            const detail = (event as CustomEvent<{ hosts?: string[] }>).detail;
+            if (Array.isArray(detail?.hosts)) setDisabledHosts(detail.hosts);
+        };
+        window.addEventListener(DISABLED_HOSTS_EVENT, onHostsChange);
+        return () => window.removeEventListener(DISABLED_HOSTS_EVENT, onHostsChange);
+    }, []);
+
+    useEffect(() => {
         const onToggle = (event: Event) => {
             const detail = (event as CustomEvent<ToggleBrowserDetail>).detail;
             if (!detail?.mode) return;
@@ -282,7 +277,8 @@ const BrowserHost = () => {
             const savedAdblock = readSavedAdblock();
             setAdblockEnabled(savedAdblock);
             void window.electron.invoke("browser:setAdblock", { enabled: savedAdblock });
-            for (const host of readSavedDisabledHosts()) {
+            void window.electron.invoke("browser:setForceDark", { enabled: readForceDark() });
+            for (const host of readDisabledHosts()) {
                 void window.electron.invoke("browser:setHostForceDark", {
                     hostOrUrl: host,
                     enabled: false,
@@ -645,7 +641,7 @@ const BrowserHost = () => {
         if (!host) return;
         const nextHosts = currentDisabled ? disabledHosts.filter((row) => row !== host) : [...disabledHosts, host];
         setDisabledHosts(nextHosts);
-        window.localStorage.setItem("yokomura-browser-disabled-hosts", JSON.stringify(nextHosts));
+        publishDisabledHosts(nextHosts);
         void window.electron.invoke("browser:setHostForceDark", {
             hostOrUrl: host,
             enabled: currentDisabled,
@@ -750,36 +746,6 @@ const BrowserHost = () => {
 
     const toolEntries: BrowserToolEntry[] = BROWSER_TOOLS.map((definition) => {
         const pinned = pinnedTools.includes(definition.id);
-        if (definition.id === "bookmark") {
-            return {
-                ...definition,
-                label: activeBookmark ? "Edit bookmark" : definition.label,
-                description: activeBookmark ? "Rename or remove this saved page." : definition.description,
-                pinned,
-                active: Boolean(activeBookmark),
-                disabled: !bookmarkable,
-                status: activeBookmark ? "Saved" : undefined,
-                onAction: () => {
-                    setExtensionsOpen(false);
-                    void openBookmarkBubble();
-                },
-            };
-        }
-        if (definition.id === "forceDark") {
-            return {
-                ...definition,
-                pinned,
-                active: darkAvailable && !currentDisabled,
-                disabled: !darkAvailable,
-                status: darkAvailable ? (currentDisabled ? "Off" : "On") : undefined,
-                description: !darkAvailable
-                    ? "Open a page first."
-                    : currentDisabled
-                      ? "Disabled for this site."
-                      : "Forced dark is on.",
-                onAction: toggleDarkForSite,
-            };
-        }
         if (definition.id === "adblock") {
             return {
                 ...definition,
@@ -826,25 +792,9 @@ const BrowserHost = () => {
         };
     });
 
-    const pinnedRightTools = pinnedTools.filter((id) => id !== "bookmark");
+    const pinnedRightTools = pinnedTools;
 
     const renderToolTile = (id: BrowserToolId) => {
-        if (id === "forceDark") {
-            return (
-                <button
-                    type="button"
-                    className={`browserToolTile ${darkAvailable && !currentDisabled ? "is-on" : ""}`}
-                    data-tool="forceDark"
-                    title={currentDisabled ? "Enable dark for this site" : "Disable dark for this site"}
-                    aria-label="Toggle dark mode for this site"
-                    aria-pressed={darkAvailable && !currentDisabled}
-                    disabled={!darkAvailable}
-                    onClick={toggleDarkForSite}
-                >
-                    <FontAwesomeIcon icon={currentDisabled ? faSun : faMoon} />
-                </button>
-            );
-        }
         if (id === "adblock") {
             return (
                 <button
@@ -979,7 +929,12 @@ const BrowserHost = () => {
                     >
                         <FontAwesomeIcon icon={faPlus} />
                     </button>
-                    <button type="button" className="browserIconBtn" title="Close browser" onClick={close}>
+                    <button
+                        type="button"
+                        className="browserIconBtn browserCloseBrowserBtn"
+                        title="Close browser"
+                        onClick={close}
+                    >
                         <FontAwesomeIcon icon={faXmark} />
                     </button>
                 </div>
@@ -1018,20 +973,18 @@ const BrowserHost = () => {
                     >
                         <FontAwesomeIcon icon={state.loading ? faXmark : faRotate} />
                     </button>
-                    {pinnedTools.includes("bookmark") ? (
-                        <button
-                            type="button"
-                            className={`browserToolTile browserBookmarkBtn ${activeBookmark ? "is-on" : ""}`}
-                            data-tool="bookmark"
-                            title={activeBookmark ? "Edit bookmark" : "Bookmark this tab (Ctrl+D)"}
-                            aria-label={activeBookmark ? "Edit bookmark" : "Bookmark this tab"}
-                            aria-pressed={Boolean(activeBookmark)}
-                            disabled={!bookmarkable}
-                            onClick={() => void openBookmarkBubble()}
-                        >
-                            <FontAwesomeIcon icon={activeBookmark ? faBookmarkSolid : faBookmarkRegular} />
-                        </button>
-                    ) : null}
+                    <button
+                        type="button"
+                        className={`browserToolTile browserBookmarkBtn ${activeBookmark ? "is-on" : ""}`}
+                        data-tool="bookmark"
+                        title={activeBookmark ? "Edit bookmark" : "Bookmark this tab (Ctrl+D)"}
+                        aria-label={activeBookmark ? "Edit bookmark" : "Bookmark this tab"}
+                        aria-pressed={Boolean(activeBookmark)}
+                        disabled={!bookmarkable}
+                        onClick={() => void openBookmarkBubble()}
+                    >
+                        <FontAwesomeIcon icon={activeBookmark ? faBookmarkSolid : faBookmarkRegular} />
+                    </button>
                     <input
                         className="browserAddress"
                         value={address}
@@ -1266,6 +1219,19 @@ const BrowserHost = () => {
                                 <button type="button" onClick={() => void contextAction("download")}>
                                     Add page to Downloader
                                 </button>
+                                {darkAvailable ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            toggleDarkForSite();
+                                            closeMenu();
+                                        }}
+                                    >
+                                        {currentDisabled
+                                            ? "Enable dark for this site"
+                                            : "Disable dark for this site"}
+                                    </button>
+                                ) : null}
                                 <button type="button" onClick={() => void contextAction("copy")}>
                                     Copy page URL
                                 </button>
