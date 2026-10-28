@@ -1,3 +1,13 @@
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
+import {
+    faBookmark,
+    faDownload,
+    faLink,
+    faMoon,
+    faShieldHalved,
+    faUpRightFromSquare,
+} from "@fortawesome/free-solid-svg-icons";
+
 /** Built-in browser tools that can be pinned to the toolbar. */
 export const BROWSER_TOOL_IDS = ["bookmark", "forceDark", "adblock", "download", "scan", "external"] as const;
 
@@ -10,6 +20,7 @@ export type BrowserToolDefinition = {
     label: string;
     description: string;
     kind: BrowserToolKind;
+    icon: IconDefinition;
 };
 
 /** Toolbar tools in display order. */
@@ -19,36 +30,42 @@ export const BROWSER_TOOLS: readonly BrowserToolDefinition[] = [
         label: "Bookmark this tab",
         description: "Save this page so you can open it again later.",
         kind: "action",
+        icon: faBookmark,
     },
     {
         id: "forceDark",
         label: "Dark mode on this site",
         description: "Force the current site to use a dark theme.",
         kind: "toggle",
+        icon: faMoon,
     },
     {
         id: "adblock",
         label: "Ad blocking",
         description: "Hide ads and trackers on every page.",
         kind: "toggle",
+        icon: faShieldHalved,
     },
     {
         id: "download",
         label: "Add page to Downloader",
         description: "Queue this page with your default folder.",
         kind: "action",
+        icon: faDownload,
     },
     {
         id: "scan",
         label: "Scan links",
         description: "Find downloadable links on this page.",
         kind: "action",
+        icon: faLink,
     },
     {
         id: "external",
         label: "Open in default browser",
         description: "Open the current page outside Yokomura.",
         kind: "action",
+        icon: faUpRightFromSquare,
     },
 ];
 

@@ -297,18 +297,6 @@
     }
 }
 
-.browserEngine {
-    height: 32px;
-    max-width: 104px;
-    border-radius: 8px;
-    border: 1px solid var(--divider-color);
-    background: var(--text-input-bg);
-    color: var(--font-color);
-    font-size: 0.72rem;
-    padding: 0 4px;
-    outline: none;
-}
-
 .browserError {
     padding: 4px 10px;
     color: #ff8a9a;
@@ -321,6 +309,16 @@
     min-height: 0;
     position: relative;
     background: var(--body-bg-color);
+}
+
+.browserSnapshot {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    pointer-events: none;
+    user-select: none;
 }
 
 .browserContentFallback {
@@ -565,12 +563,6 @@
     display: flex;
     align-items: center;
     gap: 8px;
-}
-
-@container (max-width: 620px) {
-    .browserEngine {
-        display: none;
-    }
 }
 
 @container (max-width: 500px) {

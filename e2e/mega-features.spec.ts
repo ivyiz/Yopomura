@@ -200,6 +200,23 @@ test("mega features smoke", async () => {
             .toContain("Test Browser Page");
         console.log("BROWSER_TITLE", await page.locator(".browserTab.is-active").innerText());
 
+        // Search engine lives in Settings/Extensions, not the toolbar. The
+        // extensions popover must keep the page visible as a snapshot.
+        await expect(page.locator(".browserEngine")).toHaveCount(0);
+        await page.locator(".browserExtensionsBtn").click();
+        await expect(page.locator(".browserExtensions")).toBeVisible();
+        await expect(page.locator(".browserSnapshot")).toBeVisible();
+        await expect(page.locator(".browserSnapshot")).toHaveAttribute("src", /^data:image\/jpeg;base64,/);
+        await page.locator(".browserExtensionsSelect").selectOption("duckduckgo");
+        await expect(page.locator(".browserAddress")).toHaveAttribute(
+            "placeholder",
+            "Search DuckDuckGo or enter URL",
+        );
+        await page.keyboard.press("Escape");
+        await expect(page.locator(".browserExtensions")).toHaveCount(0);
+        await expect(page.locator(".browserSnapshot")).toHaveCount(0);
+        console.log("BROWSER_OVERLAY_SNAPSHOT_OK");
+
         // Bookmark this tab, rename it in the Brave-style bubble, then remove it from New Tab.
         const bookmarkTile = page.locator('.browserToolTile[data-tool="bookmark"]');
         await expect(bookmarkTile).toHaveAttribute("aria-pressed", "false");

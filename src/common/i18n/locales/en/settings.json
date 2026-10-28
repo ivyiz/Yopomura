@@ -178,6 +178,11 @@
         "refreshing": "Refreshing…",
         "close": "Close"
     },
+    "browser": {
+        "title": "Browser",
+        "desc": "Choose the search engine used by the address bar and the New Tab page. You can also change it from the Extensions popover.",
+        "searchEngine": "Search engine"
+    },
     "proxy": {
         "title": "Browser proxy",
         "desc": "Route only the integrated browser through an HTTP, HTTPS or SOCKS5 proxy. Other apps and the reader stay on your normal connection."

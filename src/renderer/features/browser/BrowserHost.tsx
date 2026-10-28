@@ -32,6 +32,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import BrowserBookmarkBubble from "./BrowserBookmarkBubble";
 import BrowserExtensionsMenu, { type BrowserToolEntry } from "./BrowserExtensionsMenu";
 import BrowserStartPage from "./BrowserStartPage";
+import { applyBrowserEngine, BROWSER_ENGINE_EVENT, ENGINE_LABEL, readBrowserEngine } from "./browserEngine";
 import type { BrowserMode, ToggleBrowserDetail } from "./browserEvents";
 import {
     BROWSER_TOOLS,
@@ -81,11 +82,6 @@ const samePageUrl = (left: string, right: string): boolean => {
 
 const isBookmarkableUrl = (url: string | undefined): boolean => Boolean(url && /^https?:\/\//i.test(url));
 
-const readSavedEngine = (): BrowserSearchEngine => {
-    const saved = window.localStorage.getItem("yokomura-browser-engine");
-    return saved === "google" || saved === "duckduckgo" ? saved : "brave";
-};
-
 const readSavedDisabledHosts = (): string[] => {
     try {
         const saved = JSON.parse(
@@ -122,8 +118,9 @@ const BrowserHost = () => {
     const [state, setState] = useState<BrowserState>(EMPTY_STATE);
     const newTabPage = !state.activeId || !state.url || state.url === "about:blank";
     const [address, setAddress] = useState("");
-    const [engine, setEngine] = useState<BrowserSearchEngine>(readSavedEngine);
+    const [engine, setEngine] = useState<BrowserSearchEngine>(readBrowserEngine);
     const [sideWidth, setSideWidth] = useState(460);
+    const [snapshot, setSnapshot] = useState("");
     const [disabledHosts, setDisabledHosts] = useState<string[]>(readSavedDisabledHosts);
     const [menu, setMenu] = useState<ContextMenuState | null>(null);
     const [downloads, setDownloads] = useState<BrowserDownload[]>([]);
@@ -156,9 +153,23 @@ const BrowserHost = () => {
     );
     const bookmarkable = isBookmarkableUrl(activeTab?.url);
 
+    /** Freezes the page behind React menus; the native view is hidden while they are open. */
+    const capturePageSnapshot = useCallback(async (): Promise<string> => {
+        if (newTabPage) return "";
+        if (snapshot) return snapshot;
+        try {
+            const image = await window.electron.invoke("browser:capturePage", {});
+            if (image) setSnapshot(image);
+            return image;
+        } catch {
+            return "";
+        }
+    }, [newTabPage, snapshot]);
+
     const openBookmarkBubble = useCallback(async () => {
         const tab = activeTab;
         if (!tab || !isBookmarkableUrl(tab.url)) return;
+        await capturePageSnapshot();
         setMenu(null);
         setExtensionsOpen(false);
         setScanOpen(false);
@@ -181,7 +192,7 @@ const BrowserHost = () => {
         } catch (failure) {
             setError(failure instanceof Error ? failure.message : "Could not save this bookmark");
         }
-    }, [activeBookmark, activeTab]);
+    }, [activeBookmark, activeTab, capturePageSnapshot]);
 
     const filteredScanLinks = useMemo(() => {
         const query = scanFilter.trim().toLowerCase();
@@ -229,6 +240,15 @@ const BrowserHost = () => {
     }, [mode]);
 
     useEffect(() => {
+        const onEngineChange = (event: Event) => {
+            const detail = (event as CustomEvent<{ engine?: BrowserSearchEngine }>).detail;
+            if (detail?.engine) setEngine(detail.engine);
+        };
+        window.addEventListener(BROWSER_ENGINE_EVENT, onEngineChange);
+        return () => window.removeEventListener(BROWSER_ENGINE_EVENT, onEngineChange);
+    }, []);
+
+    useEffect(() => {
         const onToggle = (event: Event) => {
             const detail = (event as CustomEvent<ToggleBrowserDetail>).detail;
             if (!detail?.mode) return;
@@ -241,7 +261,7 @@ const BrowserHost = () => {
             setBookmarkBubble(null);
             if (!next) return;
 
-            const saved = readSavedEngine();
+            const saved = readBrowserEngine();
             setEngine(saved);
             void window.electron.invoke("browser:setSearchEngine", { engine: saved });
             const savedAdblock = readSavedAdblock();
@@ -267,11 +287,14 @@ const BrowserHost = () => {
         const offMenu = window.electron.on("browser:contextMenu", (request) => {
             const bounds = contentBounds();
             if (!bounds) return;
-            setMenu({
-                ...request,
-                menuX: bounds.x + request.x,
-                menuY: bounds.y + request.y,
-            });
+            void (async () => {
+                await capturePageSnapshot();
+                setMenu({
+                    ...request,
+                    menuX: bounds.x + request.x,
+                    menuY: bounds.y + request.y,
+                });
+            })();
         });
         const offDownload = window.electron.on("browser:download", (download) => {
             setDownloads((prev) => {
@@ -288,7 +311,7 @@ const BrowserHost = () => {
             offDownload();
             offBookmarks();
         };
-    }, [contentBounds]);
+    }, [contentBounds, capturePageSnapshot]);
 
     useEffect(() => {
         if (!mode) return;
@@ -307,6 +330,7 @@ const BrowserHost = () => {
     // biome-ignore lint/correctness/useExhaustiveDependencies: close the bubble whenever the page changes
     useEffect(() => {
         setBookmarkBubble(null);
+        setSnapshot("");
     }, [state.activeId, state.url]);
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: the address bar must refresh on tab switch even when two tabs share a URL
@@ -373,6 +397,7 @@ const BrowserHost = () => {
         setMode(null);
         setExtensionsOpen(false);
         setBookmarkBubble(null);
+        setSnapshot("");
     }, [readerActive, mode]);
 
     useEffect(() => {
@@ -386,11 +411,13 @@ const BrowserHost = () => {
             if (event.key !== "Escape") return;
             if (bookmarkBubble) {
                 setBookmarkBubble(null);
+                setSnapshot("");
                 requestAnimationFrame(syncBounds);
                 return;
             }
             if (extensionsOpen) {
                 setExtensionsOpen(false);
+                setSnapshot("");
                 requestAnimationFrame(syncBounds);
                 return;
             }
@@ -398,6 +425,7 @@ const BrowserHost = () => {
                 setScanOpen(false);
                 setScanError("");
                 setScanLoading(false);
+                setSnapshot("");
                 requestAnimationFrame(syncBounds);
                 return;
             }
@@ -406,6 +434,9 @@ const BrowserHost = () => {
             modeRef.current = null;
             setMode(null);
             setMenu(null);
+            setExtensionsOpen(false);
+            setBookmarkBubble(null);
+            setSnapshot("");
         };
         window.addEventListener("keydown", onKeyDown);
         return () => window.removeEventListener("keydown", onKeyDown);
@@ -427,6 +458,7 @@ const BrowserHost = () => {
         setScanOpen(false);
         setExtensionsOpen(false);
         setBookmarkBubble(null);
+        setSnapshot("");
     };
 
     const navigate = async () => {
@@ -481,20 +513,36 @@ const BrowserHost = () => {
         setScanOpen(false);
         setScanError("");
         setScanLoading(false);
+        setSnapshot("");
         requestAnimationFrame(syncBounds);
     }, [syncBounds]);
 
     const closeExtensions = useCallback(() => {
         setExtensionsOpen(false);
+        setSnapshot("");
         requestAnimationFrame(syncBounds);
     }, [syncBounds]);
 
     const closeBookmarkBubble = useCallback(() => {
         setBookmarkBubble(null);
+        setSnapshot("");
         requestAnimationFrame(syncBounds);
     }, [syncBounds]);
 
+    const toggleExtensions = async () => {
+        if (extensionsOpen) {
+            closeExtensions();
+            return;
+        }
+        await capturePageSnapshot();
+        setMenu(null);
+        setScanOpen(false);
+        setBookmarkBubble(null);
+        setExtensionsOpen(true);
+    };
+
     const scanPageLinks = async () => {
+        await capturePageSnapshot();
         setScanOpen(true);
         setMenu(null);
         setScanLinks([]);
@@ -582,9 +630,8 @@ const BrowserHost = () => {
     };
 
     const changeEngine = (next: BrowserSearchEngine) => {
+        applyBrowserEngine(next);
         setEngine(next);
-        window.localStorage.setItem("yokomura-browser-engine", next);
-        void window.electron.invoke("browser:setSearchEngine", { engine: next });
     };
 
     const toggleDarkForSite = () => {
@@ -621,6 +668,7 @@ const BrowserHost = () => {
                 );
             }
             setBookmarkBubble(null);
+            setSnapshot("");
         } catch (failure) {
             setError(failure instanceof Error ? failure.message : "Could not rename this bookmark");
         }
@@ -633,6 +681,7 @@ const BrowserHost = () => {
                 setBookmarks((previous) => previous.filter((bookmark) => bookmark.id !== id));
             }
             setBookmarkBubble((previous) => (previous?.bookmark.id === id ? null : previous));
+            setSnapshot("");
         } catch (failure) {
             setError(failure instanceof Error ? failure.message : "Could not remove this bookmark");
         }
@@ -655,6 +704,7 @@ const BrowserHost = () => {
 
     const closeMenu = () => {
         setMenu(null);
+        setSnapshot("");
         requestAnimationFrame(syncBounds);
     };
 
@@ -685,6 +735,7 @@ const BrowserHost = () => {
                 pinned,
                 active: Boolean(activeBookmark),
                 disabled: !bookmarkable,
+                status: activeBookmark ? "Saved" : undefined,
                 onAction: () => {
                     setExtensionsOpen(false);
                     void openBookmarkBubble();
@@ -697,6 +748,7 @@ const BrowserHost = () => {
                 pinned,
                 active: darkAvailable && !currentDisabled,
                 disabled: !darkAvailable,
+                status: darkAvailable ? (currentDisabled ? "Off" : "On") : undefined,
                 description: !darkAvailable
                     ? "Open a page first."
                     : currentDisabled
@@ -711,6 +763,7 @@ const BrowserHost = () => {
                 pinned,
                 active: adblockEnabled,
                 disabled: false,
+                status: adblockEnabled ? "On" : "Off",
                 onAction: toggleAdblock,
             };
         }
@@ -733,7 +786,7 @@ const BrowserHost = () => {
                 active: false,
                 disabled: !canUsePage,
                 onAction: () => {
-                    closeExtensions();
+                    setExtensionsOpen(false);
                     void scanPageLinks();
                 },
             };
@@ -976,19 +1029,9 @@ const BrowserHost = () => {
                                 event.currentTarget.blur();
                             }
                         }}
-                        placeholder="Search Brave or enter URL"
+                        placeholder={`Search ${ENGINE_LABEL[engine]} or enter URL`}
                         spellCheck={false}
                     />
-                    <select
-                        className="browserEngine"
-                        value={engine}
-                        onChange={(event) => changeEngine(event.currentTarget.value as BrowserSearchEngine)}
-                        title="Search engine"
-                    >
-                        <option value="brave">Brave</option>
-                        <option value="google">Google</option>
-                        <option value="duckduckgo">DuckDuckGo</option>
-                    </select>
                     {pinnedRightTools.length > 0 ? <div className="browserToolbarDivider" aria-hidden /> : null}
                     {pinnedRightTools.map((id) => (
                         <Fragment key={id}>{renderToolTile(id)}</Fragment>
@@ -1001,12 +1044,7 @@ const BrowserHost = () => {
                         aria-label="Extensions"
                         aria-haspopup="dialog"
                         aria-expanded={extensionsOpen}
-                        onClick={() => {
-                            setMenu(null);
-                            setScanOpen(false);
-                            setBookmarkBubble(null);
-                            setExtensionsOpen((previous) => !previous);
-                        }}
+                        onClick={() => void toggleExtensions()}
                     >
                         <FontAwesomeIcon icon={faPuzzlePiece} />
                     </button>
@@ -1041,6 +1079,8 @@ const BrowserHost = () => {
                             onSearch={searchFromStart}
                             onRemoveBookmark={(id) => void removeBookmarkById(id)}
                         />
+                    ) : snapshot ? (
+                        <img className="browserSnapshot" src={snapshot} alt="" draggable={false} />
                     ) : (
                         <div className="browserContentFallback">
                             <FontAwesomeIcon icon={faGlobe} />

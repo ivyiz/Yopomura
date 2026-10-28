@@ -1,0 +1,28 @@
+.browserSettingRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0;
+
+    > span {
+        color: var(--font-color-secondary);
+        font-size: 0.78rem;
+    }
+
+    select {
+        height: 30px;
+        min-width: 130px;
+        padding: 0 8px;
+        border: 1px solid var(--divider-color);
+        border-radius: 7px;
+        background: var(--text-input-bg);
+        color: var(--font-color);
+        font-family: inherit;
+        font-size: 0.78rem;
+        outline: none;
+
+        &:focus {
+            border-color: var(--btn-color-focus);
+        }
+    }
+}

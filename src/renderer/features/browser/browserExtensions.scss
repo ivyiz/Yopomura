@@ -10,18 +10,18 @@
     top: calc(100% + 6px);
     right: 8px;
     z-index: 30;
-    width: min(336px, calc(100% - 16px));
-    max-height: min(600px, calc(100vh - 140px));
+    width: min(324px, calc(100% - 16px));
+    max-height: min(560px, calc(100vh - 140px));
     display: flex;
     flex-direction: column;
-    padding: 8px;
+    padding: 6px;
     border: 1px solid var(--divider-color);
     border-radius: 12px;
     background: var(--body-bg-color);
     box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
     color: var(--font-color);
     font-family: inherit;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     overflow: hidden;
 }
 
@@ -31,7 +31,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 2px 4px 8px;
+    padding: 2px 4px 6px;
 }
 
 .browserExtensionsTitle {
@@ -69,12 +69,33 @@
     }
 }
 
+.browserExtensionsSearchRow {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0 2px 4px;
+    padding: 5px 6px 7px;
+    border: 0;
+    border-bottom: 1px solid var(--divider-color);
+    border-radius: 0;
+    background: transparent;
+    color: var(--font-color-secondary);
+    font-family: inherit;
+    font-size: 0.68rem;
+    cursor: default;
+
+    &:hover {
+        background: transparent;
+    }
+}
+
 .browserExtensionsList {
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-track-color);
@@ -97,44 +118,58 @@
     }
 }
 
-.browserExtensionsSelectRow,
-.browserExtensionsProxy {
+.browserExtensionsSection {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+
+    & + & {
+        margin-top: 4px;
+    }
+}
+
+.browserExtensionsSectionTitle {
     display: flex;
     align-items: center;
-    gap: 10px;
-    width: 100%;
-    min-width: 0;
-    padding: 8px;
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--font-color);
-    font-family: inherit;
-    font-size: 0.8rem;
-    text-align: left;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px 3px;
+    color: var(--font-color-secondary);
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+
+    span:last-child {
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0;
+        opacity: 0.8;
+    }
 }
 
 .browserExtensionsRow {
     display: flex;
     align-items: stretch;
-    gap: 2px;
+    gap: 1px;
     width: 100%;
     min-width: 0;
+    border-radius: 7px;
 }
 
 .browserExtensionsRowMain {
     flex: 1 1 auto;
     min-width: 0;
+    min-height: 32px;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px;
+    gap: 8px;
+    padding: 4px 5px;
     border: 0;
-    border-radius: 8px;
+    border-radius: 7px;
     background: transparent;
     color: var(--font-color);
     font-family: inherit;
-    font-size: 0.8rem;
+    font-size: 0.76rem;
     text-align: left;
     cursor: pointer;
 
@@ -143,7 +178,7 @@
     }
 
     &:disabled {
-        opacity: 0.42;
+        opacity: 0.4;
         cursor: default;
     }
 
@@ -153,26 +188,70 @@
     }
 }
 
+.browserExtensionsToolIcon {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--divider-color);
+    border-radius: 6px;
+    background: var(--text-input-bg);
+    color: var(--font-color-secondary);
+    font-size: 0.62rem;
+
+    &.is-on {
+        border-color: color-mix(in srgb, var(--btn-color-focus) 42%, transparent);
+        background: color-mix(in srgb, var(--btn-color-focus) 12%, transparent);
+        color: var(--btn-color-focus);
+    }
+}
+
+.browserExtensionsToolLabel {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.76rem;
+    line-height: 1.3;
+}
+
+.browserExtensionsState {
+    flex: 0 0 auto;
+    margin-right: 1px;
+    color: var(--font-color-secondary);
+    font-size: 0.6rem;
+    line-height: 1;
+    opacity: 0.75;
+
+    &.is-on {
+        color: var(--btn-color-focus);
+        opacity: 1;
+    }
+}
+
 .browserExtensionsPin {
-    width: 26px;
-    height: 26px;
-    flex: 0 0 26px;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
     align-self: center;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-right: 4px;
+    margin-right: 1px;
     padding: 0;
     border: 0;
     border-radius: 6px;
     background: transparent;
     color: var(--font-color-secondary);
     font-family: inherit;
-    opacity: 0.6;
+    opacity: 0.55;
     cursor: pointer;
 
     svg {
-        font-size: 0.72rem;
+        font-size: 0.68rem;
         transform: rotate(12deg);
     }
 
@@ -193,113 +272,17 @@
     }
 }
 
-.browserExtensionsSection {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-}
-
-.browserExtensionsSectionTitle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 8px 8px 4px;
-    color: var(--font-color-secondary);
-    font-size: 0.62rem;
-    font-weight: 600;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-
-    span:last-child {
-        font-variant-numeric: tabular-nums;
-        letter-spacing: 0;
-        opacity: 0.8;
-    }
-}
-
-.browserExtensionsSelectRow {
-    cursor: default;
-
-    &:hover {
-        background: var(--btn-color-hover);
-    }
-}
-
-.browserExtensionsProxy {
-    &:hover {
-        background: var(--btn-color-hover);
-    }
-}
-
-.browserExtensionsRowText {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-
-    strong {
-        font-size: 0.8rem;
-        font-weight: 600;
-        line-height: 1.35;
-    }
-
-    small {
-        color: var(--font-color-secondary);
-        font-size: 0.68rem;
-        line-height: 1.4;
-        overflow-wrap: anywhere;
-    }
-}
-
-.browserExtensionsSwitch {
-    position: relative;
-    width: 28px;
-    height: 16px;
-    flex: 0 0 28px;
-    border: 1px solid var(--divider-color);
-    border-radius: 999px;
-    background: var(--text-input-bg);
-    transition:
-        background-color 0.14s ease,
-        border-color 0.14s ease;
-
-    > span {
-        position: absolute;
-        top: 2px;
-        left: 2px;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: var(--font-color-secondary);
-        transition:
-            transform 0.14s ease,
-            background-color 0.14s ease;
-    }
-
-    &.is-on {
-        border-color: var(--btn-color-focus);
-        background: color-mix(in srgb, var(--btn-color-focus) 32%, transparent);
-
-        > span {
-            transform: translateX(12px);
-            background: #fff;
-        }
-    }
-}
-
 .browserExtensionsSelect {
     flex: 0 0 auto;
-    max-width: 116px;
-    height: 28px;
-    padding: 0 6px;
+    width: 108px;
+    height: 24px;
+    padding: 0 4px;
     border: 1px solid var(--divider-color);
-    border-radius: 7px;
+    border-radius: 6px;
     background: var(--text-input-bg);
     color: var(--font-color);
     font-family: inherit;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     outline: none;
 
     &:focus {
@@ -307,60 +290,34 @@
     }
 }
 
-.browserExtensionsSettingsBtn {
-    flex: 0 0 auto;
-    height: 26px;
-    padding: 0 9px;
-    border: 1px solid var(--divider-color);
-    border-radius: 7px;
-    background: var(--btn-color);
-    color: var(--font-color);
-    font-family: inherit;
-    font-size: 0.72rem;
-    cursor: pointer;
-
-    &:hover {
-        background: var(--btn-color-hover);
-    }
-}
-
-.browserExtensionsSeparator {
-    height: 1px;
-    flex: 0 0 auto;
-    margin: 5px 4px;
-    background: var(--divider-color);
-}
-
 .browserExtensionsFooter {
     flex: 0 0 auto;
     display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    margin-top: 6px;
-    padding: 6px 2px 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1px 2px;
+    margin-top: 4px;
+    padding: 5px 4px 1px;
     border-top: 1px solid var(--divider-color);
 }
 
-.browserExtensionsNote {
-    flex: 1 1 auto;
-    margin: 0;
-    color: var(--font-color-secondary);
-    font-size: 0.62rem;
-    line-height: 1.45;
-}
-
-.browserExtensionsReset {
-    flex: 0 0 auto;
-    padding: 4px 6px;
+.browserExtensionsFooterLink {
+    padding: 3px 5px;
     border: 0;
-    border-radius: 6px;
+    border-radius: 5px;
     background: transparent;
-    color: var(--btn-color-focus);
+    color: var(--font-color-secondary);
     font-family: inherit;
-    font-size: 0.64rem;
+    font-size: 0.62rem;
     cursor: pointer;
 
     &:hover {
         background: var(--btn-color-hover);
+        color: var(--font-color);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--btn-color-focus);
+        outline-offset: 1px;
     }
 }

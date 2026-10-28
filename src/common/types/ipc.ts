@@ -451,6 +451,7 @@ export type BrowserChannels = {
     "browser:setAdblock": ChannelDefinition<{ enabled: boolean }, BrowserAdblockState>;
     /** Cached data URLs for the New Tab site tiles. */
     "browser:getSiteIcons": ChannelDefinition<{ hosts: string[] }, Record<string, string>>;
+    "browser:capturePage": ChannelDefinition<{ tabId?: string }, string>;
     "browser:getBookmarks": ChannelDefinition<void, BrowserBookmark[]>;
     "browser:addBookmark": ChannelDefinition<
         { url: string; title?: string; favicon?: string },

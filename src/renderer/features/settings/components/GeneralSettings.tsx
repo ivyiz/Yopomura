@@ -10,6 +10,7 @@ import { promptSelectDir } from "@utils/file";
 import { useTranslation } from "react-i18next";
 import { navigateToSetting } from "../utils/navigateToSetting";
 import AnilistSetting from "./AnilistSetting";
+import BrowserSettings from "./BrowserSettings";
 import CustomTempLocation from "./CustomTempLocation";
 import DbBackupSettings from "./DbBackupSettings";
 import FileExplorerOptions from "./FileExplorerOptions";
@@ -39,6 +40,7 @@ const GeneralSettings: React.FC = () => {
             <GeneralReaderPresetsSettings />
             {process.platform === "win32" && <FileExplorerOptions />}
             <AnilistSetting />
+            <BrowserSettings />
             <GeneralPDFSettings />
             <div className="settingItem2" id="settings-customStylesheet">
                 <h3>{t("customStylesheet.title")}</h3>

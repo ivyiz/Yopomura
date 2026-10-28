@@ -253,6 +253,10 @@ export const SETTINGS_TARGETS_STATIC: readonly SettingsTarget[] = [
         keywords: ["backup", "restore", "zip", "profile", "covers", "trash"],
         contentPath: "profileBackup",
     }),
+    setting("setting:browser", "#settings-browser", "browser.title", {
+        keywords: ["search", "engine", "brave", "google", "duckduckgo", "browser"],
+        contentPath: "browser",
+    }),
     setting("setting:browser-proxy", "#settings-networkProxy", "proxy.title", {
         keywords: ["proxy", "vpn", "network", "socks5", "http", "browser", "ip"],
         contentPath: "proxy",

@@ -440,6 +440,25 @@ export class BrowserManager extends EventEmitter {
     }
 
     /**
+     * Captures the active page as a JPEG data URL. The renderer shows this
+     * snapshot while a React overlay hides the native WebContentsView.
+     */
+    async capturePage(tabId?: string): Promise<string> {
+        const tab = this.resolveTab(tabId);
+        const view = tab?.view;
+        if (!tab || !view || view.webContents.isDestroyed()) return "";
+        try {
+            const image = await view.webContents.capturePage();
+            if (image.isEmpty()) return "";
+            const jpeg = image.toJPEG(82);
+            return jpeg.length > 0 ? `data:image/jpeg;base64,${jpeg.toString("base64")}` : "";
+        } catch (error) {
+            logger.warn("could not capture browser page", error);
+            return "";
+        }
+    }
+
+    /**
      * Collects http(s) links from a tab (defaults to the active one). Returns
      * an empty list for `about:blank`, destroyed/lazy views, and page-script
      * failures so callers always receive a safe array.
