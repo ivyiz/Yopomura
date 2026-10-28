@@ -569,8 +569,12 @@
     gap: 8px;
 }
 
-body.browserSideOpen #app .reader {
+body.browserSideOpen #app {
     width: calc(100vw - var(--browser-side-width, 0px));
+}
+
+body.browserSideOpen #app .reader {
+    width: 100%;
 }
 
 @container (max-width: 500px) {

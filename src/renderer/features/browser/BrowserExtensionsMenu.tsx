@@ -1,9 +1,7 @@
 import type { BrowserSearchEngine } from "@common/types/browser";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
-import { faPuzzlePiece, faThumbtack, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faGear, faNetworkWired, faPuzzlePiece, faThumbtack, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { useAppDispatch } from "@store/hooks";
-import { requestSettingsNav } from "@store/ui";
 import type { BrowserToolId, BrowserToolKind } from "./browserTools";
 import "./browserExtensions.scss";
 
@@ -27,7 +25,7 @@ type BrowserExtensionsMenuProps = {
     onEngineChange: (engine: BrowserSearchEngine) => void;
     tools: BrowserToolEntry[];
     onTogglePin: (id: BrowserToolId) => void;
-    onResetPins: () => void;
+    onOpenSettings: (target: string) => void;
     onClose: () => void;
 };
 
@@ -76,17 +74,11 @@ const BrowserExtensionsMenu = ({
     onEngineChange,
     tools,
     onTogglePin,
-    onResetPins,
+    onOpenSettings,
     onClose,
 }: BrowserExtensionsMenuProps) => {
-    const dispatch = useAppDispatch();
     const pinnedTools = tools.filter((tool) => tool.pinned);
     const moreTools = tools.filter((tool) => !tool.pinned);
-
-    const openSettings = (target: string) => {
-        onClose();
-        dispatch(requestSettingsNav(target));
-    };
 
     return (
         <>
@@ -154,19 +146,20 @@ const BrowserExtensionsMenu = ({
                     <button
                         type="button"
                         className="browserExtensionsFooterLink"
-                        onClick={() => openSettings("setting:browser-proxy")}
+                        data-settings="setting:browser"
+                        onClick={() => onOpenSettings("setting:browser")}
                     >
-                        Proxy settings
+                        <FontAwesomeIcon icon={faGear} aria-hidden />
+                        <span>Browser settings</span>
                     </button>
                     <button
                         type="button"
                         className="browserExtensionsFooterLink"
-                        onClick={() => openSettings("setting:browser")}
+                        data-settings="setting:browser-proxy"
+                        onClick={() => onOpenSettings("setting:browser-proxy")}
                     >
-                        Browser settings
-                    </button>
-                    <button type="button" className="browserExtensionsFooterLink" onClick={onResetPins}>
-                        Reset toolbar
+                        <FontAwesomeIcon icon={faNetworkWired} aria-hidden />
+                        <span>Proxy settings</span>
                     </button>
                 </div>
             </div>

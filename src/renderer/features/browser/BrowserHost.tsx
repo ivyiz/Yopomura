@@ -24,8 +24,8 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useAppContext } from "@renderer/App";
-import { useAppSelector } from "@store/hooks";
-import { selectModalOverlayOpen } from "@store/ui";
+import { useAppDispatch, useAppSelector } from "@store/hooks";
+import { requestSettingsNav, selectModalOverlayOpen } from "@store/ui";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import BrowserBookmarkBubble, { type BookmarkBubbleDraft } from "./BrowserBookmarkBubble";
 import BrowserExtensionsMenu, { type BrowserToolEntry } from "./BrowserExtensionsMenu";
@@ -42,7 +42,6 @@ import type { BrowserMode, ToggleBrowserDetail } from "./browserEvents";
 import {
     BROWSER_TOOLS,
     type BrowserToolId,
-    DEFAULT_PINNED_TOOL_IDS,
     normalizePinnedToolIds,
     readPinnedToolIds,
     savePinnedToolIds,
@@ -98,6 +97,7 @@ const readSavedAdblock = (): boolean => {
  */
 const BrowserHost = () => {
     const { openDownloader, downloaderOpen, videoOpen, trashOpen, mediaOpen } = useAppContext();
+    const dispatch = useAppDispatch();
     const folders = useAppSelector((store) => store.mainSettings.library.folders);
     const defaultOutDir = useAppSelector((store) => {
         const folder = store.mainSettings.library.folders.find((row) => row.isDefaultLocation);
@@ -715,12 +715,6 @@ const BrowserHost = () => {
         savePinnedToolIds(normalized);
     };
 
-    const resetPinnedTools = () => {
-        const defaults = [...DEFAULT_PINNED_TOOL_IDS];
-        setPinnedTools(defaults);
-        savePinnedToolIds(defaults);
-    };
-
     const closeMenu = () => {
         setMenu(null);
         setSnapshot("");
@@ -1030,7 +1024,10 @@ const BrowserHost = () => {
                             onEngineChange={changeEngine}
                             tools={toolEntries}
                             onTogglePin={togglePinnedTool}
-                            onResetPins={resetPinnedTools}
+                            onOpenSettings={(target) => {
+                                close();
+                                dispatch(requestSettingsNav(target));
+                            }}
                             onClose={closeExtensions}
                         />
                     ) : null}

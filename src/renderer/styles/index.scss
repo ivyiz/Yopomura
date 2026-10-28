@@ -536,7 +536,7 @@ html{
                 position: absolute;
                 top: 0;
                 left: 0;
-                z-index: 10000;
+                z-index: 2000000;
                 display: grid;
                 place-items: center;
 
@@ -570,7 +570,7 @@ html{
                 position: absolute;
                 top: 0;
                 left: 0;
-                z-index: 1000;
+                z-index: 2000000;
                 display: grid;
                 place-items: center;
                 @include mixins.contFadeScaleIn(".overflowWrap");

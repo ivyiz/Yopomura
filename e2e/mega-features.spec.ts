@@ -141,7 +141,9 @@ test("mega features smoke", async () => {
             .toBeGreaterThan(0);
         await page.locator(".mediaPanelSeek").hover();
         await expect(page.locator(".mediaPanelSeekPreview.is-visible")).toHaveCount(1);
-        await page.locator('.mediaPanelControlButton[aria-label="Theater mode"]').click();
+        if ((await page.locator(".mediaPanel.is-theater").count()) === 0) {
+            await page.locator('.mediaPanelControlButton[aria-label="Theater mode"]').click();
+        }
         await expect(page.locator(".mediaPanel.is-theater")).toHaveCount(1);
         await expect(page.locator(".mediaPanelVideoMeta")).toHaveCount(0);
         await expect(page.locator(".mediaPanelDescription")).toHaveCount(1);
@@ -286,6 +288,53 @@ test("mega features smoke", async () => {
         await expect(page.locator(".mediaPanelOverlay")).toHaveCount(0);
         await page.locator('.browserTabStrip button[title="Close browser"]').click();
         await expect(page.locator(".browserHost")).toHaveCount(0);
+
+        // Settings links close the browser before opening the modal (a native
+        // WebContentsView otherwise covers the Settings UI).
+        await page.locator(".browserToggle").click();
+        await page.waitForSelector(".browserHost.is-full", { timeout: 15_000 });
+        await page.locator(".browserExtensionsBtn").click();
+        await expect(page.locator(".browserExtensionsFooterLink")).toHaveCount(2);
+        await expect(page.locator(".browserExtensionsFooter")).not.toContainText("Reset toolbar");
+        await page.locator('.browserExtensionsFooterLink[data-settings="setting:browser"]').click();
+        await expect(page.locator(".browserHost")).toHaveCount(0);
+        await expect(page.locator("#settings")).toHaveAttribute("data-state", "open");
+        await expect(page.locator("#settings-browser")).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(page.locator("#settings")).toHaveAttribute("data-state", "closed");
+
+        await page.locator(".browserToggle").click();
+        await page.waitForSelector(".browserHost.is-full", { timeout: 15_000 });
+        await page.locator(".browserExtensionsBtn").click();
+        await page.locator('.browserExtensionsFooterLink[data-settings="setting:browser-proxy"]').click();
+        await expect(page.locator(".browserHost")).toHaveCount(0);
+        await expect(page.locator("#settings-networkProxy")).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(page.locator("#settings")).toHaveAttribute("data-state", "closed");
+        console.log("BROWSER_SETTINGS_LINKS_OK");
+
+        // Top-bar Settings also wins over the full browser shell.
+        await page.locator(".browserToggle").click();
+        await page.waitForSelector(".browserHost.is-full", { timeout: 15_000 });
+        await page.locator(".settingsBtn").click();
+        await expect(page.locator("#settings")).toHaveAttribute("data-state", "open");
+        await expect
+            .poll(() =>
+                page.evaluate(() =>
+                    Boolean(
+                        document
+                            .elementFromPoint(window.innerWidth / 2, window.innerHeight / 2)
+                            ?.closest("#settings"),
+                    ),
+                ),
+            )
+            .toBe(true);
+        await page.keyboard.press("Escape");
+        await expect(page.locator("#settings")).toHaveAttribute("data-state", "closed");
+        await expect(page.locator(".browserHost.is-full")).toBeVisible();
+        await page.locator('.browserTabStrip button[title="Close browser"]').click();
+        await expect(page.locator(".browserHost")).toHaveCount(0);
+        console.log("BROWSER_FULL_SETTINGS_OK");
 
         // Side pane from Location toggles too.
         await page.locator('.listCont .tools button[data-tooltip="Browser"]').click();
