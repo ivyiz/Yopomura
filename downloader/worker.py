@@ -172,13 +172,16 @@ def wait_if_paused(paused: threading.Event, cancel: threading.Event):
             raise JobCancelled
 
 
-def download_image(url, dest, headers, cancel: threading.Event, paused: threading.Event | None = None):
+def download_image(url, dest, headers, cancel: threading.Event, paused: threading.Event | None = None, referer=None):
     if cancel.is_set():
         raise JobCancelled
     if paused is not None:
         wait_if_paused(paused, cancel)
     part = dest + ".part"
     session = get_session()
+    request_headers = dict(headers)
+    if referer:
+        request_headers["Referer"] = referer
     last_error = None
     for attempt in range(1, MAX_RETRIES + 1):
         if cancel.is_set():
@@ -187,7 +190,7 @@ def download_image(url, dest, headers, cancel: threading.Event, paused: threadin
             wait_if_paused(paused, cancel)
         retry_after = None
         try:
-            resp = session.get(url, headers=headers, timeout=REQUEST_TIMEOUT, stream=True)
+            resp = session.get(url, headers=request_headers, timeout=REQUEST_TIMEOUT, stream=True)
             try:
                 status = resp.status_code
                 if status != 200:
@@ -427,6 +430,8 @@ class Job:
     total: int = 0
     output_path: str | None = None
     status: str = "queued"
+    resolved_items: list | None = None
+    resolved_headers: dict | None = None
 
 
 def job_fields(job: Job, status, message=None, error=None, progress=None, output_path=None):
@@ -553,18 +558,66 @@ class Downloader:
             return
         out_dir = os.path.abspath(os.path.expanduser(out_dir))
         job = Job(id=job_id, url=url.strip(), out_dir=out_dir, keep_folder=bool(keep_folder))
+        self._enqueue(job)
+
+    def add_resolved(self, job_id, url, out_dir, title, items, headers=None, keep_folder=False):
+        """Queue a job whose image URLs were resolved by the Chromium resolver."""
+        if not isinstance(job_id, str) or not job_id.strip():
+            self._log(None, "error", "addResolved: missing or invalid job id")
+            return
+        if not isinstance(url, str) or urlparse(url).scheme not in ("http", "https"):
+            self._reject(job_id, "addResolved: url must start with http:// or https://")
+            return
+        if not isinstance(out_dir, str) or not out_dir.strip():
+            self._reject(job_id, "addResolved: missing outDir")
+            return
+
+        resolved = []
+        if isinstance(items, list):
+            for item in items[:50000]:
+                if isinstance(item, str):
+                    item_url = item.strip()
+                    referer = None
+                elif isinstance(item, dict):
+                    item_url = str(item.get("url") or "").strip()
+                    referer = item.get("referer")
+                else:
+                    continue
+                if urlparse(item_url).scheme not in ("http", "https"):
+                    continue
+                resolved.append({
+                    "url": item_url,
+                    "referer": referer if isinstance(referer, str) and referer else None,
+                })
+        if not resolved:
+            self._reject(job_id, "addResolved: no valid image URLs")
+            return
+
+        out_dir = os.path.abspath(os.path.expanduser(out_dir))
+        job = Job(
+            id=job_id,
+            url=url.strip(),
+            out_dir=out_dir,
+            keep_folder=bool(keep_folder),
+            title=sanitize_filename(title or "download"),
+            resolved_items=resolved,
+            resolved_headers=dict(headers) if isinstance(headers, dict) else {},
+        )
+        self._enqueue(job)
+
+    def _enqueue(self, job):
         with self._cond:
-            if job_id in self._jobs:
+            if job.id in self._jobs:
                 duplicate = True
             else:
                 duplicate = False
-                self._jobs[job_id] = job
+                self._jobs[job.id] = job
                 self._queue.append(job)
                 self._cond.notify()
         if duplicate:
-            self._log(job_id, "error", "add: duplicate job id")
+            self._log(job.id, "error", "add: duplicate job id")
             return
-        self._log(job_id, "info", f"Queued {job.url}")
+        self._log(job.id, "info", f"Queued {job.url}")
 
     def cancel(self, job_id):
         removed = False
@@ -655,14 +708,21 @@ class Downloader:
         self.emit("job", **job_fields(job, "resolving", message="Resolving gallery"))
         self._log(job.id, "info", f"Resolving {job.url}")
 
-        title, urls, headers = extract_manga_info(job.url)
-        self._check_cancel(job)
+        if job.resolved_items is not None:
+            title = job.title or "download"
+            items = job.resolved_items
+            headers = dict(job.resolved_headers or {})
+            self._log(job.id, "info", f"Using browser-resolved gallery ({len(items)} image(s))")
+        else:
+            title, urls, headers = extract_manga_info(job.url)
+            self._check_cancel(job)
+            urls = [
+                url for url in urls
+                if isinstance(url, str) and url.lower().startswith(("http://", "https://"))
+            ]
+            items = [{"url": url, "referer": None} for url in urls]
 
-        urls = [
-            url for url in urls
-            if isinstance(url, str) and url.lower().startswith(("http://", "https://"))
-        ]
-        if not urls:
+        if not items:
             raise DownloadFailed("No downloadable images found")
         headers = dict(headers or {})
         headers.setdefault("User-Agent", USER_AGENT)
@@ -672,7 +732,7 @@ class Downloader:
         self._hold_while_paused(job)
 
         job.title = sanitize_filename(title or "download")
-        job.total = len(urls)
+        job.total = len(items)
         job.progress = 0
         os.makedirs(job.out_dir, exist_ok=True)
         if not os.path.isdir(job.out_dir):
@@ -689,7 +749,7 @@ class Downloader:
         self._reporter = reporter
         try:
             reporter.announce(f"0/{job.total} images")
-            completed = self._download_all(job, urls, headers, temp_dir, reporter)
+            completed = self._download_all(job, items, headers, temp_dir, reporter)
             self._reporter = None
             if not completed:
                 raise DownloadFailed("All image downloads failed")
@@ -732,18 +792,19 @@ class Downloader:
             unlink(zip_part)
             raise
 
-    def _download_all(self, job, urls, headers, temp_dir, reporter):
-        pad = max(3, len(str(len(urls))))
+    def _download_all(self, job, items, headers, temp_dir, reporter):
+        pad = max(3, len(str(len(items))))
         tasks = []
-        for index, url in enumerate(urls, 1):
+        for index, item in enumerate(items, 1):
+            url = item["url"]
             dest = os.path.join(temp_dir, f"{index:0{pad}d}{image_extension(url)}")
-            tasks.append((index, url, dest))
+            tasks.append((index, url, item.get("referer"), dest))
 
         def work(task):
-            index, url, dest = task
+            index, url, referer, dest = task
             wait_if_paused(self._paused, job.cancel)
             self._check_cancel(job)
-            download_image(url, dest, headers, job.cancel, self._paused)
+            download_image(url, dest, headers, job.cancel, self._paused, referer)
             reporter.advance()
 
         def run_pass(batch, workers):
@@ -780,8 +841,8 @@ class Downloader:
             self._log(job.id, "warn", f"{len(failures)} image(s) still missing")
 
         return [
-            task[2] for task in tasks
-            if os.path.isfile(task[2]) and os.path.getsize(task[2]) > 0
+            task[3] for task in tasks
+            if os.path.isfile(task[3]) and os.path.getsize(task[3]) > 0
         ]
 
 
@@ -834,6 +895,16 @@ def main():
                     message.get("id"),
                     message.get("url"),
                     message.get("outDir"),
+                    bool(message.get("keepFolder", False)),
+                )
+            elif cmd == "addResolved":
+                downloader.add_resolved(
+                    message.get("id"),
+                    message.get("url"),
+                    message.get("outDir"),
+                    message.get("title"),
+                    message.get("items"),
+                    message.get("headers"),
                     bool(message.get("keepFolder", False)),
                 )
             elif cmd == "cancel":

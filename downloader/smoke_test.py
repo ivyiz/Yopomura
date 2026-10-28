@@ -370,6 +370,27 @@ def main():
             assert Path(done["outputPath"]).is_file(), "duplicate job replaced the first ZIP"
             print("PASS job-main-dup: duplicate output names are numbered, nothing overwritten")
 
+            out_resolved = temp_root / "out-resolved"
+            worker.send({
+                "cmd": "addResolved",
+                "id": "job-resolved",
+                "url": server.base_url + "/plain",
+                "outDir": str(out_resolved),
+                "title": "Resolved Manga",
+                "items": [
+                    {"url": server.base_url + "/img/1.png", "referer": server.base_url + "/reader/1"},
+                    {"url": server.base_url + "/img/2.png", "referer": server.base_url + "/reader/1"},
+                    {"url": server.base_url + "/img/3.png", "referer": server.base_url + "/reader/1"},
+                ],
+                "headers": {"User-Agent": "yopomura-smoke"},
+            })
+            done_resolved, _ = wait_terminal(worker, "job-resolved")
+            assert done_resolved["status"] == "done", done_resolved
+            assert done_resolved["title"] == "Resolved Manga", done_resolved
+            assert done_resolved["downloaded"] == 3 and done_resolved["total"] == 3, done_resolved
+            check_zip(done_resolved["outputPath"], images, ["001.png", "002.png", "003.png"])
+            print("PASS job-resolved: browser-resolved URLs download and pack")
+
             out_keep = temp_root / "out-keep"
             worker.send({
                 "cmd": "add",

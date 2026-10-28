@@ -7,11 +7,13 @@ import type {
     AddDownloaderJobInput,
     DownloaderJob,
     DownloaderJobStatus,
+    DownloaderPreview,
     DownloaderState,
 } from "@common/types/downloader";
 import { getProxyEnvironment } from "@electron/network/proxySettings";
 import { createMainLogger } from "@electron/util/logger";
 import { app } from "electron";
+import { resolveDownload } from "./browserResolver";
 
 const log = createMainLogger("downloader/service");
 
@@ -56,6 +58,8 @@ class DownloaderService extends EventEmitter {
     private activeId: string | null = null;
     private paused = false;
     private starting = false;
+    private resolutionQueue: Array<{ id: string; url: string }> = [];
+    private resolutionRunning = false;
 
     getState(): DownloaderState {
         return {
@@ -69,6 +73,40 @@ class DownloaderService extends EventEmitter {
     /** Spawns the sidecar if needed. Safe to call from every panel mount. */
     start(): void {
         this.ensureWorker();
+    }
+
+    /** Resolves a URL without queueing it, for the Preview panel and diagnostics. */
+    async preview(url: string): Promise<DownloaderPreview> {
+        const target = url.trim();
+        const empty = (message: string): DownloaderPreview => ({
+            ok: false,
+            url: target,
+            title: "",
+            mode: "unknown",
+            chapters: 0,
+            images: 0,
+            sample: [],
+            message,
+        });
+        if (!/^https?:\/\//i.test(target)) return empty("URL must start with http:// or https://");
+        try {
+            const resolved = await resolveDownload(target);
+            return {
+                ok: resolved.items.length > 0,
+                url: target,
+                title: resolved.title,
+                mode: resolved.mode,
+                chapters: resolved.chapters,
+                images: resolved.items.length,
+                sample: resolved.items.slice(0, 8).map((item) => item.url),
+                message:
+                    resolved.items.length > 0
+                        ? `Found ${resolved.items.length} image(s)`
+                        : "No downloadable images found",
+            };
+        } catch (error) {
+            return empty(error instanceof Error ? error.message : String(error));
+        }
     }
 
     /**
@@ -97,27 +135,22 @@ class DownloaderService extends EventEmitter {
             url: url.trim(),
             outDir: path.normalize(outDir.trim()),
             keepFolder,
-            status: "queued",
+            status: "resolving",
             title: "",
             progress: 0,
             downloaded: 0,
             total: 0,
             outputPath: "",
-            message: "",
+            message: "Analyzing page",
             error: "",
             createdAt: now,
             updatedAt: now,
         };
         this.jobs.set(job.id, job);
         this.ensureWorker();
-        this.send({
-            cmd: "add",
-            id: job.id,
-            url: job.url,
-            outDir: job.outDir,
-            keepFolder: job.keepFolder,
-        });
         this.broadcast();
+        this.resolutionQueue.push({ id: job.id, url: job.url });
+        void this.processResolutionQueue();
         return job;
     }
 
@@ -125,11 +158,13 @@ class DownloaderService extends EventEmitter {
         const job = this.jobs.get(id);
         if (!job) return;
         if (job.status === "done" || job.status === "error" || job.status === "cancelled") return;
+        this.resolutionQueue = this.resolutionQueue.filter((item) => item.id !== id);
         this.send({ cmd: "cancel", id });
         this.patchJob(id, { status: "cancelled", message: "Cancelled", updatedAt: Date.now() });
     }
 
     removeJob(id: string): void {
+        this.resolutionQueue = this.resolutionQueue.filter((item) => item.id !== id);
         this.jobs.delete(id);
         this.broadcast();
     }
@@ -157,6 +192,85 @@ class DownloaderService extends EventEmitter {
                     // already gone
                 }
             }, 1500).unref();
+        }
+    }
+
+    private async processResolutionQueue(): Promise<void> {
+        if (this.resolutionRunning) return;
+        this.resolutionRunning = true;
+        try {
+            while (true) {
+                const next = this.resolutionQueue.shift();
+                if (!next) break;
+                const job = this.jobs.get(next.id);
+                if (!job || job.status === "cancelled") continue;
+
+                try {
+                    const resolved = await resolveDownload(next.url);
+                    const current = this.jobs.get(next.id);
+                    if (!current || current.status === "cancelled") continue;
+
+                    if (resolved.items.length === 0) {
+                        log.warn("generic resolver found no images; falling back", { url: next.url });
+                        this.patchJob(next.id, {
+                            message: "Falling back to legacy extractor",
+                            updatedAt: Date.now(),
+                        });
+                        this.send({
+                            cmd: "add",
+                            id: next.id,
+                            url: current.url,
+                            outDir: current.outDir,
+                            keepFolder: current.keepFolder,
+                        });
+                        continue;
+                    }
+
+                    this.patchJob(next.id, {
+                        title: resolved.title,
+                        total: resolved.items.length,
+                        message: `Found ${resolved.items.length} image(s)`,
+                        updatedAt: Date.now(),
+                    });
+                    log.info("generic resolver finished", {
+                        url: next.url,
+                        mode: resolved.mode,
+                        chapters: resolved.chapters,
+                        images: resolved.items.length,
+                    });
+                    this.send({
+                        cmd: "addResolved",
+                        id: next.id,
+                        url: current.url,
+                        outDir: current.outDir,
+                        keepFolder: current.keepFolder,
+                        title: resolved.title,
+                        items: resolved.items,
+                        headers: resolved.headers,
+                    });
+                } catch (error) {
+                    log.warn("generic resolver failed; falling back", {
+                        url: next.url,
+                        error: error instanceof Error ? error.message : String(error),
+                    });
+                    const current = this.jobs.get(next.id);
+                    if (current && current.status !== "cancelled") {
+                        this.patchJob(next.id, {
+                            message: "Falling back to legacy extractor",
+                            updatedAt: Date.now(),
+                        });
+                        this.send({
+                            cmd: "add",
+                            id: next.id,
+                            url: current.url,
+                            outDir: current.outDir,
+                            keepFolder: current.keepFolder,
+                        });
+                    }
+                }
+            }
+        } finally {
+            this.resolutionRunning = false;
         }
     }
 

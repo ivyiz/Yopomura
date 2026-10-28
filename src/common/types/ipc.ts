@@ -11,7 +11,12 @@ import type {
     BrowserSearchEngine,
     BrowserState,
 } from "@common/types/browser";
-import type { AddDownloaderJobInput, DownloaderJob, DownloaderState } from "@common/types/downloader";
+import type {
+    AddDownloaderJobInput,
+    DownloaderJob,
+    DownloaderPreview,
+    DownloaderState,
+} from "@common/types/downloader";
 import type {
     LibraryScanStartRequest,
     LibraryScanStartResult,
@@ -393,6 +398,8 @@ export type KeymapChannels = {
 export type DownloaderChannels = {
     "downloader:getState": ChannelDefinition<void, DownloaderState>;
     "downloader:add": ChannelDefinition<AddDownloaderJobInput, DownloaderJob>;
+    /** Resolve a URL without queueing it; used by Preview and diagnostics. */
+    "downloader:preview": ChannelDefinition<{ url: string }, DownloaderPreview>;
     "downloader:cancel": ChannelDefinition<{ id: string }, void>;
     "downloader:remove": ChannelDefinition<{ id: string }, void>;
     "downloader:clearFinished": ChannelDefinition<void, void>;

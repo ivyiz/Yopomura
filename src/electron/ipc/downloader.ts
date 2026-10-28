@@ -27,6 +27,7 @@ export const registerDownloaderHandlers = (): void => {
         return downloaderService.getState();
     });
     ipc.handle("downloader:add", (_event, request) => downloaderService.addJob(request));
+    ipc.handle("downloader:preview", (_event, { url }) => downloaderService.preview(url));
     ipc.handle("downloader:cancel", (_event, { id }) => downloaderService.cancelJob(id));
     ipc.handle("downloader:pause", () => downloaderService.pause());
     ipc.handle("downloader:resume", () => downloaderService.resume());

@@ -42,3 +42,15 @@ export type AddDownloaderJobInput = {
     outDir: string;
     keepFolder?: boolean;
 };
+
+/** Dry-run result from the generic Chromium resolver. */
+export type DownloaderPreview = {
+    ok: boolean;
+    url: string;
+    title: string;
+    mode: "image" | "gallery" | "reader" | "series" | "unknown";
+    chapters: number;
+    images: number;
+    sample: string[];
+    message: string;
+};
