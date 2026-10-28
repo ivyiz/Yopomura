@@ -204,6 +204,7 @@ proc.wait()
 
 For tests or private sites, set `YOPOMURA_DOWNLOADER_EXTRACTOR_MODULE` to an
 importable module name, or `YOPOMURA_DOWNLOADER_EXTRACTOR_PATH` to a Python
-file. Its `extract_manga_info(url)` must return `(title, [image_urls], headers)`.
+file. Its `extract_manga_info(url)` must return `(title, [image_urls], headers)`
+for supported sites, or `None` to fall back to gallery-dl/generic extraction.
 The smoke test uses the module hook to avoid real network traffic. Stderr is
 reserved for diagnostics and is never part of the protocol.

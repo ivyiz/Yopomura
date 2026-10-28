@@ -351,6 +351,7 @@ _patched_path = os.environ.get("YOPOMURA_DOWNLOADER_EXTRACTOR_PATH") or os.envir
 _patched_module = os.environ.get("YOPOMURA_DOWNLOADER_EXTRACTOR_MODULE") or os.environ.get(
     "YOMIKIRU_DOWNLOADER_EXTRACTOR_MODULE"
 )
+_private_extract = None
 if _patched_path:
     try:
         if not os.path.isfile(_patched_path):
@@ -360,16 +361,26 @@ if _patched_path:
             raise ImportError(f"cannot load extractor file {_patched_path}")
         _module = importlib.util.module_from_spec(_spec)
         _spec.loader.exec_module(_module)
-        extract_manga_info = _module.extract_manga_info
+        _private_extract = _module.extract_manga_info
     except Exception as exc:
         print(f"worker: cannot load extractor file {_patched_path}: {exc}", file=sys.stderr)
         raise SystemExit(2)
 elif _patched_module:
     try:
-        extract_manga_info = importlib.import_module(_patched_module).extract_manga_info
+        _private_extract = importlib.import_module(_patched_module).extract_manga_info
     except Exception as exc:
         print(f"worker: cannot load extractor module {_patched_module}: {exc}", file=sys.stderr)
         raise SystemExit(2)
+
+if _private_extract is not None:
+    _generic_extract = extract_manga_info
+
+    def extract_manga_info(target_url):
+        """Let the private extractor opt out with None; otherwise use it."""
+        private_result = _private_extract(target_url)
+        if private_result is None:
+            return _generic_extract(target_url)
+        return private_result
 
 
 class Emitter:
