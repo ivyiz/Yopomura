@@ -383,7 +383,7 @@ const BrowserHost = () => {
         !scanOpen &&
         !extensionsOpen &&
         !bookmarkBubble &&
-        !downloaderOpen &&
+        !(downloaderOpen && mode === "side") &&
         !videoOpen &&
         !trashOpen &&
         !mediaOpen;

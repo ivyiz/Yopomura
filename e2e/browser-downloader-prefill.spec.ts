@@ -42,20 +42,34 @@ test("browser add to downloader prefills without starting a job", async () => {
         await page.locator('.browserExtensionsRowMain[data-action="download"]').click();
         await expect(page.locator(".downloaderPanel")).toBeVisible();
         await expect(page.locator(".downloaderCompose textarea")).toHaveValue(url);
-        await expect(page.locator(".browserHost")).toHaveCount(0);
+        await expect(page.locator(".browserHost.is-full")).toHaveCount(1);
         await expect(page.locator("body")).toHaveClass(/downloaderSideOpen/);
 
         const layout = await page.evaluate(() => {
             const app = document.querySelector("#app")?.getBoundingClientRect();
             const pane = document.querySelector(".downloaderOverlay")?.getBoundingClientRect();
+            const browser = document.querySelector(".browserHost.is-full")?.getBoundingClientRect();
             return {
                 viewport: window.innerWidth,
                 appWidth: app?.width ?? 0,
                 paneWidth: pane?.width ?? 0,
+                browserWidth: browser?.width ?? 0,
             };
         });
         expect(layout.paneWidth).toBeGreaterThan(400);
         expect(layout.appWidth + layout.paneWidth).toBeCloseTo(layout.viewport, 0);
+        expect(layout.browserWidth).toBeCloseTo(layout.appWidth, 0);
+
+        const browserVisible = await page.evaluate(async () => {
+            const bridge = (
+                window as unknown as {
+                    electron: { invoke: (channel: string) => Promise<{ visible: boolean }> };
+                }
+            ).electron;
+            const state = await bridge.invoke("browser:getState");
+            return state.visible;
+        });
+        expect(browserVisible).toBe(true);
 
         const jobs = await page.evaluate(async () => {
             const bridge = (
@@ -72,6 +86,7 @@ test("browser add to downloader prefills without starting a job", async () => {
 
         await page.locator(".downloaderFoot button", { hasText: "Close" }).click();
         await expect(page.locator("body")).not.toHaveClass(/downloaderSideOpen/);
+        await expect(page.locator(".browserHost.is-full")).toBeVisible();
         const restored = await page.evaluate(
             () => document.querySelector("#app")?.getBoundingClientRect().width ?? 0,
         );

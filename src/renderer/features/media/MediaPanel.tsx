@@ -1055,6 +1055,16 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
 
                         <button
                             type="button"
+                            className="mediaPanelIconButton"
+                            aria-label="Choose video folder"
+                            title="Choose video folder"
+                            onClick={handleChooseFolder}
+                        >
+                            <FontAwesomeIcon icon={faFolderOpen} />
+                        </button>
+
+                        <button
+                            type="button"
                             className={`mediaPanelIconButton${scanState === "scanning" ? " is-spinning" : ""}`}
                             aria-label="Rescan library"
                             title="Rescan library"
