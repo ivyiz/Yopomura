@@ -46,6 +46,17 @@ const DownloaderPanel = ({ initialUrls = "", onClose, onOpenOutput }: Downloader
         return () => document.body.classList.remove("downloaderSideOpen");
     }, []);
 
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== "Escape") return;
+            event.preventDefault();
+            event.stopPropagation();
+            onClose();
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [onClose]);
+
     /* A browser action can prefill while the panel is already open. */
     useEffect(() => {
         if (initialUrls) setUrls(initialUrls);
@@ -125,7 +136,7 @@ const DownloaderPanel = ({ initialUrls = "", onClose, onOpenOutput }: Downloader
 
                 <div className="downloaderCompose">
                     <label>
-                        <span>LINKS</span>
+                        <span>Links</span>
                         <textarea
                             value={urls}
                             onChange={(e) => setUrls(e.target.value)}
@@ -172,7 +183,7 @@ const DownloaderPanel = ({ initialUrls = "", onClose, onOpenOutput }: Downloader
                 </div>
 
                 <div className="downloaderQueueHead">
-                    <span>QUEUE</span>
+                    <span>Queue</span>
                     <span>{jobs.length} jobs</span>
                     <button type="button" onClick={() => void window.electron.invoke("downloader:clearFinished")}>
                         Clear finished

@@ -383,10 +383,8 @@ const BrowserHost = () => {
         !scanOpen &&
         !extensionsOpen &&
         !bookmarkBubble &&
-        !(downloaderOpen && mode === "side") &&
-        !videoOpen &&
-        !trashOpen &&
-        !mediaOpen;
+        !(mode === "full" && (videoOpen || trashOpen || mediaOpen)) &&
+        !(mode === "side" && downloaderOpen);
 
     /* The React start page owns the content area for about:blank tabs. */
     const showNative = visible && !newTabPage;
@@ -429,6 +427,7 @@ const BrowserHost = () => {
                 return;
             }
             if (event.key !== "Escape") return;
+            if (modalOverlayOpen || mediaOpen || trashOpen || downloaderOpen || videoOpen) return;
             if (bookmarkBubble) {
                 setBookmarkBubble(null);
                 setSnapshot("");
@@ -460,7 +459,19 @@ const BrowserHost = () => {
         };
         window.addEventListener("keydown", onKeyDown);
         return () => window.removeEventListener("keydown", onKeyDown);
-    }, [mode, scanOpen, extensionsOpen, bookmarkBubble, openBookmarkBubble, syncBounds]);
+    }, [
+        mode,
+        scanOpen,
+        extensionsOpen,
+        bookmarkBubble,
+        openBookmarkBubble,
+        syncBounds,
+        modalOverlayOpen,
+        mediaOpen,
+        trashOpen,
+        downloaderOpen,
+        videoOpen,
+    ]);
 
     const currentDisabled = activeTab ? disabledHosts.includes(hostOf(activeTab.url)) : false;
     const darkAvailable = Boolean(activeTab && hostOf(activeTab.url));

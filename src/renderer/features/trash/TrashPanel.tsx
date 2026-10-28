@@ -287,7 +287,7 @@ const TrashPanel = ({ onClose }: TrashPanelProps) => {
             <div className="trashPanel">
                 <header className="trashPanelHead">
                     <div className="trashPanelHeadText">
-                        <span className="trashPanelEyebrow">RECENTLY DELETED</span>
+                        <span className="trashPanelEyebrow">Recently deleted</span>
                         <h2>{t("trash.title")}</h2>
                         <p>{t("trash.desc")}</p>
                         <div className="trashPanelStats" aria-live="polite">

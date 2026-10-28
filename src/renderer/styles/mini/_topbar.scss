@@ -9,7 +9,7 @@
     height: var(--titleBar-height);
     user-select: none;
     background: var(--topBar-color);
-    z-index: 1000000;
+    z-index: 3100000;
     color: var(--icon-color);
 
     button {
@@ -272,7 +272,6 @@
     .libraryScanPopoverPhase {
         font-size: 0.78em;
         letter-spacing: 0.08em;
-        text-transform: uppercase;
         opacity: 0.7;
     }
     .libraryScanPopoverFolder {

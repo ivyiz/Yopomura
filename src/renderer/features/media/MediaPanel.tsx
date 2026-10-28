@@ -1,5 +1,6 @@
 import { getDefaultLocationPath } from "@common/library/folders";
 import {
+    faArrowLeft,
     faArrowsRotate,
     faClockRotateLeft,
     faDownload,
@@ -242,6 +243,7 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
     }, []);
     const [sort, setSort] = useState<VideoSortMode>("newest");
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
+    const [showHome, setShowHome] = useState(false);
     const [watched, setWatched] = useState<WatchedPosition[]>(() => readWatchedPositions(window.localStorage));
 
     const [status, setStatus] = useState<PlayerStatus>("loading");
@@ -403,6 +405,7 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
 
     /* Keep the active file valid after rescans; first load selects the newest video. */
     useEffect(() => {
+        if (showHome) return;
         if (entries.length === 0) {
             setSelectedPath(null);
             return;
@@ -413,7 +416,7 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         }
         const newest = filterAndSortVideos(entries, { sort: "newest" })[0];
         setSelectedPath(newest?.path ?? null);
-    }, [entries, selectedPath]);
+    }, [entries, selectedPath, showHome]);
 
     /* Path and transport state must be current before a new <video> can fire metadata. */
     useLayoutEffect(() => {
@@ -583,6 +586,7 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
             }
             flushPosition();
             autoplayRef.current = true;
+            setShowHome(false);
             setSelectedPath(path);
             refreshWatched();
         },
@@ -855,6 +859,7 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
 
     const applyCustomRoot = (path: string, selectPath?: string) => {
         if (selectPath) pendingSelectRef.current = selectPath;
+        setShowHome(false);
         setCustomRoot(path);
         try {
             window.localStorage.setItem(CUSTOM_ROOT_KEY, path);
@@ -875,6 +880,7 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
     };
 
     const handleUseLibraryFolders = () => {
+        setShowHome(false);
         setCustomRoot("");
         pendingSelectRef.current = null;
         try {
@@ -973,9 +979,19 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         });
     };
 
-    const handleClose = () => {
+    const handleBackHome = () => {
         flushPosition();
-        onClose();
+        setShowHome(true);
+        setSelectedPath(null);
+        setCustomRoot("");
+        pendingSelectRef.current = null;
+        setQuery("");
+        try {
+            window.localStorage.removeItem(CUSTOM_ROOT_KEY);
+        } catch {
+            /* ignore */
+        }
+        setRefreshToken((token) => token + 1);
     };
 
     const scanNote = customRoot
@@ -1055,16 +1071,6 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
 
                         <button
                             type="button"
-                            className="mediaPanelIconButton"
-                            aria-label="Choose video folder"
-                            title="Choose video folder"
-                            onClick={handleChooseFolder}
-                        >
-                            <FontAwesomeIcon icon={faFolderOpen} />
-                        </button>
-
-                        <button
-                            type="button"
                             className={`mediaPanelIconButton${scanState === "scanning" ? " is-spinning" : ""}`}
                             aria-label="Rescan library"
                             title="Rescan library"
@@ -1076,12 +1082,13 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
 
                         <button
                             type="button"
-                            className="mediaPanelIconButton"
-                            aria-label="Close media panel"
-                            title="Close (Esc)"
-                            onClick={handleClose}
+                            className="mediaPanelBackHome"
+                            aria-label="Back to home"
+                            title="Back to Media home"
+                            onClick={handleBackHome}
                         >
-                            <FontAwesomeIcon icon={faXmark} />
+                            <FontAwesomeIcon icon={faArrowLeft} aria-hidden />
+                            <span>Back To Home</span>
                         </button>
                     </div>
                 </header>
@@ -1123,7 +1130,7 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
 
                 <div className="mediaPanelBody">
                     <main className="mediaPanelMain">
-                        {selected ? (
+                        {selected && !showHome ? (
                             <>
                                 <div ref={stageRef} className="mediaPanelStage">
                                     {/* biome-ignore lint/a11y/useMediaCaption: local library videos ship no caption tracks */}
@@ -1390,7 +1397,9 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                             className="mediaPanelBlankIcon"
                                             aria-hidden
                                         />
-                                        <span className="mediaPanelBlankTitle">No videos yet</span>
+                                        <span className="mediaPanelBlankTitle">
+                                            {showHome ? "Add videos" : "No videos yet"}
+                                        </span>
                                         <span className="mediaPanelBlankText">
                                             Drag a video folder or an MP4/WebM file here, or choose a folder.
                                         </span>

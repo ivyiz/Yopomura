@@ -153,11 +153,12 @@ test("mega features smoke", async () => {
         await page.locator(".mediaPanelDescription").scrollIntoViewIfNeeded();
         await expect(page.locator(".mediaPanelDescriptionPath")).toBeVisible();
         console.log("MEDIA_PANEL_OK");
-        // Switching to another TopBar panel must close the media panel, not stack behind it.
+        // Switching to another TopBar panel keeps Media behind the downloader pane.
         await page.locator(".downloaderToggle").click();
         await expect(page.locator(".downloaderPanel")).toBeVisible();
-        await expect(page.locator(".mediaPanelOverlay")).toHaveCount(0);
+        await expect(page.locator(".mediaPanelOverlay")).toHaveCount(1);
         await page.locator(".downloaderFoot button", { hasText: "Close" }).click();
+        await expect(page.locator(".mediaPanelOverlay")).toBeVisible();
 
         // Full browser
         await page.locator(".browserToggle").click();

@@ -232,7 +232,6 @@
     font-weight: 500;
     line-height: 1.2;
     letter-spacing: 0.13em;
-    text-transform: uppercase;
 }
 
 .mediaPanelSearch {
@@ -371,6 +370,38 @@
 
     &.is-spinning svg {
         animation: mediaPanelSpin 0.9s linear infinite;
+    }
+}
+
+.mediaPanelBackHome {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--mediaPanel-border);
+    border-radius: 9px;
+    background: transparent;
+    color: var(--mediaPanel-muted);
+    font-family: inherit;
+    font-size: 0.74rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+
+    &:hover {
+        border-color: color-mix(in srgb, var(--mediaPanel-text) 20%, var(--mediaPanel-border));
+        background: var(--mediaPanel-surface);
+        color: var(--mediaPanel-text);
+    }
+
+    svg {
+        font-size: 0.78rem;
     }
 }
 
@@ -963,7 +994,6 @@
     font-size: 0.7rem;
     font-weight: 600;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
 }
 
 .mediaPanelDescriptionGrid {

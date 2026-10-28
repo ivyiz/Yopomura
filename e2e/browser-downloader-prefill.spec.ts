@@ -42,6 +42,8 @@ test("browser add to downloader prefills without starting a job", async () => {
         await page.locator('.browserExtensionsRowMain[data-action="download"]').click();
         await expect(page.locator(".downloaderPanel")).toBeVisible();
         await expect(page.locator(".downloaderCompose textarea")).toHaveValue(url);
+        await expect(page.locator(".downloaderCompose > label > span")).toHaveText("Links");
+        await expect(page.locator(".downloaderQueueHead > span").first()).toHaveText("Queue");
         await expect(page.locator(".browserHost.is-full")).toHaveCount(1);
         await expect(page.locator("body")).toHaveClass(/downloaderSideOpen/);
 

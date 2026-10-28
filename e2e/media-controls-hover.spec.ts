@@ -18,7 +18,7 @@ test("media controls hide until hovered", async () => {
         await page.waitForSelector(".locationRow", { timeout: 60_000 });
         await page.locator(".mediaToggle").click();
         await page.waitForSelector(".mediaPanelVideo", { timeout: 20_000 });
-        await expect(page.locator('button[aria-label="Choose video folder"]')).toBeVisible();
+        await expect(page.locator('button[aria-label="Back to home"]')).toBeVisible();
 
         const controls = page.locator(".mediaPanelControls");
         const dock = page.locator(".mediaPanelControlsDock");
@@ -47,14 +47,20 @@ test("media controls hide until hovered", async () => {
         await expect(controls).toHaveCSS("opacity", "1");
         console.log("MEDIA_CONTROLS_HOVER_OK");
 
-        // Closing Media must not take the browser down with it.
-        await page.locator('button[aria-label="Close media panel"]').click();
+        // Back To Home returns to the drop/choose surface without closing Media.
+        await page.keyboard.press("Escape");
+        await page.locator('button[aria-label="Back to home"]').click();
+        await expect(page.locator(".mediaPanelBlank")).toBeVisible();
+        await expect(page.locator(".mediaPanelBlank button", { hasText: "Choose folder" })).toBeVisible();
+        await page.keyboard.press("Escape");
         await expect(page.locator(".mediaPanelOverlay")).toHaveCount(0);
+
+        // Closing Media must not take the browser down with it.
         await page.locator(".browserToggle").click();
         await page.waitForSelector(".browserHost.is-full", { timeout: 15_000 });
         await page.locator(".mediaToggle").click();
         await page.waitForSelector(".mediaPanelOverlay", { timeout: 15_000 });
-        await page.locator('button[aria-label="Close media panel"]').click();
+        await page.keyboard.press("Escape");
         await expect(page.locator(".mediaPanelOverlay")).toHaveCount(0);
         await expect(page.locator(".browserHost.is-full")).toBeVisible();
 

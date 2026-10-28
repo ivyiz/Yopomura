@@ -405,9 +405,9 @@
         "errorUsername": "Error"
     },
     "pdf": {
-        "title": "PDF OPTIONS",
+        "title": "PDF options",
         "scaleDesc": "Scales PDF render quality. Higher scale results in higher quality.",
-        "scaleLabel": "SCALE",
+        "scaleLabel": "Scale",
         "renderDescBefore": "Render your pdf into png for faster loading. The ",
         "tempFolder": "temp folder",
         "renderDescMid": " default is inside app data, so the system does not clean it. ",

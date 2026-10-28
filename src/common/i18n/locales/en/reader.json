@@ -89,7 +89,7 @@
     },
     "loading": {
         "default": "Loading...",
-        "processingEpub": "PROCESSING EPUB",
+        "processingEpub": "Processing EPUB",
         "extracting": "EXTRACTING \"{{prefix}}・・・{{ext}}\"",
         "rendering": "Rendering \"{{name}}...\"",
         "renderingProgress": "[{{done}}/{{total}}] Rendering \"{{name}}...\""
@@ -174,7 +174,7 @@
         "sortDescending": "Descending",
         "shuffleOn": "Shuffle ON - list order randomized; click to use sorted",
         "shuffleOff": "Shuffle OFF - click to randomize chapter order",
-        "shuffleLabelOn": "ON",
+        "shuffleLabelOn": "On",
         "shuffleLabelOff": "Off",
         "openRandomChapter": "Open Random Chapter",
         "showInBookToc": "Show in-book TOC",

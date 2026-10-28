@@ -20,6 +20,7 @@ test("settings search navigates to the selected setting", async () => {
         await expect(page.locator("#settings")).toHaveAttribute("data-state", "open");
 
         const input = page.locator(".settingsSearch input").first();
+        await expect(page.locator(".tabMovers button").first()).toHaveCSS("text-transform", "none");
         await input.fill("proxy");
         const proxyHit = page.locator(".itemList li", { hasText: "Browser proxy" }).first();
         await expect(proxyHit).toBeVisible();

@@ -374,7 +374,7 @@ html{
         #uiBlockOverlay {
             position: fixed;
             inset: 0;
-            z-index: 2000000;
+            z-index: 3300000;
             display: grid;
             place-items: center;
             gap: 1em;
@@ -536,7 +536,7 @@ html{
                 position: absolute;
                 top: 0;
                 left: 0;
-                z-index: 950000;
+                z-index: 3000000;
                 display: grid;
                 place-items: center;
 
@@ -570,7 +570,7 @@ html{
                 position: absolute;
                 top: 0;
                 left: 0;
-                z-index: 950000;
+                z-index: 3000000;
                 display: grid;
                 place-items: center;
                 @include mixins.contFadeScaleIn(".overflowWrap");
@@ -628,7 +628,6 @@ html{
                     position: relative;
                     button {
                         background: none;
-                        text-transform: uppercase;
                         font-weight: bold;
                         font-size: 1.3em;
                         position: relative;
@@ -705,7 +704,6 @@ html{
                             display: flex;
                             align-items: center;
                             z-index: 100;
-                            text-transform: uppercase;
                             input {
                                 font-size: 0.57em;
                                 padding: 10px;
@@ -735,7 +733,6 @@ html{
                                 h3 {
                                     font-size: 1.4em;
                                     margin-bottom: 0.4em;
-                                    text-transform: uppercase;
                                     word-spacing: 0.3em;
                                     letter-spacing: 0.02em;
                                 }
@@ -1491,7 +1488,6 @@ html{
                 .epubChapterBreakTitle {
                     font-size: 0.72em;
                     letter-spacing: 0.1em;
-                    text-transform: uppercase;
                     opacity: 0.42;
                     max-width: 50%;
                     overflow: hidden;

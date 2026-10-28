@@ -154,7 +154,6 @@ const App = (): ReactElement => {
     /** Media is a full panel; opening another app panel must close it, not sit behind it. */
     const closeMedia = useCallback(() => setMediaOpen(false), []);
     const openDownloader = useCallback((initialUrls?: string) => {
-        setMediaOpen(false);
         setDownloaderDraft(initialUrls ?? "");
         setDownloaderOpen(true);
     }, []);

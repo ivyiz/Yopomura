@@ -154,7 +154,7 @@ test("browser downloads land in the library and recent Media playlist", async ()
                 .locator(".mediaPanelLibraryList li", { hasText: "browser-clip" })
                 .locator(".mediaPanelListCategory"),
         ).toContainText("Folder ·");
-        await page.locator('button[aria-label="Close media panel"]').click();
+        await page.keyboard.press("Escape");
         await expect(page.locator(".mediaPanelOverlay")).toHaveCount(0);
         console.log("BROWSER_DOWNLOAD_RECENT_OK");
 

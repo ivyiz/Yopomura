@@ -11,7 +11,7 @@ body.downloaderSideOpen .browserHost.is-full {
     top: var(--titleBar-height);
     right: 0;
     bottom: 0;
-    z-index: 1000040;
+    z-index: 2250000;
     width: min(460px, 100vw);
     display: flex;
     align-items: stretch;
@@ -268,7 +268,6 @@ body.downloaderSideOpen .browserHost.is-full {
 .downloaderStatus {
     font-size: 0.7rem;
     color: var(--font-color-secondary);
-    text-transform: uppercase;
     letter-spacing: 0.08em;
 }
 

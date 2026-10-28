@@ -202,7 +202,6 @@ const TopBar = (): ReactElement => {
                     tabIndex={-1}
                     onFocus={(e) => e.currentTarget.blur()}
                     onClick={() => {
-                        closeMedia();
                         toggleBrowser("side");
                     }}
                     data-tooltip={t("topBar.browserSide")}
