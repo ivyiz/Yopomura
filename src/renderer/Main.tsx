@@ -2,6 +2,7 @@ import AniLogin from "@features/anilist/AniLogin";
 import AnilistEdit from "@features/anilist/AnilistEdit";
 import AnilistSearch from "@features/anilist/AnilistSearch";
 import HomeView from "@features/home";
+import { useBrowserDownloadRecorder } from "@features/media/useBrowserDownloadRecorder";
 import EPubReader from "@features/reader/epub/EPubReader";
 import Reader from "@features/reader/manga/Reader";
 import Settings from "@features/settings/Settings";
@@ -17,6 +18,7 @@ import LoadingScreen from "./components/LoadingScreen";
 
 const Main = (): ReactElement => {
     const appSettings = useAppSelector((store) => store.appSettings);
+    useBrowserDownloadRecorder();
     const reader = useAppSelector(
         (store) => ({
             type: store.reader.type,

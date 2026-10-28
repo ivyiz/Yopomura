@@ -295,7 +295,11 @@ class DownloaderService extends EventEmitter {
     private patchJob(id: string, patch: Partial<DownloaderJob>): void {
         const job = this.jobs.get(id);
         if (!job) return;
-        this.jobs.set(id, { ...job, ...patch });
+        const next = { ...job, ...patch };
+        this.jobs.set(id, next);
+        if (next.status === "done" && job.status !== "done") {
+            this.emit("job-done", next);
+        }
         this.broadcast();
     }
 

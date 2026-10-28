@@ -15,8 +15,15 @@
 .proxyField {
     display: flex;
     flex-direction: column;
+    align-items: stretch;
     gap: 5px;
     min-width: 0;
+    padding: 0;
+    background: transparent;
+
+    &:hover {
+        background: transparent;
+    }
 
     > span {
         color: var(--font-color-secondary);
@@ -26,6 +33,7 @@
 
     input,
     select {
+        width: 100%;
         height: 32px;
         padding: 0 9px;
         border: 1px solid var(--divider-color);
@@ -35,6 +43,7 @@
         font-family: inherit;
         font-size: 0.82rem;
         outline: none;
+        box-sizing: border-box;
 
         &:focus {
             border-color: var(--btn-color-focus);

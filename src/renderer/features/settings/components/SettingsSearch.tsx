@@ -1,3 +1,5 @@
+import { faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useAppDispatch } from "@store/hooks";
 import { setSettingsOpen } from "@store/ui";
 import Combobox, { type ComboboxOption } from "@ui/Combobox";
@@ -63,6 +65,7 @@ const SettingsSearch = ({ inputRef }: SettingsSearchProps): ReactElement => {
 
     return (
         <div className="settingsSearch">
+            <FontAwesomeIcon className="settingsSearchIcon" icon={faMagnifyingGlass} aria-hidden />
             <Combobox
                 inputRef={inputRef}
                 parentOwnerId="settings"

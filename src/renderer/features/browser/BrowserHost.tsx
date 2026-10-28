@@ -103,6 +103,10 @@ const BrowserHost = () => {
         const folder = store.mainSettings.library.folders.find((row) => row.isDefaultLocation);
         return folder?.path ?? "";
     });
+    const appDownloadsDir = useMemo(
+        () => window.path.join(window.electron.app.getPath("userData"), "downloads"),
+        [],
+    );
     const modalOverlayOpen = useAppSelector(selectModalOverlayOpen);
 
     const [mode, setMode] = useState<BrowserMode | null>(null);
@@ -257,6 +261,12 @@ const BrowserHost = () => {
         window.addEventListener(DISABLED_HOSTS_EVENT, onHostsChange);
         return () => window.removeEventListener(DISABLED_HOSTS_EVENT, onHostsChange);
     }, []);
+
+    /* Keep automatic browser downloads inside the current Default Location. */
+    useEffect(() => {
+        if (!mode || !defaultOutDir) return;
+        void window.electron.invoke("browser:setDownloadDir", { dir: defaultOutDir });
+    }, [mode, defaultOutDir]);
 
     useEffect(() => {
         const onToggle = (event: Event) => {
@@ -505,7 +515,7 @@ const BrowserHost = () => {
 
     const addToDownloader = async (url: string) => {
         if (!url) return;
-        const outDir = defaultOutDir || folders[0]?.path || window.electron.app.getPath("downloads");
+        const outDir = defaultOutDir || folders[0]?.path || appDownloadsDir;
         await window.electron.invoke("downloader:add", { url, outDir, keepFolder: false });
         openDownloader();
     };
@@ -586,7 +596,7 @@ const BrowserHost = () => {
 
         setScanLoading(true);
         setScanError("");
-        const outDir = defaultOutDir || folders[0]?.path || window.electron.app.getPath("downloads");
+        const outDir = defaultOutDir || folders[0]?.path || appDownloadsDir;
 
         const queued = new Set<string>();
         try {

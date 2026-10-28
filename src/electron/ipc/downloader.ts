@@ -1,4 +1,6 @@
+import type { DownloaderJob } from "@common/types/downloader";
 import { downloaderService } from "@electron/downloader/DownloaderService";
+import { notifyDownloadComplete } from "@electron/util/downloadImport";
 import { BrowserWindow } from "electron";
 import { ipc } from "./utils";
 
@@ -17,6 +19,9 @@ const broadcast = (): void => {
 
 export const registerDownloaderHandlers = (): void => {
     downloaderService.on("state", broadcast);
+    downloaderService.on("job-done", (job: DownloaderJob) => {
+        notifyDownloadComplete(job.outputPath || job.outDir);
+    });
     ipc.handle("downloader:getState", () => {
         downloaderService.start();
         return downloaderService.getState();

@@ -536,7 +536,7 @@ html{
                 position: absolute;
                 top: 0;
                 left: 0;
-                z-index: 2000000;
+                z-index: 950000;
                 display: grid;
                 place-items: center;
 
@@ -570,7 +570,7 @@ html{
                 position: absolute;
                 top: 0;
                 left: 0;
-                z-index: 2000000;
+                z-index: 950000;
                 display: grid;
                 place-items: center;
                 @include mixins.contFadeScaleIn(".overflowWrap");
@@ -594,13 +594,34 @@ html{
                     position: relative;
                     z-index: 2;
                     height: var(--settingsSearchHeight);
+                    display: flex;
+                    align-items: center;
                     padding: 0.5em 0.75em;
                     box-sizing: border-box;
                     border-bottom: 1px solid var(--divider-color);
+
                     .search-input-wrapper,
                     .search-input {
                         height: 100%;
                     }
+
+                    .search-input-wrapper {
+                        flex: 1 1 auto;
+                    }
+
+                    .search-input {
+                        padding-left: 2.5em;
+                    }
+                }
+                .settingsSearchIcon {
+                    position: absolute;
+                    left: 1.45em;
+                    top: 50%;
+                    z-index: 1;
+                    translate: 0 -50%;
+                    color: var(--font-color-secondary);
+                    font-size: 0.8rem;
+                    pointer-events: none;
                 }
                 .tabMovers {
                     height: var(--tabMoverHeight);

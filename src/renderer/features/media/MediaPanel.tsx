@@ -2,6 +2,7 @@ import { getDefaultLocationPath } from "@common/library/folders";
 import {
     faArrowsRotate,
     faClockRotateLeft,
+    faDownload,
     faFilm,
     faFolderOpen,
     faMagnifyingGlass,
@@ -37,6 +38,12 @@ import {
     type WatchedPosition,
     writeWatchedPosition,
 } from "./mediaLibrary";
+import {
+    clearRecentDownloads,
+    RECENT_DOWNLOADS_EVENT,
+    type RecentDownload,
+    readRecentDownloads,
+} from "./recentDownloads";
 import "./mediaPanel.scss";
 
 export type MediaPanelProps = {
@@ -203,6 +210,35 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
     const [scanState, setScanState] = useState<ScanState>("scanning");
     const [refreshToken, setRefreshToken] = useState(0);
     const [query, setQuery] = useState("");
+    const [recentDownloads, setRecentDownloads] = useState<RecentDownload[]>(readRecentDownloads);
+
+    useEffect(() => {
+        const sync = () => setRecentDownloads(readRecentDownloads());
+        window.addEventListener(RECENT_DOWNLOADS_EVENT, sync);
+        return () => window.removeEventListener(RECENT_DOWNLOADS_EVENT, sync);
+    }, []);
+
+    /* Rescan when a browser download or downloader job finishes while this panel is open. */
+    useEffect(() => {
+        const seenDone = new Set<string>();
+        const bump = () => setRefreshToken((value) => value + 1);
+        const offBrowser = window.electron.on("browser:download", (download) => {
+            if (download.state === "completed") bump();
+        });
+        const offDownloader = window.electron.on("downloader:state", (state) => {
+            let found = false;
+            for (const job of state.jobs) {
+                if (job.status !== "done" || seenDone.has(job.id)) continue;
+                seenDone.add(job.id);
+                found = true;
+            }
+            if (found) bump();
+        });
+        return () => {
+            offBrowser();
+            offDownloader();
+        };
+    }, []);
     const [sort, setSort] = useState<VideoSortMode>("newest");
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const [watched, setWatched] = useState<WatchedPosition[]>(() => readWatchedPositions(window.localStorage));
@@ -272,6 +308,22 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         () => continueWatchingVideos(entries, watched, MAX_CONTINUE_ITEMS),
         [entries, watched],
     );
+
+    /** Browser downloads still present in the current scan, newest first. */
+    const recentRows = useMemo(() => {
+        const byKey = new Map(entries.map((entry) => [normalizeVideoPath(entry.path), entry]));
+        const rows: { entry: VideoEntry; downloadedAt: number }[] = [];
+        for (const row of recentDownloads) {
+            const entry = byKey.get(normalizeVideoPath(row.path));
+            if (entry) rows.push({ entry, downloadedAt: row.downloadedAt });
+        }
+        return rows;
+    }, [entries, recentDownloads]);
+
+    const clearRecent = () => {
+        clearRecentDownloads();
+        setRecentDownloads([]);
+    };
 
     const refreshWatched = useCallback(() => {
         if (!mountedRef.current) return;
@@ -1349,6 +1401,65 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                 </span>
                             </div>
                         </div>
+
+                        {recentRows.length > 0 && !query.trim() ? (
+                            <section className="mediaPanelRecent" aria-labelledby="mediaPanelRecentTitle">
+                                <div className="mediaPanelRecentHead">
+                                    <h2 id="mediaPanelRecentTitle" className="mediaPanelRecentTitle">
+                                        <FontAwesomeIcon icon={faDownload} aria-hidden />
+                                        <span>Recently Downloaded</span>
+                                    </h2>
+                                    <span className="mediaPanelRecentCount">{recentRows.length}</span>
+                                    <button
+                                        type="button"
+                                        className="mediaPanelRecentClear"
+                                        title="Clear recently downloaded list"
+                                        onClick={clearRecent}
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                                <ul className="mediaPanelList mediaPanelRecentList">
+                                    {recentRows.map(({ entry, downloadedAt }) => {
+                                        const active = selected
+                                            ? normalizeVideoPath(entry.path) === normalizeVideoPath(selected.path)
+                                            : false;
+                                        return (
+                                            <li key={entry.path}>
+                                                <button
+                                                    type="button"
+                                                    className={`mediaPanelListItem${active ? " is-active" : ""}`}
+                                                    aria-current={active ? "true" : undefined}
+                                                    title={`${entry.title}\n${entry.path}`}
+                                                    onClick={() => selectVideo(entry.path)}
+                                                >
+                                                    <span className="mediaPanelListThumb">
+                                                        <MediaThumbnail path={entry.path} />
+                                                        <span className="mediaPanelListIndex">
+                                                            <FontAwesomeIcon icon={faDownload} aria-hidden />
+                                                        </span>
+                                                    </span>
+                                                    <span className="mediaPanelListBody">
+                                                        <span className="mediaPanelListTitle">{entry.title}</span>
+                                                        <span className="mediaPanelListMeta">
+                                                            <span className="mediaPanelListFolder">
+                                                                {formatMediaDate(downloadedAt)}
+                                                            </span>
+                                                            <span className="mediaPanelMetaDot" aria-hidden />
+                                                            <span>{formatBytes(entry.sizeBytes)}</span>
+                                                            <span className="mediaPanelMetaDot" aria-hidden />
+                                                            <span className="mediaPanelListExt">
+                                                                {extensionLabel(entry.path)}
+                                                            </span>
+                                                        </span>
+                                                    </span>
+                                                </button>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </section>
+                        ) : null}
 
                         {scanState === "scanning" && entries.length === 0 ? (
                             <div className="mediaPanelListEmpty">

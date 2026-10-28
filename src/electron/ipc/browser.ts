@@ -2,6 +2,7 @@ import path from "node:path";
 import { getAdblockState, setAdblockEnabled } from "@electron/browser/adblock";
 import { BrowserManager } from "@electron/browser/BrowserManager";
 import { type BookmarkStore, BROWSER_BOOKMARKS_FILE, createBookmarkStore } from "@electron/browser/bookmarks";
+import { notifyDownloadComplete, resolveDownloadDir } from "@electron/util/downloadImport";
 import { app, BrowserWindow } from "electron";
 import { ipc } from "./utils";
 
@@ -34,7 +35,7 @@ const managerFor = (event: Electron.IpcMainInvokeEvent): BrowserManager => {
 
     const manager = new BrowserManager({
         window,
-        downloadDir: app.getPath("downloads"),
+        downloadDir: resolveDownloadDir(),
         searchEngine: "brave",
         forceDark: true,
     });
@@ -60,6 +61,9 @@ const managerFor = (event: Electron.IpcMainInvokeEvent): BrowserManager => {
             ipc.send(window.webContents, "browser:download", download);
         } catch {
             // window closed
+        }
+        if (download.state === "completed" && download.savePath) {
+            notifyDownloadComplete(download.savePath);
         }
     });
     manager.on("new-tab-request", (request) => {

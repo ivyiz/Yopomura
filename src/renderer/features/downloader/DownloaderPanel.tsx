@@ -30,7 +30,8 @@ const PENDING_STATUSES: DownloaderJob["status"][] = ["queued", "resolving", "dow
 const DownloaderPanel = ({ onClose, onOpenOutput }: DownloaderPanelProps) => {
     const { t } = useTranslation("home");
     const folders = useAppSelector((store) => store.mainSettings.library.folders);
-    const defaultDir = getDefaultLocationPath(folders) || "";
+    const defaultDir =
+        getDefaultLocationPath(folders) || window.path.join(window.electron.app.getPath("userData"), "downloads");
     const [urls, setUrls] = useState("");
     const [outDir, setOutDir] = useState(defaultDir);
     const [keepFolder, setKeepFolder] = useState(false);
