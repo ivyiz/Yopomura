@@ -49,6 +49,14 @@ test("browser context menu, background tabs and downloader draft", async () => {
             return state.activeId;
         });
 
+        // Downloads must freeze the page without flashing the globe fallback.
+        await page.locator(".browserDownloadsBtn").click();
+        await expect(page.locator(".browserDownloadsBubble")).toBeVisible();
+        await expect(page.locator(".browserSnapshot")).toHaveCount(1);
+        await expect(page.locator(".browserContentFallback")).toHaveCount(0);
+        await page.keyboard.press("Escape");
+        await expect(page.locator(".browserDownloadsBubble")).toHaveCount(0);
+
         const openMenu = async (linkURL: string) => {
             await app.evaluate(
                 ({ BrowserWindow }, payload) => {

@@ -495,6 +495,7 @@ const BrowserHost = () => {
 
     /* The React start page owns the content area for about:blank tabs. */
     const showNative = visible && !newTabPage;
+    const overlayOpen = Boolean(menu || downloadsOpen || scanOpen || extensionsOpen || bookmarkBubble);
 
     useEffect(() => {
         let cancelled = false;
@@ -847,13 +848,13 @@ const BrowserHost = () => {
         setDownloadsSeenAt(seenAt);
     };
 
-    const toggleDownloads = () => {
+    const toggleDownloads = async () => {
         if (downloadsOpen) {
             closeDownloads();
             return;
         }
-        // Capture in the background: download pages can make capturePage stall.
-        void capturePageSnapshot();
+        // Freeze the page before hiding the native view so the bubble never flashes the fallback.
+        await capturePageSnapshot();
         setMenu(null);
         setScanOpen(false);
         setExtensionsOpen(false);
@@ -1240,6 +1241,8 @@ const BrowserHost = () => {
                         />
                     ) : snapshot ? (
                         <img className="browserSnapshot" src={snapshot} alt="" draggable={false} />
+                    ) : overlayOpen ? (
+                        <div className="browserSnapshotBlank" aria-hidden />
                     ) : (
                         <div className="browserContentFallback">
                             <FontAwesomeIcon icon={faGlobe} />

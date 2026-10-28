@@ -326,6 +326,13 @@
     user-select: none;
 }
 
+.browserSnapshotBlank {
+    position: absolute;
+    inset: 0;
+    background: var(--body-bg-color);
+    pointer-events: none;
+}
+
 .browserContentFallback {
     position: absolute;
     inset: 0;

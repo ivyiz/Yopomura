@@ -134,6 +134,7 @@ test("browser downloads land in the library and recent Media playlist", async ()
         await page.locator(".browserDownloadsBtn").click();
         await expect(page.locator(".browserDownloadsBubble")).toBeVisible();
         await expect(page.locator(".browserDownloadsBtn")).not.toHaveClass(/has-unseen/);
+        await expect(page.locator(".browserContentFallback")).toHaveCount(0);
         await expect(page.locator(".browserDownloadsHead")).toContainText("Recent download history");
         await expect(page.locator(".browserDownloadRow", { hasText: "browser-manga.cbz" })).toHaveCount(1);
         await expect(page.locator(".browserDownloadRow", { hasText: "browser-clip.webm" })).toHaveCount(1);
