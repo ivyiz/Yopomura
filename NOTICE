@@ -1,0 +1,15 @@
+# NOTICE
+
+Yopomura is a fork of Yomikiru.
+
+- Original project: Yomikiru
+- Original author: mienaiyami
+- Original source: https://github.com/mienaiyami/yomikiru
+- Original license: MIT (see LICENSE)
+
+This fork modifies the original application and adds features including the
+integrated browser, media library, downloader, trash, profile backup and proxy
+settings. The original copyright notice and MIT license are retained.
+
+Third-party components keep their own licenses. A complete third-party notice
+file will be added before public releases.

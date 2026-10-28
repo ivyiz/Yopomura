@@ -63,7 +63,7 @@ export const BROWSER_TOOLS: readonly BrowserToolDefinition[] = [
     {
         id: "external",
         label: "Open in default browser",
-        description: "Open the current page outside Yokomura.",
+        description: "Open the current page outside Yopomura.",
         kind: "action",
         icon: faUpRightFromSquare,
     },

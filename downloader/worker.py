@@ -22,14 +22,10 @@ import zipfile
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from urllib.parse import urlparse
+from html.parser import HTMLParser
+from urllib.parse import urljoin, urlparse
 
 import requests
-
-try:
-    from curl_cffi import requests as c_requests
-except ImportError:
-    c_requests = None
 
 try:
     from gallery_dl import job as gdl_job
@@ -61,11 +57,6 @@ class DownloadFailed(Exception):
 
 
 def _new_http_session():
-    if c_requests is not None:
-        try:
-            return c_requests.Session(impersonate="chrome120")
-        except Exception:
-            pass
     return requests.Session()
 
 
@@ -245,280 +236,80 @@ def _get(session, url, headers, **kwargs):
     return session.get(url, headers=headers, **kwargs)
 
 
-def extract_hitomi(target_url):
-    id_match = re.search(r"(?:/reader/|/galleries/|-)(\d+)\.html", target_url)
-    if not id_match:
-        id_match = re.search(r"(\d+)", target_url)
-    if not id_match:
-        raise DownloadFailed("Could not find a hitomi.la gallery id")
-    gallery_id = id_match.group(1)
+class _PageImageCollector(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.urls = []
 
-    headers = {"User-Agent": USER_AGENT, "Referer": "https://hitomi.la/"}
-    session = _new_http_session()
-
-    res_gal = _get(
-        session,
-        f"https://ltn.gold-usergeneratedcontent.net/galleries/{gallery_id}.js",
-        headers,
-    )
-    if res_gal.status_code != 200:
-        raise DownloadFailed(f"Hitomi gallery not found (id {gallery_id})")
-    gal_json = re.sub(r"^\s*var\s+galleryinfo\s*=\s*", "", response_text(res_gal)).strip().rstrip(";")
-    gal_data = json.loads(gal_json)
-
-    title = sanitize_filename(gal_data.get("title") or f"hitomi_{gallery_id}")
-    files = gal_data.get("files") or []
-
-    res_gg = _get(session, "https://ltn.gold-usergeneratedcontent.net/gg.js", headers)
-    gg_text = response_text(res_gg)
-    b_match = re.search(r"b:\s*['\"]([^'\"]+)", gg_text)
-    base = b_match.group(1) if b_match else "1793091602/"
-    cases = {int(x) for x in re.findall(r"case\s+(\d+):", gg_text)}
-
-    urls = []
-    for item in files:
-        digest = item.get("hash")
-        if not digest:
-            continue
-        value = int(digest[-1] + digest[-3:-1], 16)
-        sub = f"w{1 + (0 if value in cases else 1)}"
-        urls.append(f"https://{sub}.gold-usergeneratedcontent.net/{base}{value}/{digest}.webp")
-    return title, urls, headers
+    def handle_starttag(self, tag, attrs):
+        values = dict(attrs)
+        if tag == "img":
+            for key in ("data-src", "data-original", "data-lazy-src", "src"):
+                value = values.get(key)
+                if value:
+                    self.urls.append(value)
+                    break
+            srcset = values.get("srcset")
+            if srcset:
+                candidate = srcset.split(",")[0].strip().split(" ")[0]
+                if candidate:
+                    self.urls.append(candidate)
+        elif tag == "source":
+            srcset = values.get("srcset")
+            if srcset:
+                candidate = srcset.split(",")[0].strip().split(" ")[0]
+                if candidate:
+                    self.urls.append(candidate)
+        elif tag == "a":
+            href = values.get("href")
+            if href and os.path.splitext(urlparse(href).path)[1].lower() in IMAGE_EXTS:
+                self.urls.append(href)
 
 
-def extract_imhentai(target_url):
+def _page_title(html, fallback):
+    match = re.search(r"<title[^>]*>(.*?)</title>", html, re.I | re.S)
+    if not match:
+        return sanitize_filename(fallback)
+    title = re.sub(r"<[^>]+>", "", match.group(1))
+    return sanitize_filename(title or fallback)
+
+
+def extract_generic_page(target_url):
     headers = {
         "User-Agent": USER_AGENT,
-        "Referer": "https://imhentai.xxx/",
-        "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+        "Accept": "text/html,application/xhtml+xml,image/*,*/*;q=0.8",
     }
-    gal_match = re.search(r"/(?:gallery|view)/(\d+)", target_url)
-    if not gal_match:
-        raise DownloadFailed("Could not find an imhentai gallery id")
-    gal_id = gal_match.group(1)
     session = _new_http_session()
+    response = _get(session, target_url, headers)
+    if response.status_code != 200:
+        raise DownloadFailed(f"HTTP {response.status_code} for {target_url}")
 
-    html_gal = response_text(_get(session, f"https://imhentai.xxx/gallery/{gal_id}/", headers))
-    title_match = re.search(r'id="gallery_title"\s+value="([^"]+)"', html_gal)
-    if title_match:
-        title = sanitize_filename(title_match.group(1))
-    else:
-        t_match = re.search(r"<title>(.*?)</title>", html_gal, re.S)
-        raw = t_match.group(1).replace("- IMHentai", "") if t_match else ""
-        title = sanitize_filename(raw or f"imhentai_{gal_id}")
+    content_type = (response.headers.get("Content-Type") or "").lower()
+    path_extension = os.path.splitext(urlparse(target_url).path)[1].lower()
+    if content_type.startswith("image/") or path_extension in IMAGE_EXTS:
+        name = os.path.splitext(os.path.basename(urlparse(target_url).path))[0]
+        return sanitize_filename(name or "image"), [target_url], headers
 
-    server_match = re.search(r'id="load_server"\s+value="(\d+)"', html_gal)
-    dir_match = re.search(r'id="load_dir"\s+value="([^"]+)"', html_gal)
-    gid_match = re.search(r'id="load_id"\s+value="([^"]+)"', html_gal)
-    pages_match = re.search(r'id="load_pages"\s+value="(\d+)"', html_gal)
-    if not dir_match or not gid_match:
-        raise DownloadFailed("Could not read image metadata from imhentai")
-    server = server_match.group(1) if server_match else "9"
-    image_dir = dir_match.group(1)
-    load_id = gid_match.group(1)
-    total_pages = int(pages_match.group(1)) if pages_match else 0
-
-    html_view = response_text(_get(session, f"https://imhentai.xxx/view/{gal_id}/1/", headers))
-    match = re.search(r"var\s+g_th\s*=\s*\$\.parseJSON\('([^']+)'\);", html_view)
-    if not match:
-        raise DownloadFailed("Could not find the imhentai image list")
-    g_th = json.loads(match.group(1))
-    ext_map = {"w": ".webp", "j": ".jpg", "p": ".png", "b": ".bmp", "g": ".gif"}
-
+    html = response_text(response)
+    collector = _PageImageCollector()
+    collector.feed(html)
     urls = []
-    page_count = total_pages if total_pages > 0 else len(g_th)
-    for page in range(1, page_count + 1):
-        entry = g_th.get(str(page))
-        ext = ext_map.get(entry.split(",")[0], ".jpg") if entry else ".webp"
-        urls.append(f"https://m{server}.imhentai.xxx/{image_dir}/{load_id}/{page}{ext}")
-    return title, urls, headers
-
-
-def extract_nhentai(target_url):
-    gid_match = re.search(r"/g/(\d+)", target_url)
-    if not gid_match:
-        raise DownloadFailed("Could not find an nhentai gallery id")
-    gid = gid_match.group(1)
-    headers = {"User-Agent": USER_AGENT, "Referer": "https://nhentai.net/"}
-    session = _new_http_session()
-
-    res = _get(session, f"https://nhentai.net/api/gallery/{gid}", headers)
-    if res.status_code != 200:
-        raise DownloadFailed(f"Cannot reach nhentai (HTTP {res.status_code})")
-    data = res.json()
-    title_data = data.get("title") or {}
-    title = sanitize_filename(
-        title_data.get("pretty") or title_data.get("english") or f"nhentai_{gid}"
-    )
-    media_id = data.get("media_id")
-    ext_map = {"j": "jpg", "p": "png", "w": "webp", "g": "gif"}
-    urls = []
-    pages = (data.get("images") or {}).get("pages") or []
-    for index, page in enumerate(pages, 1):
-        ext = ext_map.get((page or {}).get("t"), "jpg")
-        urls.append(f"https://i.nhentai.net/galleries/{media_id}/{index}.{ext}")
-    return title, urls, headers
-
-
-def get_chapters_from_series(session, series_url, headers):
-    html = response_text(_get(session, series_url, headers))
-    chapters = []
-    itemlist_match = re.search(r'ItemList",\s*"itemListElement":\s*(\[[^\]]+\])', html)
-    if itemlist_match:
-        try:
-            for item in json.loads(itemlist_match.group(1)):
-                chapters.append({"name": item.get("name", "").strip(), "url": item.get("url", "").strip()})
-        except (ValueError, TypeError):
-            chapters = []
-    if not chapters:
-        pattern = r'<div class="col-xs-5 chapter">\s*<a href="([^"]+)"[^>]*>\s*([^<]+)\s*</a>'
-        for url, name in re.findall(pattern, html):
-            chapters.append({"name": name.strip(), "url": url.strip()})
-    chapters.reverse()
-    return chapters
-
-
-def get_images_from_chapter(session, chapter_url, headers):
-    html = response_text(_get(session, chapter_url, headers))
-    for cdn_var in ("cdn1", "cdn2", "cdn3"):
-        match = re.search(rf"var\s+{cdn_var}\s*=\s*'([^']+)'", html)
-        if not match:
-            continue
-        try:
-            images = json.loads(match.group(1))
-        except ValueError:
-            continue
-        valid = [img.strip() for img in images if isinstance(img, str) and img.strip().startswith("http")]
-        if valid:
-            return valid
-    img_tags = re.findall(
-        r'<div[^>]*class=[\'"][^\'"]*page-chapter[^\'"]*[\'"][^>]*>\s*<img[^>]*src=[\'"]([^\'"]+)[\'"]',
-        html,
-    )
-    return [img.strip() for img in img_tags if img.strip().startswith("http")]
-
-
-def extract_hentaivnx(target_url):
-    headers = {"User-Agent": USER_AGENT, "Referer": "https://www.hentaivnx.com/"}
-    session = _new_http_session()
-    html = response_text(_get(session, target_url, headers))
-    series_match = re.search(
-        r'href="([^"]+)"[^>]*class="itemcrumb active"[^>]*>\s*<span[^>]*itemprop="name">\s*([^<]+)\s*</span>',
-        html,
-    )
-    if series_match:
-        series_url = series_match.group(1)
-        title = sanitize_filename(series_match.group(2))
-    else:
-        title_match = re.search(r"<title>\s*(.*?)\s*</title>", html, re.S)
-        title = sanitize_filename(title_match.group(1)) if title_match else "Downloaded_Manga"
-        series_url = target_url
-
-    chapters = get_chapters_from_series(session, series_url, headers)
-    if not chapters:
-        chapter_name = "Chapter 0"
-        c_match = re.search(r"Chapter\s*(\d+)", target_url, re.I)
-        if c_match:
-            chapter_name = f"Chapter {c_match.group(1)}"
-        chapters = [{"name": chapter_name, "url": target_url}]
-
-    urls = []
-    for chapter in chapters:
-        urls.extend(get_images_from_chapter(session, chapter["url"], headers))
-    return title, urls, headers
-
-
-def decode_vi_hentai_packer(h, u, n, t, e):
-    delimiter = n[e]
-    base_chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/"[:e]
-    out = bytearray()
-    for part in h.split(delimiter):
-        if not part:
-            continue
-        value = part
-        for index, char in enumerate(n):
-            value = value.replace(char, str(index))
-        number = 0
-        for char in value:
-            try:
-                digit = base_chars.index(char)
-            except ValueError:
-                continue
-            number = number * e + digit
-        code = number - t
-        if 0 <= code <= 255:
-            out.append(code)
-    return out.decode("utf-8", errors="replace")
-
-
-def extract_vi_hentai_chapter(session, chapter_url, headers):
-    html = response_text(_get(session, chapter_url, headers))
-    match = re.search(
-        r'\}\(\s*"([^"]+)"\s*,\s*(\d+)\s*,\s*"([^"]+)"\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)\)',
-        html,
-    )
-    if not match:
-        images = re.findall(r'https?://img\.shousetsu\.dev/[^"\'\s]+', html)
-        if images:
-            return images
-        raise DownloadFailed(f"Could not find image data in chapter: {chapter_url}")
-    h, u, n, t, e, _ = match.groups()
-    unpacked = decode_vi_hentai_packer(h, int(u), n, int(t), int(e))
-    urls = []
-    for raw in re.findall(r'https?:\\?/\\?/[^"\']+', unpacked):
-        cleaned = raw.replace(r"\/", "/").replace("\\", "")
-        if any(cleaned.lower().endswith(ext) for ext in IMAGE_EXTS) or "shousetsu.dev" in cleaned:
-            urls.append(cleaned)
-    return urls
-
-
-def extract_vi_hentai(target_url):
-    headers = {"User-Agent": USER_AGENT, "Referer": "https://vi-hentai.moe/"}
-    session = _new_http_session()
-    parts = [p for p in urlparse(target_url).path.split("/") if p]
-
-    if len(parts) >= 3 and parts[0] == "truyen":
-        html = response_text(_get(session, target_url, headers))
-        title_match = re.search(r"<title>(.*?)</title>", html, re.I | re.S)
-        title = sanitize_filename(
-            re.sub(r"\s*-\s*Việt Hentai.*$", "", title_match.group(1), flags=re.I).strip()
-        ) if title_match else sanitize_filename(f"{parts[1]}_{parts[2]}")
-        return title, extract_vi_hentai_chapter(session, target_url, headers), headers
-
-    html = response_text(_get(session, target_url, headers))
-    title_match = re.search(r"<title>(.*?)</title>", html, re.I | re.S)
-    if title_match:
-        title = sanitize_filename(
-            re.sub(r"\s*-\s*Việt Hentai.*$", "", title_match.group(1), flags=re.I).strip()
-        )
-    else:
-        title = sanitize_filename(parts[1] if len(parts) > 1 else "vi_hentai")
-
-    series_key = parts[1] if len(parts) > 1 else ""
-    links = []
     seen = set()
-    for chapter in re.findall(rf'href=["\'](/truyen/{re.escape(series_key)}/[^/"\']+)["\']', html):
-        if chapter not in seen:
-            seen.add(chapter)
-            links.append(f"https://vi-hentai.moe{chapter}")
-
-    if not links:
-        return title, extract_vi_hentai_chapter(session, target_url, headers), headers
-
-    def chapter_key(url):
-        numbers = re.findall(r"\d+", url.split("/")[-1])
-        return int(numbers[0]) if numbers else 9999
-
-    if all(re.search(r"\d+", link.split("/")[-1]) for link in links):
-        links.sort(key=chapter_key)
-    else:
-        links.reverse()
-
-    urls = []
-    for link in links:
-        urls.extend(extract_vi_hentai_chapter(session, link, headers))
-    return title, urls, headers
-
+    for raw in collector.urls:
+        absolute = urljoin(target_url, raw.strip())
+        if not absolute.lower().startswith(("http://", "https://")):
+            continue
+        extension = os.path.splitext(urlparse(absolute).path)[1].lower()
+        if extension and extension not in IMAGE_EXTS:
+            continue
+        if absolute in seen:
+            continue
+        seen.add(absolute)
+        urls.append(absolute)
+    if not urls:
+        raise DownloadFailed("No downloadable images found on this page")
+    fallback = os.path.basename(urlparse(target_url).path) or "download"
+    return _page_title(html, fallback), urls, headers
 
 def extract_gallery_dl(target_url):
     if gdl_job is None:
@@ -544,24 +335,18 @@ def extract_gallery_dl(target_url):
 
 
 def extract_manga_info(target_url):
-    domain = urlparse(target_url).netloc.lower()
-    if "hitomi.la" in domain:
-        return extract_hitomi(target_url)
-    if "vi-hentai" in domain:
-        return extract_vi_hentai(target_url)
-    if "imhentai" in domain:
-        return extract_imhentai(target_url)
-    if "nhentai" in domain:
-        return extract_nhentai(target_url)
-    if "hentaivn" in domain:
-        return extract_hentaivnx(target_url)
-    try:
-        return extract_gallery_dl(target_url)
-    except Exception:
-        return extract_hentaivnx(target_url)
+    """Use gallery-dl when available, then fall back to generic page images."""
+    if gdl_job is not None:
+        try:
+            return extract_gallery_dl(target_url)
+        except Exception:
+            pass
+    return extract_generic_page(target_url)
 
 
-_patched_module = os.environ.get("YOMIKIRU_DOWNLOADER_EXTRACTOR_MODULE")
+_patched_module = os.environ.get("YOPOMURA_DOWNLOADER_EXTRACTOR_MODULE") or os.environ.get(
+    "YOMIKIRU_DOWNLOADER_EXTRACTOR_MODULE"
+)
 if _patched_module:
     try:
         extract_manga_info = importlib.import_module(_patched_module).extract_manga_info

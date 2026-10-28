@@ -197,7 +197,7 @@ export const installPreloadMocks = (): void => {
         app: {
             getPath: (name: string) => path.join(os.tmpdir(), "yomikiru-test", name),
             getVersion: () => "0.0.0-test",
-            getName: () => "Yomikiru",
+            getName: () => "Yopomura",
             isPackaged: false,
         },
         clipboard: {

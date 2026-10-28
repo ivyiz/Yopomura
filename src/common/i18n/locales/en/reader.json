@@ -108,7 +108,7 @@
         "epubReadSupportBefore": "If you can share the original file, report the problem ",
         "epubReadSupportLink": "here",
         "epubReadSupportAfter": ".",
-        "epubReaderScope": "Yomikiru provides a basic EPUB reader and does not implement every part of the EPUB specification.",
+        "epubReaderScope": "Yopomura provides a basic EPUB reader and does not implement every part of the EPUB specification.",
         "chapterIdNotFound": "Could not find the chapter for corresponding id.",
         "chapterLinkNotFound": "Could not find the chapter for corresponding link.",
         "selectTextFirst": "Please select some text first",

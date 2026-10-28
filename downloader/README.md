@@ -1,26 +1,26 @@
-# Yomikiru Downloader Worker
+# Yopomura Downloader Worker
 
-Headless Python downloader used by Yomikiru. It has no GUI, no Tkinter and no
+Headless Python downloader used by Yopomura. It has no GUI, no Tkinter and no
 ctypes. The Electron app spawns `worker.py`, writes one JSON command per line to
 its stdin and reads one JSON event per line from its stdout.
 
-Extractors are adapted from MangaDownloader Classic and currently support
-hitomi.la, imhentai.xxx, nhentai.net, hentaivnx.com, vi-hentai.moe, a
-gallery-dl fallback and a generic hentaivnx-style fallback.
+The public worker is generic: it downloads direct image/archive URLs and images
+found on ordinary HTML pages, with an optional `gallery-dl` fallback. It does
+not ship site-specific extractors. Private builds can provide an extractor
+module through `YOPOMURA_DOWNLOADER_EXTRACTOR_MODULE`.
 
 ## Requirements
 
 - Python 3.10+ (tested on 3.14)
 - `requests` (required)
-- `curl_cffi` (optional, preferred: Chrome TLS impersonation)
-- `gallery-dl` (optional, fallback extractor for unsupported sites)
+- `gallery-dl` (optional, generic fallback for supported sites)
 
 ```bash
 pip install -r downloader/requirements.txt
 ```
 
-`curl_cffi` and `gallery-dl` are optional at runtime. The worker falls back to
-plain `requests` and to the built-in extractors when they are missing.
+`gallery-dl` is optional at runtime. Without it, the worker still handles direct
+images and generic HTML pages.
 
 ## Protocol
 
@@ -30,7 +30,7 @@ one UTF-8 JSON object. The worker flushes stdout after every event.
 ### Commands (stdin)
 
 ```json
-{"cmd":"add","id":"job-1","url":"https://nhentai.net/g/123456","outDir":"C:\\Users\\me\\Downloads","keepFolder":false}
+{"cmd":"add","id":"job-1","url":"https://example.com/gallery","outDir":"C:\\Users\\me\\Downloads","keepFolder":false}
 {"cmd":"cancel","id":"job-1"}
 {"cmd":"pause"}
 {"cmd":"resume"}
@@ -92,7 +92,7 @@ null), `queued` (number of waiting jobs), `paused` (worker pause flag).
 
 ## Behaviour
 
-- Images are streamed with `requests`/`curl_cffi` using `iter_content` and
+- Images are streamed with `requests` using `iter_content` and
   written to `<file>.part` before an atomic `os.replace`.
 - `pause` stops new images from starting, holds the queue (no next job begins)
   and blocks inside the streaming loop between chunks, so in-flight images stop
@@ -129,7 +129,7 @@ one-file executable before `pnpm package`:
 python -m PyInstaller --onefile --console --name MangaDownloaderWorker ^
   --distpath downloader --workpath build/downloader-worker ^
   --specpath build/downloader-worker ^
-  --collect-all curl_cffi --collect-all gallery_dl downloader/worker.py
+  --collect-all gallery_dl downloader/worker.py
 ```
 
 Verify the packaged binary answers the protocol:
@@ -185,7 +185,7 @@ proc = subprocess.Popen(
 )
 proc.stdin.write(json.dumps({
     "cmd": "add", "id": "demo",
-    "url": "https://nhentai.net/g/123456",
+    "url": "https://example.com/gallery",
     "outDir": "C:\\Temp\\manga", "keepFolder": False,
 }) + "\n")
 proc.stdin.flush()
@@ -201,7 +201,7 @@ proc.wait()
 
 ### Custom extractor hook
 
-For tests or private sites, set `YOMIKIRU_DOWNLOADER_EXTRACTOR_MODULE` to an
+For tests or private sites, set `YOPOMURA_DOWNLOADER_EXTRACTOR_MODULE` to an
 importable module name. Its `extract_manga_info(url)` must return
 `(title, [image_urls], headers)`. The smoke test uses this hook to avoid real
 network traffic. Stderr is reserved for diagnostics and is never part of the

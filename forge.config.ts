@@ -196,6 +196,7 @@ const copyPackagedRuntimes: PackagerHook = (buildPath, _electronVersion, platfor
 const config: ForgeConfig = {
     packagerConfig: {
         name: appName,
+        appBundleId: "com.yopomura.app",
         asar: true,
         /*
          * 7-Zip must live outside ASAR because Electron cannot execute bundled binaries.
@@ -249,9 +250,9 @@ const config: ForgeConfig = {
         new MakerDeb(
             {
                 options: {
-                    maintainer: "mienaiyami",
-                    homepage: "https://github.com/mienaiyami/yomikiru",
-                    bin: "./Yokomura",
+                    maintainer: "Yopomura contributors",
+                    homepage: "https://github.com/yopomura/yopomura",
+                    bin: "./Yopomura",
                     depends: ["xdg-utils"],
                 },
             },

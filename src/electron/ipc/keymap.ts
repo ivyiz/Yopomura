@@ -13,7 +13,7 @@ import { app, BrowserWindow, shell } from "electron";
 
 const log = createMainLogger("ipc/keymap");
 
-const HELP_URL = "https://github.com/mienaiyami/yomikiru";
+const HELP_URL = "https://github.com/yopomura/yopomura";
 
 const isNativeKeymapAction = (action: string): action is NativeKeymapAction =>
     (NATIVE_KEYMAP_ACTIONS as readonly string[]).includes(action);

@@ -1,7 +1,7 @@
 {
     "language": {
         "title": "Language and custom translation packs:",
-        "body": "In Settings (after Theme), open <link><bold>Language</bold></link>. The dropdown lists the built-in English source and any packs you installed (<code>locale - name</code>). Yomikiru ships English. You can install a community <code>.zip</code> pack (one language per pack), export a pack to share or edit, or remove an installed pack. Any text you leave untranslated still shows in English.",
+        "body": "In Settings (after Theme), open <link><bold>Language</bold></link>. The dropdown lists the built-in English source and any packs you installed (<code>locale - name</code>). Yopomura ships English. You can install a community <code>.zip</code> pack (one language per pack), export a pack to share or edit, or remove an installed pack. Any text you leave untranslated still shows in English.",
         "customPack": {
             "title": "Make your own language (no coding required):",
             "intro": "A translation pack is a zip file of plain text files. You export English, change the wording to your language, zip the files again, then install that zip. Follow these steps carefully.",
@@ -131,7 +131,7 @@
     },
     "fileExplorer": {
         "intro": "Open chapter directly from the file explorer after enabling <link>File Explorer Option</link>.",
-        "rightClick": "Right Click on folder or .cbz/.7z/.zip/.pdf/.epub \u00a0\u00a0\u2192\u00a0\u00a0 Show more options (win11) \u00a0\u00a0\u2192\u00a0\u00a0 Open in Yomikiru.",
+        "rightClick": "Right Click on folder or .cbz/.7z/.zip/.pdf/.epub \u00a0\u00a0\u2192\u00a0\u00a0 Show more options (win11) \u00a0\u00a0\u2192\u00a0\u00a0 Open in Yopomura.",
         "note": "Note that this only opens the chapter containing images, not the Manga Folder."
     },
     "tray": {
@@ -180,7 +180,7 @@
         "title": "AniList Tracking : ",
         "login": "Gallery details always shows an AniList control. For untracked titles it is Track (disabled until you log in) with a tip that tracking unlocks richer metadata; after you track a title it becomes the status control. You can also add tracking from the reader side list, a gallery tile context menu, or the open manga side list. If that control shows Network Error, click it to retry. In Add Tracking, use <code>{{down}}</code> / <code>{{up}}</code> to move through results and <code>{{select}}</code> to link the focused title; Escape closes the overlay.",
         "managed": "Tracking is stored in the library database per title and provider. Locate on disk keeps the tracker with the item; removing the library entry removes the tracker. Cached title metadata (About, genres, score, author, releasing status, chapter count) is stored locally and refreshed when you open or sync a tracked title. AniList cover art (the extra-large catalog image, with smaller sizes if that is missing) is saved beside the library thumbnail at the same time; gallery and details use that local file only (search and the AniList editor still show the remote image, using the large size). Gallery details show those catalog facts above genres, separated by a divider (not your AniList reading status), and an <bold>Open on AniList</bold> link above About that opens the remote page in your browser without asking. Edit metadata on the details page overrides title, author, About, and genres; Reset on that overlay asks first, then clears those fields. The overlay notes that tracking with AniList can fill them. Your AniList login token stays in this app's local storage, not in the database backup. Starting the app without a network connection does not show AniList error dialogs; only an invalid token prompts you to log in again.",
-        "adultContent": "Search results follow the adult-content preference on your AniList account. Change that preference on AniList; Yomikiru does not provide a separate toggle.",
+        "adultContent": "Search results follow the adult-content preference on your AniList account. Change that preference on AniList; Yopomura does not provide a separate toggle.",
         "autoUpdate": "Enable <bold>Auto-update AniList progress</bold> in reader settings to increment the remote progress when you finish a manga chapter or advance in a book. You can still edit status, score, and counts from the AniList editor. Auto-update does not run while continuous chapters is enabled for a book."
     },
     "epubContinuousScroll": {

@@ -1,6 +1,6 @@
 {
     "version": 1,
-    "description": "Dev-only demo fixtures for Yomikiru. Not shipped with the app. EPUBs from IDPF/W3C epub3-samples (clear open licenses only); comics are PD/CC0 or generated.",
+    "description": "Dev-only demo fixtures for Yopomura. Not shipped with the app. EPUBs from IDPF/W3C epub3-samples (clear open licenses only); comics are PD/CC0 or generated.",
     "epubs": [
         {
             "id": "idpf-moby-dick",

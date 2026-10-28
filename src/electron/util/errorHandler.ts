@@ -529,7 +529,7 @@ ${errorInfo}
         `.trim(),
         );
 
-        const githubUrl = `https://github.com/mienaiyami/yomikiru/issues/new?title=${issueTitle}&body=${issueBody}&labels=bug`;
+        const githubUrl = `https://github.com/yopomura/yopomura/issues/new?title=${issueTitle}&body=${issueBody}&labels=bug`;
         await shell.openExternal(githubUrl);
     }
 

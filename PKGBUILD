@@ -1,9 +1,9 @@
-pkgname=yomikiru
+pkgname=yopomura
 pkgver=VERSION_REPLACE
 pkgrel=1
-pkgdesc="An offline desktop reader for manga, comics, and novels. Offers a customizable reading experience with extensive settings, shortcuts, themes and layouts."
+pkgdesc="A desktop reader for manga, comics and books with a built-in media player, browser and generic downloader."
 arch=("x86_64")
-url="https://github.com/mienaiyami/yomikiru"
+url="https://github.com/yopomura/yopomura"
 license=("MIT")
 
 depends=()
@@ -27,13 +27,13 @@ package() {
   # launcher
   install -Dm755 /dev/stdin "$pkgdir/usr/bin/$pkgname" <<EOF
 #!/bin/bash
-exec /usr/lib/$pkgname/yomikiru "\$@"
+exec /usr/lib/$pkgname/yopomura "\$@"
 EOF
 
   # desktop file
   install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/$pkgname.desktop" <<EOF
 [Desktop Entry]
-Name=Yomikiru
+Name=Yopomura
 Exec=$pkgname
 Icon=$pkgname
 Type=Application

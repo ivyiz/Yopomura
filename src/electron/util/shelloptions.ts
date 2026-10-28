@@ -8,7 +8,7 @@ import { createMainLogger } from "./logger";
 const logger = createMainLogger("shelloptions");
 
 const op = {
-    name: "Yomikiru",
+    name: "Yopomura",
     icns: app.getPath("exe"),
 };
 
@@ -21,63 +21,63 @@ export const addOptionToExplorerMenu = async (): Promise<boolean> => {
         const regInit = `Windows Registry Editor Version 5.00
         
         ; setup context menu item for click on folders tree item
-        [HKEY_CURRENT_USER\\Software\\Classes\\directory\\shell\\Yomikiru\\command]
+        [HKEY_CURRENT_USER\\Software\\Classes\\directory\\shell\\Yopomura\\command]
         @="\\"${appPath}\\" \\"%V\\""
         
         ; specify an icon for the item
-        [HKEY_CURRENT_USER\\Software\\Classes\\directory\\shell\\Yomikiru]
-        @="Open in Yomikiru "
+        [HKEY_CURRENT_USER\\Software\\Classes\\directory\\shell\\Yopomura]
+        @="Open in Yopomura "
         "icon"="${appPath}"
 
         
-        [HKEY_CLASSES_ROOT\\.cbz\\shell\\Yomikiru]
-        @="Open in Yomikiru"
+        [HKEY_CLASSES_ROOT\\.cbz\\shell\\Yopomura]
+        @="Open in Yopomura"
         "Icon"="${appPath}"
 
-        [HKEY_CLASSES_ROOT\\.cbz\\shell\\Yomikiru\\command]
+        [HKEY_CLASSES_ROOT\\.cbz\\shell\\Yopomura\\command]
         @="\\"${appPath}\\" \\"%V\\""
 
 
-        [HKEY_CLASSES_ROOT\\Yomikiru]
-        @="Yomikiru"
+        [HKEY_CLASSES_ROOT\\Yopomura]
+        @="Yopomura"
 
-        [HKEY_CLASSES_ROOT\\Yomikiru\\DefaultIcon]
+        [HKEY_CLASSES_ROOT\\Yopomura\\DefaultIcon]
         @="${appPath}"
 
-        [HKEY_CLASSES_ROOT\\Yomikiru\\shell\\open]
+        [HKEY_CLASSES_ROOT\\Yopomura\\shell\\open]
         "Icon"="${appPath}"
 
-        [HKEY_CLASSES_ROOT\\Yomikiru\\shell\\open\\command]
+        [HKEY_CLASSES_ROOT\\Yopomura\\shell\\open\\command]
         @="\\"${appPath}\\" \\"%V\\""
 
         [HKEY_CLASSES_ROOT\\.zip\\OpenWithProgids]
-        "Yomikiru"=""
+        "Yopomura"=""
         [HKEY_CLASSES_ROOT\\.cbz\\OpenWithProgids]
-        "Yomikiru"=""
+        "Yopomura"=""
         [HKEY_CLASSES_ROOT\\.cbr\\OpenWithProgids]
-        "Yomikiru"=""
+        "Yopomura"=""
         [HKEY_CLASSES_ROOT\\.cb7\\OpenWithProgids]
-        "Yomikiru"=""
+        "Yopomura"=""
 
         [HKEY_CLASSES_ROOT\\.rar\\OpenWithProgids]
-        "Yomikiru"=""
+        "Yopomura"=""
 
         [HKEY_CLASSES_ROOT\\.pdf\\OpenWithProgids]
-        "Yomikiru"=""
+        "Yopomura"=""
 
         [HKEY_CLASSES_ROOT\\.7z\\OpenWithProgids]
-        "Yomikiru"=""
+        "Yopomura"=""
         `;
 
         const tempPath = app.getPath("temp");
-        const regFilePath = path.join(tempPath, "createOpenWithYomikiru.reg");
+        const regFilePath = path.join(tempPath, "createOpenWithYopomura.reg");
 
         await fs.writeFile(regFilePath, regInit);
 
         return await new Promise<boolean>((resolve, reject) => {
             sudo.exec(`regedit.exe /S ${regFilePath}`, op, (error) => {
                 if (error) {
-                    logger.error("Windows Explorer 'Open in Yomikiru' (folders): regedit returned error", error);
+                    logger.error("Windows Explorer 'Open in Yopomura' (folders): regedit returned error", error);
                     reject(new Error(`Failed to add explorer menu option: ${error.message}`));
                     return;
                 }
@@ -91,7 +91,7 @@ export const addOptionToExplorerMenu = async (): Promise<boolean> => {
 };
 
 /**
- * Registers Windows Explorer "Open in Yomikiru" for book files.
+ * Registers Windows Explorer "Open in Yopomura" for book files.
  */
 export const addOptionToExplorerMenu_epub = async (): Promise<boolean> => {
     try {
@@ -100,26 +100,26 @@ export const addOptionToExplorerMenu_epub = async (): Promise<boolean> => {
             : path.join(app.getPath("exe"), `../../${app.name}.exe`).replace(/\\/g, "\\\\");
         const regInit = `Windows Registry Editor Version 5.00
         
-        [HKEY_CLASSES_ROOT\\.epub\\shell\\Yomikiru]
-        @="Open in Yomikiru"
+        [HKEY_CLASSES_ROOT\\.epub\\shell\\Yopomura]
+        @="Open in Yopomura"
         "Icon"="${appPath}"
 
-        [HKEY_CLASSES_ROOT\\.epub\\shell\\Yomikiru\\command]
+        [HKEY_CLASSES_ROOT\\.epub\\shell\\Yopomura\\command]
         @="\\"${appPath}\\" \\"%V\\""
 
         [HKEY_CLASSES_ROOT\\.epub\\OpenWithProgids]
-        "Yomikiru"=""
+        "Yopomura"=""
         `;
 
         const tempPath = app.getPath("temp");
-        const regFilePath = path.join(tempPath, "createOpenWithYomikiru-epub.reg");
+        const regFilePath = path.join(tempPath, "createOpenWithYopomura-epub.reg");
 
         await fs.writeFile(regFilePath, regInit);
 
         return await new Promise<boolean>((resolve, reject) => {
             sudo.exec(`regedit.exe /S ${regFilePath}`, op, (error) => {
                 if (error) {
-                    logger.error("Windows Explorer 'Open in Yomikiru' (.epub): regedit returned error", error);
+                    logger.error("Windows Explorer 'Open in Yopomura' (.epub): regedit returned error", error);
                     reject(new Error(`Failed to add epub explorer menu option: ${error.message}`));
                     return;
                 }
@@ -136,31 +136,31 @@ export const deleteOptionInExplorerMenu = async (): Promise<boolean> => {
     try {
         const regDelete = `Windows Registry Editor Version 5.00
         
-        [-HKEY_CURRENT_USER\\Software\\Classes\\directory\\shell\\Yomikiru]
+        [-HKEY_CURRENT_USER\\Software\\Classes\\directory\\shell\\Yopomura]
         
-        [-HKEY_CLASSES_ROOT\\.cbz\\shell\\Yomikiru]
+        [-HKEY_CLASSES_ROOT\\.cbz\\shell\\Yopomura]
 
-        [-HKEY_CLASSES_ROOT\\Yomikiru]
+        [-HKEY_CLASSES_ROOT\\Yopomura]
 
         [HKEY_CLASSES_ROOT\\.zip\\OpenWithProgids]
-        "Yomikiru"=-
+        "Yopomura"=-
 
         [HKEY_CLASSES_ROOT\\.pdf\\OpenWithProgids]
-        "Yomikiru"=-
+        "Yopomura"=-
 
         [HKEY_CLASSES_ROOT\\.7z\\OpenWithProgids]
-        "Yomikiru"=-
+        "Yopomura"=-
         `;
 
         const tempPath = app.getPath("temp");
-        const regFilePath = path.join(tempPath, "deleteOpenWithYomikiru.reg");
+        const regFilePath = path.join(tempPath, "deleteOpenWithYopomura.reg");
 
         await fs.writeFile(regFilePath, regDelete);
 
         return await new Promise<boolean>((resolve, reject) => {
             sudo.exec(`regedit.exe /S ${regFilePath}`, op, (error) => {
                 if (error) {
-                    logger.error("Windows Explorer: removing 'Open in Yomikiru' registry keys failed", error);
+                    logger.error("Windows Explorer: removing 'Open in Yopomura' registry keys failed", error);
                     reject(new Error(`Failed to delete explorer menu option: ${error.message}`));
                     return;
                 }
@@ -174,7 +174,7 @@ export const deleteOptionInExplorerMenu = async (): Promise<boolean> => {
 };
 
 /**
- * Removes Windows Explorer "Open in Yomikiru" for book files.
+ * Removes Windows Explorer "Open in Yopomura" for book files.
  * Also clears leftover Open With progids from dropped standalone text formats
  * so Remove still cleans associations added by older builds.
  */
@@ -182,23 +182,23 @@ export const deleteOptionInExplorerMenu_epub = async (): Promise<boolean> => {
     try {
         const regDelete = `Windows Registry Editor Version 5.00
         
-        [-HKEY_CLASSES_ROOT\\.epub\\shell\\Yomikiru]
+        [-HKEY_CLASSES_ROOT\\.epub\\shell\\Yopomura]
 
         [HKEY_CLASSES_ROOT\\.epub\\OpenWithProgids]
-        "Yomikiru"=-
+        "Yopomura"=-
 
         [HKEY_CLASSES_ROOT\\.txt\\OpenWithProgids]
-        "Yomikiru"=-
+        "Yopomura"=-
 
         [HKEY_CLASSES_ROOT\\.xhtml\\OpenWithProgids]
-        "Yomikiru"=-
+        "Yopomura"=-
 
         [HKEY_CLASSES_ROOT\\.html\\OpenWithProgids]
-        "Yomikiru"=-
+        "Yopomura"=-
         `;
 
         const tempPath = app.getPath("temp");
-        const regFilePath = path.join(tempPath, "deleteOpenWithYomikiru-epub.reg");
+        const regFilePath = path.join(tempPath, "deleteOpenWithYopomura-epub.reg");
 
         await fs.writeFile(regFilePath, regDelete);
 

@@ -22,7 +22,11 @@ export const mainSettingsSchema = z
         /** When enabled, minimize sends window to system tray instead of taskbar. */
         minimizeToTray: z.boolean().default(false),
 
-        checkForUpdates: z.boolean().default(true),
+        /**
+         * Public builds default to off until the project owns a signed release
+         * feed. Users can enable checks in Settings -> About.
+         */
+        checkForUpdates: z.boolean().default(false),
         skipPatch: z.boolean().default(false),
         autoDownload: z.boolean().default(false),
         channel: z.enum(["stable", "beta"]).default("stable"),

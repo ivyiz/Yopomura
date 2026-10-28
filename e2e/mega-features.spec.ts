@@ -8,7 +8,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
  * End-to-end smoke: media player, browser tabs/side pane, trash undo, downloader panel.
  *
  * Prerequisites (local Windows machine):
- * - `pnpm package` produced `out/Yokomura-win32-x64/Yokomura.exe` with its portable `userdata`.
+ * - `pnpm package` produced `out/Yopomura-win32-x64/Yopomura.exe` with its portable `userdata`.
  * - That userdata's default library folder points at `%TEMP%\yokomura-mega-test`.
  * - The folder contains `sample.webm` (VP8/VP9) and a disposable `DELETE-ME.zip`.
  *
@@ -17,7 +17,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 test("mega features smoke", async () => {
     test.setTimeout(240_000);
     const repoRoot = path.resolve(__dirname, "..");
-    const appDir = path.join(repoRoot, "out", "Yokomura-win32-x64");
+    const appDir = path.join(repoRoot, "out", "Yopomura-win32-x64");
     const libraryDir = path.join(os.tmpdir(), "yokomura-mega-test");
     const target = path.join(libraryDir, "sample.webm");
     const deletable = path.join(libraryDir, "DELETE-ME.zip");
@@ -42,7 +42,7 @@ test("mega features smoke", async () => {
     const port = (server.address() as { port: number }).port;
 
     const app = await electron.launch({
-        executablePath: path.join(appDir, "Yokomura.exe"),
+        executablePath: path.join(appDir, "Yopomura.exe"),
         cwd: appDir,
         env: { ...process.env, NODE_ENV: "production" },
     });

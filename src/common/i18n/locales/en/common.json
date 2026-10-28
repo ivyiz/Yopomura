@@ -16,10 +16,10 @@
         "export": "Export",
         "change": "Change"
     },
-    "appName": "Yokomura",
+    "appName": "Yopomura",
     "app": {
         "initialLibraryRootTitle": "Choose your Home library root",
-        "initialLibraryRootMessage": "Select the folder Yokomura should use as your Home library root.",
+        "initialLibraryRootMessage": "Select the folder Yopomura should use as your Home library root.",
         "initialLibraryRootDetail": "This folder appears in Locations and can be scanned for manga and books. Choose later to use your system home folder for now. You can change it at any time in Library settings.",
         "chooseLibraryRootNow": "Choose now",
         "chooseLibraryRootLater": "Choose later",

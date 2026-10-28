@@ -70,7 +70,7 @@ const ToolRow = ({ tool, onTogglePin }: { tool: BrowserToolEntry; onTogglePin: (
     </div>
 );
 
-/** Compact Chrome-style extensions popover for Yokomura's built-in tools. */
+/** Compact Chrome-style extensions popover for Yopomura's built-in tools. */
 const BrowserExtensionsMenu = ({
     engine,
     onEngineChange,

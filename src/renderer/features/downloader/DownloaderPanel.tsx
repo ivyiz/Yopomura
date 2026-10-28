@@ -115,7 +115,9 @@ const DownloaderPanel = ({ onClose, onOpenOutput }: DownloaderPanelProps) => {
                         <textarea
                             value={urls}
                             onChange={(e) => setUrls(e.target.value)}
-                            placeholder={"Mỗi dòng một link\nhttps://hitomi.la/...\nhttps://nhentai.net/g/..."}
+                            placeholder={
+                                "Paste image, media or archive URLs\nhttps://example.com/gallery\nhttps://example.com/file.zip"
+                            }
                             spellCheck={false}
                         />
                     </label>

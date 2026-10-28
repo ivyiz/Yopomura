@@ -56,7 +56,7 @@ const setBodyTheme = ({ allData, name }: Themes) => {
     } else {
         dialogUtils.customError({
             title: "Error",
-            message: `Theme "${name}" does not exist. Try fixing or deleting theme.json and settings.json in "userdata" folder.(at "%appdata%/Yomikiru/" or in main folder on Portable version)`,
+            message: `Theme "${name}" does not exist. Try fixing or deleting theme.json and settings.json in "userdata" folder.(at "%appdata%/Yopomura/" or in main folder on Portable version)`,
         });
     }
 };

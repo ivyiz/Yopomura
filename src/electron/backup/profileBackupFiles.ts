@@ -183,10 +183,10 @@ export const validateExtractedTree = async (root: string): Promise<void> => {
     await walk(root);
 };
 
-/** Default save-dialog name for a profile backup: `Yokomura-profile-YYYY-MM-DD.zip`. */
+/** Default save-dialog name for a profile backup: `Yopomura-profile-YYYY-MM-DD.zip`. */
 export const profileBackupFileName = (date: Date = new Date()): string => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
-    return `Yokomura-profile-${year}-${month}-${day}.zip`;
+    return `Yopomura-profile-${year}-${month}-${day}.zip`;
 };

@@ -4,7 +4,7 @@ import axios from "axios";
 export const HTTP_DEFAULT_TIMEOUT_MS = 30_000;
 
 /** Identifying User-Agent for Node/main requests. */
-export const HTTP_USER_AGENT = "Yokomura";
+export const HTTP_USER_AGENT = "Yopomura";
 
 /**
  * True when the runtime uses Chromium XHR, which refuses forbidden headers

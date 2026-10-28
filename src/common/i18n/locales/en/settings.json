@@ -378,7 +378,7 @@
     },
     "fileExplorer": {
         "title": "File Explorer Option",
-        "desc": "Add file explorer option (right click menu) to open item in Yomikiru's reader directly from File Explorer. Use \"Use Existing Window\" in Other Settings to open in current window.",
+        "desc": "Add file explorer option (right click menu) to open item in Yopomura's reader directly from File Explorer. Use \"Use Existing Window\" in Other Settings to open in current window.",
         "mangaDescBefore": "For folders, ",
         "mangaDescAfter": " (Opened in Manga/Image Reader)",
         "epubDescBefore": "For ",
@@ -390,8 +390,8 @@
     },
     "anilist": {
         "title": "AniList",
-        "desc": "Link Yomikiru to your AniList account.",
-        "note": "NOTE: Yomikiru does not use internet for anything other than app updates if it is not linked with AniList.",
+        "desc": "Link Yopomura to your AniList account.",
+        "note": "NOTE: Yopomura does not use internet for anything other than app updates if it is not linked with AniList.",
         "login": "Login with AniList",
         "loggedInAs": "Logged in as {{username}}",
         "logout": "Logout",

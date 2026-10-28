@@ -30,7 +30,7 @@ import LibraryScanStatusButton from "./components/LibraryScanStatusButton";
 
 const TopBar = (): ReactElement => {
     const { t } = useTranslation("common");
-    const [title, setTitle] = useState<string>("Yokomura");
+    const [title, setTitle] = useState<string>("Yopomura");
     const {
         pageNumberInputRef,
         bookProgressRef,

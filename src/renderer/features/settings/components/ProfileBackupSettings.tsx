@@ -66,8 +66,8 @@ const ProfileBackupSettings: React.FC = () => {
         try {
             const { response } = await dialogUtils.warn({
                 title: "Restore profile",
-                message: "Restore your Yokomura profile from a ZIP backup?",
-                detail: "This replaces your library database, settings, presets, shortcuts, themes, covers and trash on the next launch. Your current profile is kept in a safety folder. Yokomura must restart to finish restoring.",
+                message: "Restore your Yopomura profile from a ZIP backup?",
+                detail: "This replaces your library database, settings, presets, shortcuts, themes, covers and trash on the next launch. Your current profile is kept in a safety folder. Yopomura must restart to finish restoring.",
                 noOption: false,
                 buttons: ["Cancel", "Restore profile"],
                 defaultId: 0,
@@ -78,7 +78,7 @@ const ProfileBackupSettings: React.FC = () => {
             setBusy("restore");
             const result = await window.electron.invoke("profileBackup:restore");
             if (result.ok) {
-                setMessage("Restart Yokomura to finish restoring your profile.");
+                setMessage("Restart Yopomura to finish restoring your profile.");
             } else if (isCancellation(result.message)) {
                 setMessage(result.message);
             } else {
@@ -97,7 +97,7 @@ const ProfileBackupSettings: React.FC = () => {
             <h3>Profile backup</h3>
             <div className="desc">
                 Save your library database, settings, presets, shortcuts, themes, covers and trash to a ZIP file.
-                Restoring a profile replaces these files the next time Yokomura starts.
+                Restoring a profile replaces these files the next time Yopomura starts.
             </div>
             <div className="main row profileBackupActions">
                 <button type="button" disabled={busy !== null} onClick={() => void handleBackup()}>

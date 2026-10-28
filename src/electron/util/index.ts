@@ -17,47 +17,56 @@ if (IS_PORTABLE) {
 }
 
 /**
- * One-time carry-over when the product name changes (Yomikiru -> Yokomura).
- * Copies the catalogue, settings, and cached covers into the new userData folder
- * without overwriting anything already there. Portable builds land beside the exe;
- * installed builds land under appData/Yokomura.
+ * One-time carry-over when the product name changes (Yomikiru/Yokomura -> Yopomura).
+ * Copies the catalogue, settings, browser data, and cached covers into the new
+ * userData folder without overwriting anything already there. Portable builds
+ * land beside the exe; installed builds land under appData/Yopomura.
  */
+const LEGACY_USER_DATA_NAMES = ["Yokomura", "Yomikiru"] as const;
+
 const migrateLegacyUserData = (): void => {
     const target = app.getPath("userData");
-    const legacy = path.join(app.getPath("appData"), "Yomikiru");
-    if (path.resolve(target).toLowerCase() === path.resolve(legacy).toLowerCase()) return;
-    if (!fs.existsSync(legacy) || fs.existsSync(path.join(target, "data.db"))) return;
+    if (fs.existsSync(path.join(target, "data.db"))) return;
 
-    try {
-        fs.mkdirSync(target, { recursive: true });
-        const files = [
-            "data.db",
-            "data.db-wal",
-            "data.db-shm",
-            "main-settings.json",
-            "settings.json",
-            "reader-presets.json",
-            "shortcuts.json",
-            "themes.json",
-            "announcements.txt",
-        ];
-        for (const name of files) {
-            const source = path.join(legacy, name);
-            if (!fs.existsSync(source)) continue;
-            fs.cpSync(source, path.join(target, name), { force: false });
+    for (const legacyName of LEGACY_USER_DATA_NAMES) {
+        const legacy = path.join(app.getPath("appData"), legacyName);
+        if (path.resolve(target).toLowerCase() === path.resolve(legacy).toLowerCase()) continue;
+        if (!fs.existsSync(legacy)) continue;
+
+        try {
+            fs.mkdirSync(target, { recursive: true });
+            const files = [
+                "data.db",
+                "data.db-wal",
+                "data.db-shm",
+                "main-settings.json",
+                "settings.json",
+                "reader-presets.json",
+                "shortcuts.json",
+                "themes.json",
+                "announcements.txt",
+                "browser-bookmarks.json",
+                "browser-start-sites.json",
+            ];
+            for (const name of files) {
+                const source = path.join(legacy, name);
+                if (!fs.existsSync(source)) continue;
+                fs.cpSync(source, path.join(target, name), { force: false });
+            }
+            for (const name of ["covers", "i18n-packs", "trash"]) {
+                const source = path.join(legacy, name);
+                if (!fs.existsSync(source)) continue;
+                fs.cpSync(source, path.join(target, name), {
+                    recursive: true,
+                    force: false,
+                    errorOnExist: false,
+                });
+            }
+            console.log(`[Yopomura] carried over existing data from ${legacy}`);
+            return;
+        } catch (error) {
+            console.error(`[Yopomura] legacy data migration from ${legacyName} failed`, error);
         }
-        for (const name of ["covers", "i18n-packs"]) {
-            const source = path.join(legacy, name);
-            if (!fs.existsSync(source)) continue;
-            fs.cpSync(source, path.join(target, name), {
-                recursive: true,
-                force: false,
-                errorOnExist: false,
-            });
-        }
-        console.log(`[Yokomura] carried over existing data from ${legacy}`);
-    } catch (error) {
-        console.error("[Yokomura] legacy data migration failed", error);
     }
 };
 

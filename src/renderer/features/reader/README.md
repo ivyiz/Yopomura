@@ -2,7 +2,7 @@
 
 > Last updated: 2026-09-12. Covers v2.25.x.
 
-Yomikiru has two separate reader implementations mounted side-by-side in `Main.tsx`:
+Yopomura has two separate reader implementations mounted side-by-side in `Main.tsx`:
 
 - **Manga Reader** — image-based (manga, manhwa, webtoon, comics, CBZ/ZIP archives, PDF).
 - **EPUB Reader** — HTML-chapter-based (novels, comics in EPUB format).

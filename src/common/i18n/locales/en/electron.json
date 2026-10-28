@@ -9,7 +9,7 @@
         "blankWindow": "If you are seeing blank window then check the github page for new version or create an issue if no new version is available.",
         "crashed": "App crashed. Please check the github page for new version or create an issue if no new version is available.",
         "closeConfirm": "Close this window?",
-        "closeTitle": "Yokomura",
+        "closeTitle": "Yopomura",
         "jumpListNewWindow": "New Window",
         "jumpListNewWindowDesc": "Create a new window"
     },
@@ -37,7 +37,7 @@
     },
     "errors": {
         "reportIssueTitle": "Report Issue",
-        "reportIssueMessage": "Would you like to report this issue to help improve Yomikiru?",
+        "reportIssueMessage": "Would you like to report this issue to help improve Yopomura?",
         "reportIssueDetail": "This will open GitHub with error information pre-filled. No personal data is included.",
         "reportIssue": "Report Issue",
         "copyErrorInfo": "Copy Error Info",
@@ -57,7 +57,7 @@
         "newAnnouncementsMessage": "There are new announcements. Check them out!",
         "openEach": "Open Each",
         "openAnnouncementPage": "Open Announcement Page",
-        "appTitle": "Yokomura",
+        "appTitle": "Yopomura",
         "runningLatest": "Running latest version",
         "checkFailedTitle": "Update Check Failed",
         "checkFailedMessage": "Failed to check for updates.",

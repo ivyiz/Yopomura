@@ -337,7 +337,7 @@ const generateRelease = () => {
     // const downloadSection = `## Downloads\n\n${downloadButtons.join(" ")}\n`;
     const downloadSection = `## Downloads
 
-32-bit Windows builds are no longer produced. The Windows files in the table below are 64-bit (portable zip and setup). Windows 7, 8, and 8.1 are not supported. Details: https://github.com/mienaiyami/yomikiru/discussions/556
+32-bit Windows builds are no longer produced. The Windows files in the table below are 64-bit (portable zip and setup). Windows 7, 8, and 8.1 are not supported. Details: https://github.com/yopomura/yopomura/discussions
 
 The last stable release that still supports those systems and 32-bit Windows is **2.24.0**. The last beta is **2.25.0-beta.7**.
 

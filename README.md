@@ -1,25 +1,14 @@
-# Yomikiru
+# Yopomura
 
-**A powerful offline manga, manhwa, comic, and novel reader for desktop**
+**A desktop reader for manga, comics and books with a built-in media player, browser and generic downloader**
 
-Yomikiru is a feature-rich desktop application designed for reading locally stored manga, comics, webtoons, and EPUB novels. Built with Electron and React, it offers a customizable and distraction-free reading experience.
+Yopomura is a feature-rich desktop application for reading locally stored manga, comics, webtoons, and EPUB novels. It also includes a media library, an integrated browser, a generic downloader, a retention-based trash and profile backup. Built with Electron and React.
 
-[![Github Latest Release](https://img.shields.io/github/v/tag/mienaiyami/yomikiru?label=release&style=flat-square&logo=github)](https://github.com/mienaiyami/yomikiru/releases/latest) |
-[![Github All Releases](https://img.shields.io/github/downloads/mienaiyami/yomikiru/total.svg?style=flat-square&logo=github)](https://github.com/mienaiyami/yomikiru/releases) |
-[![License](https://img.shields.io/github/license/mienaiyami/yomikiru?style=flat-square)](LICENSE)
+[![Github Latest Release](https://img.shields.io/github/v/tag/yopomura/yopomura?label=release&style=flat-square&logo=github)](https://github.com/yopomura/yopomura/releases/latest) |
+[![Github All Releases](https://img.shields.io/github/downloads/yopomura/yopomura/total.svg?style=flat-square&logo=github)](https://github.com/yopomura/yopomura/releases) |
+[![License](https://img.shields.io/github/license/yopomura/yopomura?style=flat-square)](LICENSE)
 
 [Privacy Policy](PRIVACY.md)
-
-## Join the Community
-
-If you have questions, ideas, or want to stay updated with development, join our Discord server.
-
-- Get help and support  
-- Share feedback and feature requests  
-- Discuss new ideas and upcoming updates  
-- Connect with other users
-
-**Join the Discord:** <https://discord.gg/UHwBN9g22e>
 
 ## Features
 
@@ -49,11 +38,19 @@ If you have questions, ideas, or want to stay updated with development, join our
 ### Technical Features
 
 - **Lightweight**: Low CPU and RAM usage
-- **Offline First**: No internet connection required
-- **Cross-Platform**: Windows, macOS, and Linux support
+- **Reader Works Offline**: No internet connection required for local files
+- **Windows & Linux**: Windows and Linux packages are supported; macOS is not a released target yet
 - **Portable Mode**: Run from USB drives or external storage
 - **Drag & Drop**: Easy file management
 - **File Explorer Integration**: Open files directly from system explorer
+
+### Media & Browser
+
+- **Media Library**: MP4/WebM playback, playlist thumbnails, scrub preview and theater mode
+- **Integrated Browser**: Tabs, bookmarks, pinned tools, ad blocking, force dark and a New Tab page
+- **Browser Proxy**: Optional HTTP/HTTPS/SOCKS5 proxy for the browser session only
+- **Generic Downloader**: Direct image/archive URLs and generic page images; no site-specific extractors
+- **Trash & Backup**: Countdown retention, recovery, and a full profile ZIP backup
 
 ### Integrations
 
@@ -66,7 +63,7 @@ If you have questions, ideas, or want to stay updated with development, join our
 
 ### Quick Install
 
-1. **Download** the latest version from [Releases](https://github.com/mienaiyami/yomikiru/releases/latest)
+1. **Download** the latest version from [Releases](https://github.com/yopomura/yopomura/releases/latest)
 2. **Choose your platform**:
    - Windows: Download `.exe` (installer) or `.zip` (portable)
    - Linux: Download `.deb` (Debian/Ubuntu)
@@ -78,7 +75,7 @@ Beta versions are available for users who want to try the latest features before
 
 ### Accessing Beta Releases
 
-- **Beta Releases**: Available on the [Releases page](https://github.com/mienaiyami/yomikiru/releases) (marked as "Pre-release")
+- **Beta Releases**: Available on the [Releases page](https://github.com/yopomura/yopomura/releases) (marked as "Pre-release")
 - **Beta Branch**: Check the `beta` branch for the latest development code
 
 ### Beta vs Stable
@@ -120,8 +117,11 @@ Beta versions are available for users who want to try the latest features before
 ## What It Doesn't Do
 
 - **No Content Hosting**: Doesn't host or provide access to online content
-- **No Downloader**: Doesn't download content from the internet
-- **No Streaming**: Works only with locally stored files
+- **No site-specific extractors**: The public build ships a generic downloader; it does not include site presets or bundled media
+- **No bundled media**: Works with files you already own or have permission to use
+- **No Chrome Web Store extensions**: The integrated browser supports built-in tools, not arbitrary Chrome extensions
+
+See [DISCLAIMER.md](DISCLAIMER.md) for content and copyright responsibilities.
 
 ## Development Roadmap
 
@@ -157,9 +157,9 @@ Add the printed `demo/` path as a library location in Settings. Details: [Demo f
 
 ## Support & Issues
 
-- **Bug Reports**: [GitHub Issues](https://github.com/mienaiyami/yomikiru/issues)
-- **Feature Requests**: [GitHub Issues](https://github.com/mienaiyami/yomikiru/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/mienaiyami/yomikiru/discussions)
+- **Bug Reports**: [GitHub Issues](https://github.com/yopomura/yopomura/issues)
+- **Feature Requests**: [GitHub Issues](https://github.com/yopomura/yopomura/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yopomura/yopomura/discussions)
 - **Documentation**: Check the `docs/` folder for detailed guides
 
 ## License
@@ -167,6 +167,9 @@ Add the printed `demo/` path as a library location in Settings. Details: [Demo f
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
+
+Yopomura is a fork of [Yomikiru](https://github.com/mienaiyami/yomikiru) by
+mienaiyami, used under the MIT License. See [NOTICE](NOTICE) for attribution.
 
 ### Past Supporters
 
@@ -186,6 +189,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-**[Download Now](https://github.com/mienaiyami/yomikiru/releases/latest)** • **[Documentation](docs/GUIDE.md)** • **[Screenshots](docs/SCREENSHOTS.md)**
+**[Download Now](https://github.com/yopomura/yopomura/releases/latest)** • **[Documentation](docs/GUIDE.md)** • **[Screenshots](docs/SCREENSHOTS.md)**
 
 </div>

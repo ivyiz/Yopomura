@@ -29,13 +29,13 @@ const handleSquirrelEvent = () => {
             const vbsScript = `
             Set WshShell = CreateObject("Wscript.shell")
             strDesktop = WshShell.SpecialFolders("Desktop")
-            Set oMyShortcut = WshShell.CreateShortcut(strDesktop + "\\Yomikiru.lnk")
+            Set oMyShortcut = WshShell.CreateShortcut(strDesktop + "\\Yopomura.lnk")
             oMyShortcut.WindowStyle = "1"
             oMyShortcut.IconLocation = "${path.resolve(rootFolder, "app.ico")}"
             OMyShortcut.TargetPath = "${appPath}"
             oMyShortCut.Save
             strStartMenu = WshShell.SpecialFolders("StartMenu")
-            Set oMyShortcut2 = WshShell.CreateShortcut(strStartMenu + "\\programs\\Yomikiru.lnk")
+            Set oMyShortcut2 = WshShell.CreateShortcut(strStartMenu + "\\programs\\Yopomura.lnk")
             oMyShortcut2.WindowStyle = "1"
             oMyShortcut2.IconLocation = "${path.resolve(rootFolder, "app.ico")}"
             OMyShortcut2.TargetPath = "${appPath}"
@@ -52,16 +52,16 @@ const handleSquirrelEvent = () => {
         case "--squirrel-uninstall": {
             if (
                 fs.existsSync(
-                    path.resolve(homedir(), "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Yomikiru.lnk"),
+                    path.resolve(homedir(), "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Yopomura.lnk"),
                 )
             )
                 fs.unlinkSync(
-                    path.resolve(homedir(), "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Yomikiru.lnk"),
+                    path.resolve(homedir(), "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Yopomura.lnk"),
                 );
             deleteOptionInExplorerMenu();
             deleteOptionInExplorerMenu_epub();
-            if (fs.existsSync(path.resolve(homedir(), "Desktop/Yomikiru.lnk")))
-                fs.unlinkSync(path.resolve(homedir(), "Desktop/Yomikiru.lnk"));
+            if (fs.existsSync(path.resolve(homedir(), "Desktop/Yopomura.lnk")))
+                fs.unlinkSync(path.resolve(homedir(), "Desktop/Yopomura.lnk"));
             const uninstallFull = `
             set WshShell = CreateObject("Wscript.shell")
             WScript.Sleep 30000

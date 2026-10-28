@@ -1,5 +1,5 @@
 /** Categories used by the browser New Tab page. */
-export type BrowserStartCategory = "manga" | "video";
+export type BrowserStartCategory = "reading" | "media" | "tools";
 
 /** One site tile on the New Tab page. */
 export type BrowserStartSite = {
@@ -8,74 +8,68 @@ export type BrowserStartSite = {
     url: string;
     domain: string;
     category: BrowserStartCategory;
-    downloaderSupported?: boolean;
 };
 
 /**
- * Curated start page. The manga entries mirror the downloader extractors;
- * video entries are the three streaming sites requested by the user.
+ * Neutral public defaults. The repo ships no site-specific downloader presets;
+ * users can still open any URL from the address bar.
  */
 export const BROWSER_START_SITES: readonly BrowserStartSite[] = [
     {
-        id: "imhentai",
-        name: "IMHentai",
-        url: "https://imhentai.xxx/",
-        domain: "imhentai.xxx",
-        category: "manga",
-        downloaderSupported: true,
+        id: "wikipedia",
+        name: "Wikipedia",
+        url: "https://www.wikipedia.org/",
+        domain: "wikipedia.org",
+        category: "reading",
     },
     {
-        id: "nhentai",
-        name: "nhentai",
-        url: "https://nhentai.net/",
-        domain: "nhentai.net",
-        category: "manga",
-        downloaderSupported: true,
+        id: "gutenberg",
+        name: "Project Gutenberg",
+        url: "https://www.gutenberg.org/",
+        domain: "gutenberg.org",
+        category: "reading",
     },
     {
-        id: "hitomi",
-        name: "Hitomi",
-        url: "https://hitomi.la/",
-        domain: "hitomi.la",
-        category: "manga",
-        downloaderSupported: true,
+        id: "internet-archive",
+        name: "Internet Archive",
+        url: "https://archive.org/",
+        domain: "archive.org",
+        category: "reading",
     },
     {
-        id: "hentaivn",
-        name: "HentaiVN",
-        url: "https://hentaivnx.com/",
-        domain: "hentaivnx.com",
-        category: "manga",
-        downloaderSupported: true,
+        id: "open-library",
+        name: "Open Library",
+        url: "https://openlibrary.org/",
+        domain: "openlibrary.org",
+        category: "reading",
     },
     {
-        id: "vi-hentai",
-        name: "Vi-Hentai",
-        url: "https://vi-hentai.moe/",
-        domain: "vi-hentai.moe",
-        category: "manga",
-        downloaderSupported: true,
+        id: "github",
+        name: "GitHub",
+        url: "https://github.com/",
+        domain: "github.com",
+        category: "tools",
     },
     {
-        id: "hanime",
-        name: "Hanime",
-        url: "https://hanime.tv/",
-        domain: "hanime.tv",
-        category: "video",
+        id: "mdn",
+        name: "MDN",
+        url: "https://developer.mozilla.org/",
+        domain: "developer.mozilla.org",
+        category: "tools",
     },
     {
-        id: "watchhentai",
-        name: "WatchHentai",
-        url: "https://watchhentai.net/",
-        domain: "watchhentai.net",
-        category: "video",
+        id: "youtube",
+        name: "YouTube",
+        url: "https://www.youtube.com/",
+        domain: "youtube.com",
+        category: "media",
     },
     {
-        id: "hentaihaven",
-        name: "HentaiHaven",
-        url: "https://hentaihaven.xxx/",
-        domain: "hentaihaven.xxx",
-        category: "video",
+        id: "vimeo",
+        name: "Vimeo",
+        url: "https://vimeo.com/",
+        domain: "vimeo.com",
+        category: "media",
     },
 ];
 

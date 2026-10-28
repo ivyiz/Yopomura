@@ -8,7 +8,7 @@ const archLabel = process.arch === "x64" ? "64-bit" : process.arch === "ia32" ? 
 
 ipcRenderer.on("version", (e, ver) => {
     version.innerText = ver + " " + archLabel;
-    document.title = "Downloading Yokomura " + ver + " " + archLabel;
+    document.title = "Downloading Yopomura " + ver + " " + archLabel;
 });
 ipcRenderer.on("progress", (e, progress) => {
     text.innerText = `${(progress.transferredBytes * 0.0000009537).toFixed(1)}MB / ${(

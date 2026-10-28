@@ -117,7 +117,7 @@ const SiteCard = ({
     <button
         type="button"
         className="browserStartCard"
-        title={`${site.name} — ${site.url}${site.downloaderSupported ? " · Downloader supported" : ""}`}
+        title={`${site.name} — ${site.url}`}
         onClick={(event) => onOpen(site, event.ctrlKey || event.metaKey || event.shiftKey)}
         onAuxClick={(event) => {
             if (event.button === 1) onOpen(site, true);
@@ -156,14 +156,19 @@ const BrowserStartPage = ({ engine, bookmarks, onOpenUrl, onSearch, onRemoveBook
 
     const groups: { key: BrowserStartCategory; title: string; sites: BrowserStartSite[] }[] = [
         {
-            key: "manga",
-            title: "Manga & Doujin",
-            sites: BROWSER_START_SITES.filter((site) => site.category === "manga"),
+            key: "reading",
+            title: "Reading",
+            sites: BROWSER_START_SITES.filter((site) => site.category === "reading"),
         },
         {
-            key: "video",
-            title: "Video",
-            sites: BROWSER_START_SITES.filter((site) => site.category === "video"),
+            key: "media",
+            title: "Media",
+            sites: BROWSER_START_SITES.filter((site) => site.category === "media"),
+        },
+        {
+            key: "tools",
+            title: "Tools",
+            sites: BROWSER_START_SITES.filter((site) => site.category === "tools"),
         },
     ];
 

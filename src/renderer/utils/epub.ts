@@ -21,7 +21,7 @@ const EPUB_SOURCE_MARKER = "SOURCE";
 const EPUB_CONTAINER_SEGMENTS = ["META-INF", "container.xml"] as const;
 
 /** Project issue page linked from the recoverable chapter-read error shown inside the reader. */
-const EPUB_ISSUES_URL = "https://github.com/mienaiyami/yomikiru/issues";
+const EPUB_ISSUES_URL = "https://github.com/yopomura/yopomura/issues";
 
 /** Class on in-chapter find marks; CSS lives on `#EPubReader .findInPage-highlight`. */
 const FIND_HIGHLIGHT_CLASS = "findInPage-highlight";
@@ -69,7 +69,7 @@ const showEpubExtractError = async (error: unknown): Promise<void> => {
  * Retained extracts reuse this folder when the SOURCE marker and package container match.
  */
 export const epubExtractPath = (epubPath: string): string =>
-    window.path.join(window.electron.app.getPath("temp"), `yomikiru-temp-EPub-${window.path.basename(epubPath)}`);
+    window.path.join(window.electron.app.getPath("temp"), `yopomura-temp-EPub-${window.path.basename(epubPath)}`);
 
 /** Absolute path of the EPUB container document under an extract root. */
 const epubContainerPath = (extractPath: string): string =>

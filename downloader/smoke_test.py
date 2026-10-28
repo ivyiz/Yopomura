@@ -51,7 +51,7 @@ def _slow_images():
 
 def extract_manga_info(url):
     path = urlparse(url).path
-    headers = {"User-Agent": "yomikiru-smoke"}
+    headers = {"User-Agent": "yopomura-smoke"}
     if path == "/boom":
         raise RuntimeError("fake extractor failure")
     if path == "/slow":
@@ -296,7 +296,7 @@ def assert_inside(path, parent):
 
 def main():
     random.seed(1234)
-    temp_root = Path(tempfile.mkdtemp(prefix="yomikiru-smoke-"))
+    temp_root = Path(tempfile.mkdtemp(prefix="yopomura-smoke-"))
     www = temp_root / "www"
     images_dir = www / "img"
     images_dir.mkdir(parents=True)
@@ -317,7 +317,7 @@ def main():
 
     env = os.environ.copy()
     env["PYTHONPATH"] = str(temp_root) + os.pathsep + env.get("PYTHONPATH", "")
-    env["YOMIKIRU_DOWNLOADER_EXTRACTOR_MODULE"] = "fake_extractor"
+    env["YOPOMURA_DOWNLOADER_EXTRACTOR_MODULE"] = "fake_extractor"
 
     worker = None
     try:

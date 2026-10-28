@@ -1,17 +1,39 @@
 {
-    "name": "yomikiru",
-    "productName": "Yokomura",
+    "name": "yopomura",
+    "productName": "Yopomura",
     "version": "2.25.1",
-    "description": "An offline desktop reader for manga, comics, and novels. Offers a customizable reading experience with extensive settings, shortcuts, themes and layouts.",
+    "description": "Yopomura is a desktop reader for manga, comics and books with a built-in media player, browser and generic downloader.",
     "main": ".webpack/main",
     "author": {
-        "name": "mienaiyami",
-        "url": "https://github.com/mienaiyami/yomikiru"
+        "name": "Yopomura contributors",
+        "url": "https://github.com/yopomura/yopomura"
     },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/yopomura/yopomura.git"
+    },
+    "homepage": "https://github.com/yopomura/yopomura",
+    "bugs": {
+        "url": "https://github.com/yopomura/yopomura/issues"
+    },
+    "keywords": [
+        "electron",
+        "manga",
+        "comic",
+        "epub",
+        "reader",
+        "media-player",
+        "browser"
+    ],
+    "engines": {
+        "node": ">=22"
+    },
+    "packageManager": "pnpm@10.34.9",
     "scripts": {
         "dev": "electron-forge start",
         "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
         "rebuild:node": "pnpm rebuild better-sqlite3",
+        "build:downloader": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-downloader.ps1",
         "drizzle": "cross-env ELECTRON_RUN_AS_NODE=1 electron ./node_modules/drizzle-kit/bin.cjs",
         "drizzle:push": "pnpm drizzle push",
         "drizzle:studio": "pnpm drizzle studio",
@@ -27,6 +49,7 @@
         "check:write": "biome check --write .",
         "check:staged": "biome check --write --files-ignore-unknown=true --no-errors-on-unmatched --staged",
         "check:full": "biome check . --diagnostic-level error && tsc --noemit",
+        "check:content": "tsx scripts/check-public-content.ts",
         "hooks:pre-commit": "pnpm exec lint-staged",
         "hooks:install": "husky",
         "tslint": "tsc --noemit",

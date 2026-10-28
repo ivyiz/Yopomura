@@ -19,7 +19,7 @@ declare const DOWNLOAD_PROGRESS_WEBPACK_ENTRY: string;
 const argReleaseUrl = process.argv.find((e) => e.startsWith("--release-url="))?.split("=")[1];
 const argReleasePage = process.argv.find((e) => e.startsWith("--release-page="))?.split("=")[1];
 
-const REPO = "mienaiyami/yomikiru";
+const REPO = "yopomura/yopomura";
 
 const ANNOUNCEMENTS_URL = `https://raw.githubusercontent.com/${REPO}/master/announcements.txt` as const;
 const ANNOUNCEMENTS_DISCUSSION_URL = `https://github.com/${REPO}/discussions/categories/announcements` as const;
@@ -373,7 +373,7 @@ const downloadUpdates = (latestVersion: string, windowId: number, silent = false
     }
 
     const window = BrowserWindow.fromId(windowId ?? 1)!;
-    const tempPath = path.join(app.getPath("temp"), `yomikiru updates ${new Date().toDateString()}`);
+    const tempPath = path.join(app.getPath("temp"), `yopomura updates ${new Date().toDateString()}`);
     if (fs.existsSync(tempPath)) fs.rmSync(tempPath, { recursive: true, force: true });
     fs.mkdirSync(tempPath);
     let setupInstallOnQuit: (() => void) | null = null;
@@ -414,7 +414,8 @@ const downloadUpdates = (latestVersion: string, windowId: number, silent = false
                 });
         };
 
-        // https://github.com/mienaiyami/yomikiru/discussions/451#discussioncomment-13778852
+        // Windows installer fallback: opening the downloaded file manually can help
+        // when the updater cannot replace a locked installation directory.
         if (process.platform === "win32" && !IS_PORTABLE) {
             const t = mainT;
             dialog
@@ -440,9 +441,7 @@ const downloadUpdates = (latestVersion: string, windowId: number, silent = false
                         shell.openPath(tempPath);
                         shell.openExternal(RELEASES_PAGE);
                     } else if (res.response === 3) {
-                        shell.openExternal(
-                            "https://github.com/mienaiyami/yomikiru/discussions/451#discussioncomment-13778852",
-                        );
+                        shell.openExternal(`https://github.com/${REPO}/discussions`);
                     }
                 });
         } else {
@@ -593,7 +592,7 @@ const downloadUpdates = (latestVersion: string, windowId: number, silent = false
             const installWithSudo = (command: string): Promise<void> =>
                 new Promise((resolve, reject) => {
                     logger.log("Linux update: running package manager via sudo", command);
-                    execSudo(command, { name: "Yokomura" }, (err) => {
+                    execSudo(command, { name: "Yopomura" }, (err) => {
                         if (err) {
                             logger.error("Linux update: sudo package install failed", err);
                             reject(err);

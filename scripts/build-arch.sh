@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-APP_NAME=yomikiru
-PRODUCT_NAME=Yomikiru
+APP_NAME=yopomura
+PRODUCT_NAME=Yopomura
 VERSION=$(node -p "require('./package.json').version")
 PKGVER=$(echo "$VERSION" | sed 's/-/_/g')
 
@@ -50,7 +50,7 @@ fi
 
 mkdir -p ../out/all
 MAIN_PKG=$(find . -maxdepth 1 -name "${APP_NAME}-*-x86_64.pkg.tar.*" | head -n1)
-# Strip pkgrel (-1) from filename: yomikiru-2.23.2_beta.3-1-x86_64 -> yomikiru-2.23.2_beta.3-x86_64
+# Strip pkgrel (-1) from filename: yopomura-2.23.2_beta.3-1-x86_64 -> yopomura-2.23.2_beta.3-x86_64
 NEWNAME=$(basename "$MAIN_PKG" | sed 's/-[0-9]\+-x86_64/-x86_64/')
 mv "$MAIN_PKG" "../out/all/${NEWNAME}"
 

@@ -2,7 +2,7 @@
 
 > Last updated: 2026-08-20. Covers the unreleased library-item metadata / tracker work on top of v2.24.x.
 
-Yomikiru can track reading progress on [AniList](https://anilist.co) (manga and novels).
+Yopomura can track reading progress on [AniList](https://anilist.co) (manga and novels).
 The integration is fully optional and requires a personal AniList OAuth token.
 
 ---

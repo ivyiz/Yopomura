@@ -15,15 +15,15 @@ Feel free to ask any questions regarding building using issues.
 ### Platform-Specific Requirements
 
 - **Windows**: Windows 10+ (Windows 11 recommended)
-- **macOS**: macOS 13+ (Ventura or later), if you build a macOS package
 - **Linux**: Ubuntu 20.04+, Debian 11+, or equivalent
+- **Python**: 3.10+ with PyInstaller for the downloader sidecar
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/mienaiyami/yomikiru/
+git clone https://github.com/yopomura/yopomura/
 
-cd yomikiru
+cd yopomura
 
 # install dependencies
 pnpm install
@@ -34,6 +34,9 @@ pnpm demo:setup
 
 # run dev build
 pnpm dev
+
+# build the downloader sidecar first (Windows)
+pnpm build:downloader
 
 # build for current OS (output in ./out)
 pnpm package
@@ -48,7 +51,7 @@ Check [package.json](https://github.com/mienaiyami/yomikiru/blob/9b159ce15938d2f
 
 ## Database (Drizzle ORM)
 
-Yomikiru uses Drizzle ORM with SQLite as the database backend to store user data like library items, reading progress, bookmarks, and notes.
+Yopomura uses Drizzle ORM with SQLite as the database backend to store user data like library items, reading progress, bookmarks, and notes.
 
 ### Database Setup
 
@@ -147,12 +150,8 @@ pnpm make:zip64
 
 ### macOS
 
-```bash
-# ZIP package
-pnpm make:zip64
-
-# Note: macOS specific builds may require additional setup
-```
+macOS is not a released target yet. A ZIP can be produced experimentally, but
+there is no signed/notarized macOS build in the public release channel.
 
 ## Troubleshooting
 

@@ -1,8 +1,5 @@
 # Required
 requests>=2.31.0
 
-# Optional (recommended): Chrome TLS impersonation for hitomi/nhentai/vi-hentai
-curl_cffi>=0.7.0
-
-# Optional: gallery-dl fallback extractor
+# Optional: generic extractor fallback for pages that reveal images through JS.
 gallery-dl>=1.27.0

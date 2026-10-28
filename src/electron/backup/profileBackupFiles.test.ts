@@ -186,7 +186,7 @@ describe("validateExtractedTree", () => {
 });
 
 describe("profileBackupFileName", () => {
-    it("uses the local date in Yokomura-profile-YYYY-MM-DD.zip", () => {
-        expect(profileBackupFileName(new Date(2026, 9, 27))).toBe("Yokomura-profile-2026-10-27.zip");
+    it("uses the local date in Yopomura-profile-YYYY-MM-DD.zip", () => {
+        expect(profileBackupFileName(new Date(2026, 9, 27))).toBe("Yopomura-profile-2026-10-27.zip");
     });
 });

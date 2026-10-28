@@ -87,6 +87,9 @@ jobs:
       - name: Lint and Format Check
         run: pnpm run biome:check
 
+      - name: Public content guard
+        run: pnpm run check:content
+
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest

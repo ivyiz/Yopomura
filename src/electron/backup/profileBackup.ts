@@ -125,7 +125,7 @@ export const createProfileBackup = async (): Promise<ProfileBackupResult> => {
         }
 
         const saveResult = await dialog.showSaveDialog({
-            title: "Back up Yokomura profile",
+            title: "Back up Yopomura profile",
             defaultPath: profileBackupFileName(),
             filters: [{ name: "ZIP archive", extensions: ["zip"] }],
             properties: ["createDirectory", "showOverwriteConfirmation"],
@@ -188,7 +188,7 @@ export const stageProfileRestore = async (): Promise<ProfileRestoreStageResult> 
 
     try {
         const pickResult = await dialog.showOpenDialog({
-            title: "Restore Yokomura profile",
+            title: "Restore Yopomura profile",
             properties: ["openFile"],
             filters: [{ name: "ZIP archive", extensions: ["zip"] }],
         });
@@ -198,7 +198,7 @@ export const stageProfileRestore = async (): Promise<ProfileRestoreStageResult> 
 
         const archivePath = pickResult.filePaths[0];
         if (!/\.zip$/i.test(archivePath)) {
-            return { ok: false, message: "Choose a Yokomura profile ZIP archive." };
+            return { ok: false, message: "Choose a Yopomura profile ZIP archive." };
         }
 
         extractionDirectory = await fsp.mkdtemp(path.join(app.getPath("temp"), `${TEMP_DIR_PREFIX}restore-`));
@@ -209,7 +209,7 @@ export const stageProfileRestore = async (): Promise<ProfileRestoreStageResult> 
         if (!manifest) {
             return {
                 ok: false,
-                message: "This ZIP does not contain a valid Yokomura profile manifest.",
+                message: "This ZIP does not contain a valid Yopomura profile manifest.",
             };
         }
 
