@@ -169,6 +169,7 @@ const BrowserHost = () => {
         openDownloadHistory,
         openRecipeEditor,
         downloaderOpen,
+        downloaderReviewOpen,
         videoOpen,
         trashOpen,
         mediaOpen,
@@ -537,6 +538,7 @@ const BrowserHost = () => {
         !scanOpen &&
         !extensionsOpen &&
         !bookmarkBubble &&
+        !downloaderReviewOpen &&
         !(mode === "full" && (videoOpen || trashOpen || mediaOpen)) &&
         !(mode === "side" && downloaderOpen);
 

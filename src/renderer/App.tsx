@@ -104,6 +104,8 @@ interface AppContext {
     openRecipeEditor: (draft: DownloaderRecipeDraft) => void;
     /** True while the downloader panel is mounted. */
     downloaderOpen: boolean;
+    /** True while the image-review popup owns the window. */
+    downloaderReviewOpen: boolean;
     /** Open the Recently Deleted panel. */
     openTrash: () => void;
     /** True while the Recently Deleted panel is mounted. */
@@ -163,6 +165,7 @@ const App = (): ReactElement => {
     }, []);
 
     const [downloaderOpen, setDownloaderOpen] = useState(false);
+    const [downloaderReviewOpen, setDownloaderReviewOpen] = useState(false);
     const [downloaderDraft, setDownloaderDraft] = useState("");
     const [downloaderView, setDownloaderView] = useState<{
         view: "queue" | "history" | "sites";
@@ -916,6 +919,7 @@ const App = (): ReactElement => {
                 openDownloadHistory,
                 openRecipeEditor,
                 downloaderOpen,
+                downloaderReviewOpen,
                 openTrash,
                 trashOpen,
                 openMedia,
@@ -953,7 +957,7 @@ const App = (): ReactElement => {
                     onOpenOutput={(path) => void openReaderExclusive(path)}
                 />
             ) : null}
-            <DownloaderReviewModal />
+            <DownloaderReviewModal onOpenChange={setDownloaderReviewOpen} />
             {trashOpen ? <TrashPanel onClose={() => setTrashOpen(false)} /> : null}
             {mediaOpen ? <MediaPanel onClose={() => setMediaOpen(false)} /> : null}
             <BrowserHost />

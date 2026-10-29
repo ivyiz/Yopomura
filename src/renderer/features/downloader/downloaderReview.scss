@@ -120,7 +120,7 @@
     flex: 1 1 auto;
     min-height: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(520px, 1fr));
     align-content: start;
     gap: 8px;
     padding: 12px 18px;
@@ -129,17 +129,17 @@
 
 .downloaderReviewItem {
     display: grid;
-    grid-template-columns: auto 58px minmax(0, 1fr);
+    grid-template-columns: auto 174px minmax(0, 1fr);
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     min-width: 0;
-    padding: 7px 8px;
+    padding: 10px;
     border: 1px solid var(--divider-color);
     border-radius: 9px;
     background: rgba(127, 127, 127, 0.05);
     cursor: pointer;
     content-visibility: auto;
-    contain-intrinsic-size: 74px;
+    contain-intrinsic-size: 238px;
 
     &:hover {
         background: rgba(127, 127, 127, 0.1);
@@ -157,15 +157,16 @@
 
 .downloaderReviewThumb {
     position: relative;
-    width: 58px;
-    height: 72px;
+    width: 174px;
+    height: 216px;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    border-radius: 6px;
+    border-radius: 8px;
     background: rgba(127, 127, 127, 0.12);
     color: var(--font-color-secondary);
+    font-size: 2rem;
 
     img {
         position: absolute;

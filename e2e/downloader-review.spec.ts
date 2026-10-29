@@ -103,6 +103,13 @@ test("review modal starts with every image selected and downloads only the selec
         page.on("pageerror", (error) => errors.push(error.message));
         await page.waitForSelector(".locationRow", { timeout: 60_000 });
 
+        // Keep a browser tab open: review must hide the native view without closing the browser.
+        await page.locator(".browserToggle").click();
+        await expect(page.locator(".browserHost.is-full")).toHaveCount(1);
+        await page.locator(".browserAddress").fill(url);
+        await page.locator(".browserAddress").press("Enter");
+        await expect(page.locator(".browserTab.is-active")).toHaveCount(1, { timeout: 20_000 });
+
         const added = await page.evaluate(
             async ({ url: target, outDir: targetDir }) => {
                 const bridge = (
@@ -118,6 +125,19 @@ test("review modal starts with every image selected and downloads only the selec
         );
 
         await expect(page.locator(".downloaderReviewOverlay")).toBeVisible({ timeout: 90_000 });
+        await expect(page.locator(".browserHost")).toHaveCount(1);
+        const browserTabs = await page.evaluate(async () => {
+            const bridge = (
+                window as unknown as {
+                    electron: {
+                        invoke: (channel: string) => Promise<{ tabs: Array<{ id: string }> }>;
+                    };
+                }
+            ).electron;
+            const state = await bridge.invoke("browser:getState");
+            return state.tabs.length;
+        });
+        expect(browserTabs).toBeGreaterThan(0);
         const rows = page.locator(".downloaderReviewItem");
         await expect(rows).toHaveCount(3);
         await expect(page.locator(".downloaderReviewItem input:checked")).toHaveCount(3);
@@ -171,6 +191,7 @@ test("review modal starts with every image selected and downloads only the selec
             .toBe("done:2");
 
         await expect(page.locator(".downloaderReviewOverlay")).toHaveCount(0);
+        await expect(page.locator(".browserHost")).toHaveCount(1);
         expect(errors).toEqual([]);
         console.log("DOWNLOADER_REVIEW_OK");
     } finally {

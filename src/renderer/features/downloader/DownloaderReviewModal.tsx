@@ -1,9 +1,12 @@
 import type { DownloaderReview, DownloaderState } from "@common/types/downloader";
-import { closeBrowser } from "@features/browser/browserEvents";
 import { faImage, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./downloaderReview.scss";
+
+type DownloaderReviewModalProps = {
+    onOpenChange?: (open: boolean) => void;
+};
 
 const filenameOf = (url: string): string => {
     try {
@@ -26,7 +29,7 @@ const hostOf = (url: string): string => {
  * Full-screen review shown after the resolver finds images. Every image starts
  * selected; the user unchecks the ones that should not be downloaded.
  */
-const DownloaderReviewModal = () => {
+const DownloaderReviewModal = ({ onOpenChange }: DownloaderReviewModalProps) => {
     const [jobId, setJobId] = useState<string | null>(null);
     const [review, setReview] = useState<DownloaderReview | null>(null);
     const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -51,7 +54,6 @@ const DownloaderReviewModal = () => {
 
     useEffect(() => {
         if (!jobId) return;
-        closeBrowser();
         let cancelled = false;
         void window.electron.invoke("downloader:getReview", { id: jobId }).then((result) => {
             if (cancelled) return;
@@ -62,6 +64,14 @@ const DownloaderReviewModal = () => {
             cancelled = true;
         };
     }, [jobId]);
+
+    const open = Boolean(jobId && review);
+    useEffect(() => {
+        onOpenChange?.(open);
+        return () => {
+            if (open) onOpenChange?.(false);
+        };
+    }, [onOpenChange, open]);
 
     const items = review?.items ?? [];
     const visible = useMemo(() => {
