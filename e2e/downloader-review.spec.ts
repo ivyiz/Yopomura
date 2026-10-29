@@ -73,7 +73,7 @@ test("review modal starts with every image selected and downloads only the selec
     const appDir = path.join(repoRoot, "out", "Yopomura-win32-x64");
     const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "yopomura-review-out-"));
     const images = new Map<string, Buffer>();
-    for (let index = 1; index <= 3; index += 1) images.set(`/img/${index}.png`, makePng(index));
+    for (let index = 1; index <= 40; index += 1) images.set(`/img/${index}.png`, makePng(index));
 
     const server = http.createServer((request, response) => {
         const url = request.url || "/";
@@ -86,9 +86,10 @@ test("review modal starts with every image selected and downloads only the selec
         response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
         response.end(
             '<!doctype html><html><body><div class="reader">' +
-                '<img src="/img/1.png" width="400" height="400">' +
-                '<img src="/img/2.png" width="400" height="400">' +
-                '<img src="/img/3.png" width="400" height="400">' +
+                Array.from(
+                    { length: 40 },
+                    (_, index) => `<img src="/img/${index + 1}.png" width="400" height="400">`,
+                ).join("") +
                 "</div></body></html>",
         );
     });
@@ -103,7 +104,7 @@ test("review modal starts with every image selected and downloads only the selec
             ...process.env,
             NODE_ENV: "production",
             YOPOMURA_RESOLVER_MAX_CHAPTERS: "2",
-            YOPOMURA_RESOLVER_MAX_IMAGES: "10",
+            YOPOMURA_RESOLVER_MAX_IMAGES: "60",
             YOPOMURA_RESOLVER_MAX_READER_PAGES: "2",
             YOPOMURA_RESOLVER_MAX_MS: "60000",
         },
@@ -151,9 +152,9 @@ test("review modal starts with every image selected and downloads only the selec
         });
         expect(browserTabs).toBeGreaterThan(0);
         const rows = page.locator(".downloaderReviewItem");
-        await expect(rows).toHaveCount(3);
-        await expect(page.locator(".downloaderReviewItem input:checked")).toHaveCount(3);
-        await expect(page.locator(".downloaderReviewCount")).toContainText("3 / 3 selected");
+        await expect(rows).toHaveCount(40);
+        await expect(page.locator(".downloaderReviewItem input:checked")).toHaveCount(40);
+        await expect(page.locator(".downloaderReviewCount")).toContainText("40 / 40 selected");
 
         const measureGrid = () =>
             page.evaluate(() => {
@@ -238,10 +239,10 @@ test("review modal starts with every image selected and downloads only the selec
             ).electron;
             return bridge.invoke("downloader:getReview", { id });
         }, added.id);
-        expect(review?.items).toHaveLength(3);
+        expect(review?.items).toHaveLength(40);
 
         await rows.first().locator("input").uncheck();
-        await expect(page.locator(".downloaderReviewCount")).toContainText("2 / 3 selected");
+        await expect(page.locator(".downloaderReviewCount")).toContainText("39 / 40 selected");
         await page.mouse.move(0, 0);
         await expect.poll(async () => (await measureGrid()).overlay).toBe("rgba(0, 0, 0, 0.55)");
         await page.locator(".downloaderReviewConfirm").click();
@@ -272,7 +273,7 @@ test("review modal starts with every image selected and downloads only the selec
                     }, added.id),
                 { timeout: 120_000 },
             )
-            .toBe("done:2");
+            .toBe("done:39");
 
         await expect(page.locator(".downloaderReviewOverlay")).toHaveCount(0);
         await expect(page.locator(".browserHost")).toHaveCount(1);
