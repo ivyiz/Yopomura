@@ -1,7 +1,7 @@
 {
     "name": "yopomura",
     "productName": "Yopomura",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Yopomura is a desktop reader for manga, comics and books with a built-in media player, browser and generic downloader.",
     "main": ".webpack/main",
     "author": {

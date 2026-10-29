@@ -1,3 +1,11 @@
+# 1.0.2
+
+- Downloader: review resolved images before downloading; every image starts selected and you uncheck the ones you do not want.
+- Downloader: remembers the last output folder.
+- Downloader: warms the worker on startup and reuses recent resolutions for 60 seconds.
+- Downloader: legacy extractor probe timeout reduced from 8 s to 6 s.
+- Security: updated Electron, axios, Drizzle ORM, Zod, PDF.js, follow-redirects and undici. Production audit is down from 17 advisories to 1 moderate.
+
 # 1.0.1
 
 First public Yopomura release.
