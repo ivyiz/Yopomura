@@ -45,6 +45,18 @@ MAX_RETRIES = 4
 CHUNK_SIZE = 64 * 1024
 PROGRESS_INTERVAL = 0.15
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif"}
+VIDEO_EXTS = {
+    ".mp4", ".webm", ".mkv", ".mov", ".avi", ".m4v", ".flv",
+    ".wmv", ".mpg", ".mpeg", ".ogv", ".ts", ".m3u8",
+}
+
+
+def is_video_url(url):
+    """True for obvious video URLs so they never land in a manga folder."""
+    if not isinstance(url, str):
+        return False
+    path = urlparse(url).path.lower()
+    return any(path.endswith(ext) for ext in VIDEO_EXTS) or ".m3u8" in path
 
 _thread_local = threading.local()
 
@@ -569,6 +581,8 @@ class Downloader:
             items = []
             for item_url in urls:
                 if isinstance(item_url, str) and item_url.lower().startswith(("http://", "https://")):
+                    if is_video_url(item_url):
+                        continue
                     items.append({"url": item_url, "referer": None})
                 if len(items) >= 50000:
                     break
@@ -633,6 +647,8 @@ class Downloader:
                 else:
                     continue
                 if urlparse(item_url).scheme not in ("http", "https"):
+                    continue
+                if is_video_url(item_url):
                     continue
                 resolved.append({
                     "url": item_url,
@@ -767,7 +783,9 @@ class Downloader:
             self._check_cancel(job)
             urls = [
                 url for url in urls
-                if isinstance(url, str) and url.lower().startswith(("http://", "https://"))
+                if isinstance(url, str)
+                and url.lower().startswith(("http://", "https://"))
+                and not is_video_url(url)
             ]
             items = [{"url": url, "referer": None} for url in urls]
 
