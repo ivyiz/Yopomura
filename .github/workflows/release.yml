@@ -190,5 +190,4 @@ jobs:
             ./checksums.txt
           body_path: changelog-temp.md
           generate_release_notes: true
-          discussion_category_name: Releases
           prerelease: ${{ contains(steps.version.outputs.version, '-') }}
