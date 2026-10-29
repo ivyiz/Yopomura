@@ -94,6 +94,6 @@ public app.
 ## Testing
 
 Use the Downloader → Sites → **Test URL** box. A preview shows the detected
-title, mode, chapter count, image count and sample image URLs before a job is
-queued. If a recipe finds no images, the generic Chromium resolver and then the
-legacy gallery-dl/private extractors are used as fallbacks.
+title, mode, chapter count, image count, resolver source and sample image URLs
+before a job is queued. Resolution tries a matching recipe first, then the
+legacy gallery-dl/private extractor probe, then the generic Chromium resolver.

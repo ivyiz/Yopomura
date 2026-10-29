@@ -8,14 +8,46 @@ import type {
     DownloaderJob,
     DownloaderJobStatus,
     DownloaderPreview,
+    DownloaderSource,
     DownloaderState,
 } from "@common/types/downloader";
 import { getProxyEnvironment } from "@electron/network/proxySettings";
 import { createMainLogger } from "@electron/util/logger";
 import { app } from "electron";
-import { resolveDownload } from "./browserResolver";
+import { type ResolvedDownloadItem, resolveDownload } from "./browserResolver";
+import { recipeStore } from "./recipeStore";
+import { recordSource, shouldTryExtractor } from "./sourceCache";
 
 const log = createMainLogger("downloader/service");
+
+const envInt = (name: string, fallback: number): number => {
+    const value = Number(process.env[name]);
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
+};
+
+/** How long the legacy extractor may try before the browser resolver takes over. */
+const LEGACY_PROBE_MS = envInt("YOPOMURA_LEGACY_PROBE_MS", 8000);
+
+/** Legacy-first is on by default; set YOPOMURA_DOWNLOADER_LEGACY_FIRST=0 to disable. */
+const legacyFirstEnabled = (): boolean => {
+    const raw = (process.env.YOPOMURA_DOWNLOADER_LEGACY_FIRST || "").trim().toLowerCase();
+    return !["0", "false", "no", "off"].includes(raw);
+};
+
+const SOURCE_LABEL: Record<DownloaderSource, string> = {
+    recipe: "recipe",
+    extractor: "site extractor",
+    browser: "browser resolver",
+    unknown: "resolver",
+};
+
+const hostOf = (url: string): string => {
+    try {
+        return new URL(url).hostname.replace(/^www\./i, "");
+    } catch {
+        return "";
+    }
+};
 
 /** Optional private extractor shipped outside the public core. */
 const privateExtractorPath = (): string | null => {
@@ -33,7 +65,7 @@ const privateExtractorPath = (): string | null => {
 };
 
 type WorkerEvent = {
-    event: "ready" | "job" | "log";
+    event: "ready" | "job" | "log" | "probe";
     id?: string;
     status?: DownloaderJobStatus;
     title?: string;
@@ -44,6 +76,34 @@ type WorkerEvent = {
     message?: string;
     error?: string;
     level?: "info" | "warn" | "error";
+    token?: string;
+    ok?: boolean;
+    busy?: boolean;
+    items?: unknown;
+    headers?: unknown;
+    elapsedMs?: number;
+};
+
+type ProbeResult = {
+    ok: boolean;
+    busy: boolean;
+    title: string;
+    items: ResolvedDownloadItem[];
+    headers: Record<string, string>;
+    error: string;
+};
+
+type ResolveOutcome = {
+    source: DownloaderSource;
+    title: string;
+    mode: DownloaderPreview["mode"];
+    chapters: number;
+    items: ResolvedDownloadItem[];
+    headers: Record<string, string>;
+    /** True when the legacy extractor was already attempted for this URL. */
+    legacyTried: boolean;
+    /** Last resolver error, if every fallback failed. */
+    error: string;
 };
 
 /**
@@ -58,8 +118,12 @@ class DownloaderService extends EventEmitter {
     private activeId: string | null = null;
     private paused = false;
     private starting = false;
+    private workerReady = false;
+    private readyWaiters: Array<(ready: boolean) => void> = [];
     private resolutionQueue: Array<{ id: string; url: string }> = [];
     private resolutionRunning = false;
+    private probes = new Map<string, (result: ProbeResult) => void>();
+    private browserRetries = new Set<string>();
 
     getState(): DownloaderState {
         return {
@@ -86,23 +150,25 @@ class DownloaderService extends EventEmitter {
             chapters: 0,
             images: 0,
             sample: [],
+            source: "unknown",
             message,
         });
         if (!/^https?:\/\//i.test(target)) return empty("URL must start with http:// or https://");
         try {
-            const resolved = await resolveDownload(target);
+            const outcome = await this.resolveTarget(target, true);
+            if (outcome.items.length === 0) {
+                return empty(outcome.error || "No downloadable images found");
+            }
             return {
-                ok: resolved.items.length > 0,
+                ok: true,
                 url: target,
-                title: resolved.title,
-                mode: resolved.mode,
-                chapters: resolved.chapters,
-                images: resolved.items.length,
-                sample: resolved.items.slice(0, 8).map((item) => item.url),
-                message:
-                    resolved.items.length > 0
-                        ? `Found ${resolved.items.length} image(s)`
-                        : "No downloadable images found",
+                title: outcome.title,
+                mode: outcome.mode,
+                chapters: outcome.chapters,
+                images: outcome.items.length,
+                sample: outcome.items.slice(0, 8).map((item) => item.url),
+                source: outcome.source,
+                message: `Found ${outcome.items.length} image(s) via ${SOURCE_LABEL[outcome.source]}`,
             };
         } catch (error) {
             return empty(error instanceof Error ? error.message : String(error));
@@ -136,6 +202,7 @@ class DownloaderService extends EventEmitter {
             outDir: path.normalize(outDir.trim()),
             keepFolder,
             status: "resolving",
+            source: "unknown",
             title: "",
             progress: 0,
             downloaded: 0,
@@ -165,6 +232,7 @@ class DownloaderService extends EventEmitter {
 
     removeJob(id: string): void {
         this.resolutionQueue = this.resolutionQueue.filter((item) => item.id !== id);
+        this.browserRetries.delete(id);
         this.jobs.delete(id);
         this.broadcast();
     }
@@ -172,6 +240,7 @@ class DownloaderService extends EventEmitter {
     clearFinished(): void {
         for (const [id, job] of this.jobs) {
             if (job.status === "done" || job.status === "error" || job.status === "cancelled") {
+                this.browserRetries.delete(id);
                 this.jobs.delete(id);
             }
         }
@@ -183,6 +252,8 @@ class DownloaderService extends EventEmitter {
         const worker = this.worker;
         this.worker = null;
         this.starting = false;
+        this.workerReady = false;
+        this.settleReadyWaiters(false);
         this.paused = false;
         if (worker && !worker.killed) {
             setTimeout(() => {
@@ -205,15 +276,17 @@ class DownloaderService extends EventEmitter {
                 const job = this.jobs.get(next.id);
                 if (!job || job.status === "cancelled") continue;
 
-                try {
-                    const resolved = await resolveDownload(next.url);
-                    const current = this.jobs.get(next.id);
-                    if (!current || current.status === "cancelled") continue;
+                const outcome = await this.resolveTarget(next.url, true);
+                const current = this.jobs.get(next.id);
+                if (!current || current.status === "cancelled") continue;
 
-                    if (resolved.items.length === 0) {
-                        log.warn("generic resolver found no images; falling back", { url: next.url });
+                if (outcome.items.length === 0) {
+                    if (!outcome.legacyTried) {
+                        log.warn("browser resolver found no images; trying legacy extractor", {
+                            url: next.url,
+                        });
                         this.patchJob(next.id, {
-                            message: "Falling back to legacy extractor",
+                            message: "Trying legacy extractor",
                             updatedAt: Date.now(),
                         });
                         this.send({
@@ -223,54 +296,216 @@ class DownloaderService extends EventEmitter {
                             outDir: current.outDir,
                             keepFolder: current.keepFolder,
                         });
-                        continue;
-                    }
-
-                    this.patchJob(next.id, {
-                        title: resolved.title,
-                        total: resolved.items.length,
-                        message: `Found ${resolved.items.length} image(s)`,
-                        updatedAt: Date.now(),
-                    });
-                    log.info("generic resolver finished", {
-                        url: next.url,
-                        mode: resolved.mode,
-                        chapters: resolved.chapters,
-                        images: resolved.items.length,
-                    });
-                    this.send({
-                        cmd: "addResolved",
-                        id: next.id,
-                        url: current.url,
-                        outDir: current.outDir,
-                        keepFolder: current.keepFolder,
-                        title: resolved.title,
-                        items: resolved.items,
-                        headers: resolved.headers,
-                    });
-                } catch (error) {
-                    log.warn("generic resolver failed; falling back", {
-                        url: next.url,
-                        error: error instanceof Error ? error.message : String(error),
-                    });
-                    const current = this.jobs.get(next.id);
-                    if (current && current.status !== "cancelled") {
-                        this.patchJob(next.id, {
-                            message: "Falling back to legacy extractor",
-                            updatedAt: Date.now(),
+                    } else {
+                        log.warn("no resolver found images", {
+                            url: next.url,
+                            error: outcome.error,
                         });
-                        this.send({
-                            cmd: "add",
-                            id: next.id,
-                            url: current.url,
-                            outDir: current.outDir,
-                            keepFolder: current.keepFolder,
-                        });
+                        this.failJob(next.id, outcome.error || "No downloadable images found");
                     }
+                    continue;
                 }
+
+                this.patchJob(next.id, {
+                    title: outcome.title,
+                    total: outcome.items.length,
+                    source: outcome.source,
+                    message: `Resolved with ${SOURCE_LABEL[outcome.source]} (${outcome.items.length} image(s))`,
+                    updatedAt: Date.now(),
+                });
+                log.info("resolved download", {
+                    url: next.url,
+                    source: outcome.source,
+                    mode: outcome.mode,
+                    chapters: outcome.chapters,
+                    images: outcome.items.length,
+                });
+                this.send({
+                    cmd: "addResolved",
+                    id: next.id,
+                    url: current.url,
+                    outDir: current.outDir,
+                    keepFolder: current.keepFolder,
+                    title: outcome.title,
+                    items: outcome.items,
+                    headers: outcome.headers,
+                });
             }
         } finally {
             this.resolutionRunning = false;
+        }
+    }
+
+    /** Recipe -> legacy extractor -> browser resolver. */
+    private async resolveTarget(url: string, allowExtractor: boolean): Promise<ResolveOutcome> {
+        let hasRecipe = false;
+        try {
+            hasRecipe = Boolean(recipeStore.match(url));
+        } catch (error) {
+            log.warn("could not check downloader recipes", error);
+        }
+
+        let legacyTried = false;
+        if (allowExtractor && !hasRecipe && legacyFirstEnabled() && shouldTryExtractor(url)) {
+            legacyTried = true;
+            this.ensureWorker();
+            const probe = await this.probeLegacy(url);
+            if (probe?.busy) {
+                log.info("legacy probe busy; using browser resolver", { url });
+            } else if (probe && probe.items.length > 0) {
+                recordSource(url, "extractor");
+                log.info("legacy extractor resolved", {
+                    url,
+                    images: probe.items.length,
+                });
+                return {
+                    source: "extractor",
+                    title: probe.title || hostOf(url) || "download",
+                    mode: "gallery",
+                    chapters: 0,
+                    items: probe.items,
+                    headers: probe.headers,
+                    legacyTried,
+                    error: "",
+                };
+            } else {
+                recordSource(url, "browser");
+                log.info("legacy extractor found nothing; using browser resolver", {
+                    url,
+                    error: probe?.error || "",
+                });
+            }
+        }
+
+        try {
+            const resolved = await resolveDownload(url);
+            return {
+                source: resolved.source,
+                title: resolved.title,
+                mode: resolved.mode,
+                chapters: resolved.chapters,
+                items: resolved.items,
+                headers: resolved.headers,
+                legacyTried,
+                error: "",
+            };
+        } catch (error) {
+            return {
+                source: "unknown",
+                title: "",
+                mode: "unknown",
+                chapters: 0,
+                items: [],
+                headers: {},
+                legacyTried,
+                error: error instanceof Error ? error.message : String(error),
+            };
+        }
+    }
+
+    /** Extracts a gallery in the worker without downloading it. */
+    private async probeLegacy(url: string): Promise<ProbeResult | null> {
+        this.ensureWorker();
+        if (!(await this.waitForWorkerReady())) {
+            log.warn("legacy probe skipped; worker did not start", { url });
+            return null;
+        }
+        return new Promise((resolve) => {
+            const token = randomUUID();
+            let timer: NodeJS.Timeout | undefined;
+            let settled = false;
+            const finish = (result: ProbeResult | null) => {
+                if (settled) return;
+                settled = true;
+                if (timer) clearTimeout(timer);
+                this.probes.delete(token);
+                resolve(result);
+            };
+            timer = setTimeout(() => {
+                log.warn("legacy probe timed out", { url, timeoutMs: LEGACY_PROBE_MS });
+                finish(null);
+            }, LEGACY_PROBE_MS);
+            this.probes.set(token, (result) => finish(result));
+            this.send({ cmd: "probe", url, token });
+        });
+    }
+
+    /** Resolves true once the worker emitted ready, false on timeout/shutdown. */
+    private waitForWorkerReady(timeoutMs = 15000): Promise<boolean> {
+        if (this.workerReady) return Promise.resolve(true);
+        return new Promise((resolve) => {
+            let settled = false;
+            const waiter = (ready: boolean) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                resolve(ready);
+            };
+            const timer = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                this.readyWaiters = this.readyWaiters.filter((item) => item !== waiter);
+                resolve(false);
+            }, timeoutMs);
+            this.readyWaiters.push(waiter);
+        });
+    }
+
+    private settleReadyWaiters(ready: boolean): void {
+        const waiters = this.readyWaiters;
+        this.readyWaiters = [];
+        for (const waiter of waiters) waiter(ready);
+    }
+
+    private failJob(id: string, message: string): void {
+        if (this.activeId === id) this.activeId = null;
+        this.patchJob(id, {
+            status: "error",
+            message: "Download failed",
+            error: message,
+            updatedAt: Date.now(),
+        });
+    }
+
+    /** One retry when the legacy extractor returned URLs that all failed to download. */
+    private async retryWithBrowser(id: string): Promise<void> {
+        const job = this.jobs.get(id);
+        if (!job || job.status === "cancelled") return;
+        try {
+            const resolved = await resolveDownload(job.url);
+            const current = this.jobs.get(id);
+            if (!current || current.status === "cancelled") return;
+            if (resolved.items.length === 0) {
+                this.failJob(id, "No downloadable images found");
+                return;
+            }
+            this.patchJob(id, {
+                status: "resolving",
+                source: resolved.source,
+                title: resolved.title,
+                total: resolved.items.length,
+                downloaded: 0,
+                progress: 0,
+                error: "",
+                message: `Retrying with ${SOURCE_LABEL[resolved.source]} (${resolved.items.length} image(s))`,
+                updatedAt: Date.now(),
+            });
+            this.send({
+                cmd: "addResolved",
+                id,
+                url: current.url,
+                outDir: current.outDir,
+                keepFolder: current.keepFolder,
+                title: resolved.title,
+                items: resolved.items,
+                headers: resolved.headers,
+            });
+        } catch (error) {
+            log.warn("browser retry failed", {
+                url: job.url,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            this.failJob(id, error instanceof Error ? error.message : String(error));
         }
     }
 
@@ -298,6 +533,7 @@ class DownloaderService extends EventEmitter {
                 },
             }) as ChildProcessWithoutNullStreams;
             this.worker = worker;
+            this.workerReady = false;
             worker.stdout.setEncoding("utf8");
             worker.stdout.on("data", (chunk: string) => this.onStdout(chunk));
             worker.stderr.setEncoding("utf8");
@@ -306,6 +542,8 @@ class DownloaderService extends EventEmitter {
                 log.error("worker failed to start", err);
                 this.worker = null;
                 this.starting = false;
+                this.workerReady = false;
+                this.settleReadyWaiters(false);
                 this.paused = false;
                 this.emit("error-state", err.message);
             });
@@ -313,6 +551,8 @@ class DownloaderService extends EventEmitter {
                 log.info("worker exited", { code, signal });
                 this.worker = null;
                 this.starting = false;
+                this.workerReady = false;
+                this.settleReadyWaiters(false);
                 this.paused = false;
                 if (this.activeId) {
                     this.patchJob(this.activeId, {
@@ -326,6 +566,8 @@ class DownloaderService extends EventEmitter {
             });
         } catch (err) {
             this.starting = false;
+            this.workerReady = false;
+            this.settleReadyWaiters(false);
             log.error("worker spawn threw", err);
             this.emit("error-state", err instanceof Error ? err.message : String(err));
         }
@@ -382,6 +624,8 @@ class DownloaderService extends EventEmitter {
         }
         if (event.event === "ready") {
             this.starting = false;
+            this.workerReady = true;
+            this.settleReadyWaiters(true);
             const queued = this.pendingCommands;
             this.pendingCommands = [];
             for (const command of queued) this.send(JSON.parse(command) as Record<string, unknown>);
@@ -394,9 +638,63 @@ class DownloaderService extends EventEmitter {
             log.info(`[downloader] ${event.message ?? ""}`);
             return;
         }
+        if (event.event === "probe") {
+            if (!event.token) return;
+            const settle = this.probes.get(event.token);
+            if (!settle) return;
+            const items: ResolvedDownloadItem[] = [];
+            if (Array.isArray(event.items)) {
+                for (const row of event.items) {
+                    if (!row || typeof row !== "object") continue;
+                    const url = (row as { url?: unknown }).url;
+                    if (typeof url !== "string" || !/^https?:\/\//i.test(url)) continue;
+                    const referer = (row as { referer?: unknown }).referer;
+                    items.push({
+                        url,
+                        referer: typeof referer === "string" && referer ? referer : undefined,
+                    });
+                }
+            }
+            const headers: Record<string, string> = {};
+            if (event.headers && typeof event.headers === "object") {
+                for (const [key, value] of Object.entries(event.headers)) {
+                    if (typeof value === "string") headers[key] = value;
+                }
+            }
+            settle({
+                ok: Boolean(event.ok) && items.length > 0,
+                busy: Boolean(event.busy),
+                title: typeof event.title === "string" ? event.title : "",
+                items,
+                headers,
+                error: typeof event.error === "string" ? event.error : "",
+            });
+            return;
+        }
         if (event.event !== "job" || !event.id) return;
         const job = this.jobs.get(event.id);
         if (!job) return;
+        const downloaded = event.downloaded ?? job.downloaded;
+        if (
+            event.status === "error" &&
+            job.source === "extractor" &&
+            downloaded === 0 &&
+            !this.browserRetries.has(event.id)
+        ) {
+            this.browserRetries.add(event.id);
+            if (this.activeId === event.id) this.activeId = null;
+            this.patchJob(event.id, {
+                status: "resolving",
+                message: "Site extractor failed; retrying with browser resolver",
+                error: "",
+                downloaded: 0,
+                progress: 0,
+                total: 0,
+                updatedAt: Date.now(),
+            });
+            void this.retryWithBrowser(event.id);
+            return;
+        }
         const next: Partial<DownloaderJob> = {
             updatedAt: Date.now(),
         };

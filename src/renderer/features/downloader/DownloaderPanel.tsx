@@ -62,6 +62,13 @@ const STATUS_LABEL: Record<DownloaderJob["status"], string> = {
 /** Statuses that mean the worker still owes this job work. */
 const PENDING_STATUSES: DownloaderJob["status"][] = ["queued", "resolving", "downloading", "paused", "packing"];
 
+const SOURCE_LABEL: Record<DownloaderPreview["source"], string> = {
+    recipe: "Recipe",
+    extractor: "Site extractor",
+    browser: "Browser resolver",
+    unknown: "Unknown",
+};
+
 const HISTORY_STATUS_LABEL: Record<DownloadHistoryStatus, string> = {
     done: "Done",
     error: "Error",
@@ -773,7 +780,8 @@ const DownloaderPanel = ({
                                 <div className="downloaderPreviewResult">
                                     <strong>{preview.title || "No title"}</strong>
                                     <span>
-                                        {preview.mode} · {preview.chapters} chapters · {preview.images} images
+                                        {SOURCE_LABEL[preview.source]} · {preview.mode} · {preview.chapters}{" "}
+                                        chapters · {preview.images} images
                                     </span>
                                     <p>{preview.message}</p>
                                     {preview.sample.slice(0, 3).map((url) => (

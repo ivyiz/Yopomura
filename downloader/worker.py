@@ -502,6 +502,8 @@ class Downloader:
         self._reporter: ProgressReporter | None = None
         self._paused = threading.Event()
         self._stopping = False
+        self._probe_lock = threading.Lock()
+        self._probe_running = False
         self._thread = threading.Thread(target=self._runner, name="job-runner", daemon=True)
 
     def start(self):
@@ -545,6 +547,53 @@ class Downloader:
             job.status = "downloading"
             self.emit("job", **job_fields(job, "downloading", message="Resumed"))
         self._log(job.id, "info", "Resumed")
+
+    def probe(self, url, token):
+        """Extracts a gallery without downloading, for legacy-first resolution."""
+        if not isinstance(url, str) or urlparse(url).scheme not in ("http", "https"):
+            self.emit("probe", token=token, ok=False, error="probe: url must start with http:// or https://")
+            return
+        with self._probe_lock:
+            if self._probe_running:
+                self.emit("probe", token=token, ok=False, busy=True, error="probe busy")
+                return
+            self._probe_running = True
+        thread = threading.Thread(target=self._run_probe, args=(url, token), name="gallery-probe", daemon=True)
+        thread.start()
+
+    def _run_probe(self, url, token):
+        started = time.monotonic()
+        payload = {"token": token, "ok": False}
+        try:
+            title, urls, headers = extract_manga_info(url)
+            items = []
+            for item_url in urls:
+                if isinstance(item_url, str) and item_url.lower().startswith(("http://", "https://")):
+                    items.append({"url": item_url, "referer": None})
+                if len(items) >= 50000:
+                    break
+            safe_headers = {}
+            if isinstance(headers, dict):
+                for key, value in headers.items():
+                    if isinstance(key, str) and isinstance(value, str):
+                        safe_headers[key] = value
+            payload.update(
+                ok=bool(items),
+                title=fix_mojibake(str(title or "")),
+                items=items,
+                headers=safe_headers,
+                elapsedMs=int((time.monotonic() - started) * 1000),
+            )
+        except Exception as exc:
+            payload.update(
+                ok=False,
+                error=str(exc),
+                elapsedMs=int((time.monotonic() - started) * 1000),
+            )
+        finally:
+            with self._probe_lock:
+                self._probe_running = False
+        self.emit("probe", **payload)
 
     def add(self, job_id, url, out_dir, keep_folder=False):
         if not isinstance(job_id, str) or not job_id.strip():
@@ -890,7 +939,12 @@ def main():
                 continue
 
             cmd = message.get("cmd")
-            if cmd == "add":
+            if cmd == "probe":
+                downloader.probe(
+                    message.get("url"),
+                    message.get("token"),
+                )
+            elif cmd == "add":
                 downloader.add(
                     message.get("id"),
                     message.get("url"),

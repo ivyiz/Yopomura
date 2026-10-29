@@ -31,6 +31,7 @@ one UTF-8 JSON object. The worker flushes stdout after every event.
 ### Commands (stdin)
 
 ```json
+{"cmd":"probe","url":"https://example.com/gallery","token":"probe-1"}
 {"cmd":"add","id":"job-1","url":"https://example.com/gallery","outDir":"C:\\Users\\me\\Downloads","keepFolder":false}
 {"cmd":"cancel","id":"job-1"}
 {"cmd":"pause"}
@@ -41,6 +42,7 @@ one UTF-8 JSON object. The worker flushes stdout after every event.
 
 | Command | Fields | Description |
 | --- | --- | --- |
+| `probe` | `url`, `token` | Extract a gallery without downloading. Answers with one `probe` event for the same token. Only one probe runs at a time; a second request gets `busy: true`. |
 | `add` | `id` (unique string), `url`, `outDir`, `keepFolder` (bool, optional) | Queue a download. `outDir` is created if needed. Allowed while paused: the job is queued, not started. |
 | `cancel` | `id` | Cancel a queued or active job, including a paused one. Unknown ids produce a warning log. |
 | `pause` | - | Pause the active job and hold the queue. Idempotent. |
@@ -61,6 +63,7 @@ Jobs run one at a time, FIFO. Adding several jobs queues them; only one is
 {"event":"job","id":"job-1","status":"packing","title":"Some Title","progress":100,"downloaded":3,"total":3,"outputPath":null,"message":"Packing ZIP","error":null}
 {"event":"job","id":"job-1","status":"done","title":"Some Title","progress":100,"downloaded":3,"total":3,"outputPath":"C:\\Users\\me\\Downloads\\Some Title.zip","message":"Saved ZIP","error":null}
 {"event":"log","id":"job-1","level":"info","message":"Found 3 image(s): Some Title"}
+{"event":"probe","token":"probe-1","ok":true,"title":"Some Title","items":[{"url":"https://example.com/1.jpg","referer":null}],"headers":{"User-Agent":"..."},"elapsedMs":850}
 {"event":"pong","id":null,"active":null,"queued":0,"paused":false}
 ```
 
@@ -93,6 +96,10 @@ null), `queued` (number of waiting jobs), `paused` (worker pause flag).
 
 ## Behaviour
 
+- A job resolves in this order: matching recipe, legacy extractor probe
+  (`probe`, 8 s default), then the Chromium browser resolver. A host that
+  needed the browser resolver is remembered for 7 days so later jobs skip the
+  probe. Set `YOPOMURA_DOWNLOADER_LEGACY_FIRST=0` to disable legacy-first.
 - Images are streamed with `requests` using `iter_content` and
   written to `<file>.part` before an atomic `os.replace`.
 - `pause` stops new images from starting, holds the queue (no next job begins)

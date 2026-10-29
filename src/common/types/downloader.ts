@@ -10,12 +10,15 @@ export type DownloaderJobStatus =
     | "error"
     | "cancelled";
 
+export type DownloaderSource = "recipe" | "extractor" | "browser" | "unknown";
+
 export type DownloaderJob = {
     id: string;
     url: string;
     outDir: string;
     keepFolder: boolean;
     status: DownloaderJobStatus;
+    source: DownloaderSource;
     title: string;
     progress: number;
     downloaded: number;
@@ -66,7 +69,7 @@ export type DownloaderRecipeDraft = {
     testUrl?: string;
 };
 
-/** Dry-run result from the generic Chromium resolver. */
+/** Dry-run result from the active resolver chain. */
 export type DownloaderPreview = {
     ok: boolean;
     url: string;
@@ -75,5 +78,6 @@ export type DownloaderPreview = {
     chapters: number;
     images: number;
     sample: string[];
+    source: DownloaderSource;
     message: string;
 };

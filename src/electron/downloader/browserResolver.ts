@@ -63,6 +63,7 @@ export type ResolvedDownloadItem = {
 export type ResolvedDownload = {
     title: string;
     mode: "image" | "gallery" | "reader" | "series";
+    source: "recipe" | "browser";
     items: ResolvedDownloadItem[];
     headers: Record<string, string>;
     chapters: number;
@@ -959,6 +960,7 @@ const resolveWithRecipe = async (
     return {
         title,
         mode,
+        source: "recipe",
         items: finalItems,
         headers: finalItems.length > 0 ? await buildHeaders(url, finalItems) : {},
         chapters,
@@ -1113,6 +1115,7 @@ const resolveWithScript = async (
     return {
         title,
         mode,
+        source: "recipe",
         items,
         headers: items.length > 0 ? await buildHeaders(url, items) : {},
         chapters,
@@ -1130,6 +1133,7 @@ export const resolveDownload = async (inputUrl: string, signal?: AbortSignal): P
         return {
             title: decodeURIComponent(new URL(url).pathname.split("/").pop() || "image"),
             mode: "image",
+            source: "browser",
             items: [item],
             headers: await buildHeaders(url, [item]),
             chapters: 0,
@@ -1215,6 +1219,7 @@ export const resolveDownload = async (inputUrl: string, signal?: AbortSignal): P
             return {
                 title,
                 mode: "gallery",
+                source: "browser",
                 items: [],
                 headers: {},
                 chapters: 0,
@@ -1231,6 +1236,7 @@ export const resolveDownload = async (inputUrl: string, signal?: AbortSignal): P
             return {
                 title,
                 mode: "gallery",
+                source: "browser",
                 items: [],
                 headers: {},
                 chapters: 0,
@@ -1247,6 +1253,7 @@ export const resolveDownload = async (inputUrl: string, signal?: AbortSignal): P
             return {
                 title,
                 mode: "gallery",
+                source: "browser",
                 items: [],
                 headers: {},
                 chapters: 0,
@@ -1287,6 +1294,7 @@ export const resolveDownload = async (inputUrl: string, signal?: AbortSignal): P
             return {
                 title,
                 mode: "series",
+                source: "browser",
                 items: items.length >= 2 ? items : [],
                 headers: items.length >= 2 ? await buildHeaders(url, items) : {},
                 chapters: completedChapters,
@@ -1298,6 +1306,7 @@ export const resolveDownload = async (inputUrl: string, signal?: AbortSignal): P
         return {
             title: resolved.title,
             mode: reader ? "reader" : "gallery",
+            source: "browser",
             items: resolved.items,
             headers: await buildHeaders(url, resolved.items),
             chapters: reader ? 1 : 0,
