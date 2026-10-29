@@ -1,11 +1,17 @@
 import { getDefaultLocationPath } from "@common/library/folders";
-import type { DownloaderJob, DownloaderState } from "@common/types/downloader";
+import type {
+    DownloaderJob,
+    DownloaderPreview,
+    DownloaderRecipeSummary,
+    DownloaderState,
+} from "@common/types/downloader";
 import { formatBytes } from "@features/media/mediaLibrary";
 import {
     faClockRotateLeft,
     faFile,
     faFilm,
     faFolderOpen,
+    faGlobe,
     faPause,
     faPlay,
     faTrash,
@@ -15,7 +21,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useAppSelector } from "@store/hooks";
 import { dialogUtils } from "@utils/dialog";
 import { promptSelectDir } from "@utils/file";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
     clearDownloadHistory,
     DOWNLOAD_HISTORY_EVENT,
@@ -85,8 +91,14 @@ const DownloaderPanel = ({
     const [keepFolder, setKeepFolder] = useState(false);
     const [state, setState] = useState<DownloaderState>({ ready: false, activeId: null, paused: false, jobs: [] });
     const [busy, setBusy] = useState(false);
-    const [view, setView] = useState<"queue" | "history">(initialView);
+    const [view, setView] = useState<"queue" | "history" | "sites">(initialView);
     const [history, setHistory] = useState<DownloadHistoryEntry[]>(readDownloadHistory);
+    const [recipes, setRecipes] = useState<DownloaderRecipeSummary[]>([]);
+    const [recipesBusy, setRecipesBusy] = useState(false);
+    const [recipeMessage, setRecipeMessage] = useState("");
+    const [previewUrl, setPreviewUrl] = useState("");
+    const [preview, setPreview] = useState<DownloaderPreview | null>(null);
+    const [previewBusy, setPreviewBusy] = useState(false);
 
     useEffect(() => {
         // Re-apply when the same view is requested again after a manual toggle.
@@ -103,6 +115,19 @@ const DownloaderPanel = ({
     useEffect(() => {
         if (view === "history") setHistory(readDownloadHistory());
     }, [view]);
+
+    const refreshRecipes = useCallback(async () => {
+        setRecipesBusy(true);
+        try {
+            setRecipes(await window.electron.invoke("downloader:listRecipes"));
+        } finally {
+            setRecipesBusy(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (view === "sites") void refreshRecipes();
+    }, [view, refreshRecipes]);
 
     /* The downloader is a layout-sharing right pane, not a modal overlay. */
     useLayoutEffect(() => {
@@ -198,12 +223,60 @@ const DownloaderPanel = ({
         setHistory(removeDownloadHistory(entry.id, entry.source));
     };
 
+    const importRecipe = async () => {
+        const result = await window.electron.invoke("downloader:importRecipe");
+        if (result.ok) {
+            setRecipeMessage(`Imported ${result.recipe.name}`);
+            await refreshRecipes();
+        } else {
+            setRecipeMessage(result.message);
+        }
+    };
+
+    const deleteRecipe = (recipe: DownloaderRecipeSummary) => {
+        void dialogUtils
+            .warn({
+                title: "Remove site recipe?",
+                message: `Remove ${recipe.name}? Downloaded files stay on disk.`,
+                buttons: ["Cancel", "Remove"],
+                defaultId: 0,
+            })
+            .then(async ({ response }) => {
+                if (response !== 1) return;
+                await window.electron.invoke("downloader:deleteRecipe", { id: recipe.id });
+                setRecipeMessage(`Removed ${recipe.name}`);
+                await refreshRecipes();
+            });
+    };
+
+    const openRecipeFolder = () => {
+        void window.electron.invoke("downloader:openRecipeFolder");
+    };
+
+    const runPreview = async () => {
+        const url = previewUrl.trim();
+        if (!url) return;
+        setPreviewBusy(true);
+        setPreview(null);
+        try {
+            setPreview(await window.electron.invoke("downloader:preview", { url }));
+        } finally {
+            setPreviewBusy(false);
+        }
+    };
+
     return (
         <div className="downloaderOverlay" role="dialog" aria-label="Downloader">
             <div className="downloaderPanel">
                 <div className="downloaderHead">
                     <div>
-                        <h2>{view === "history" ? "Download History" : "Downloader"}</h2>
+                        <h2>
+                            {view === "history"
+                                ? "Download History"
+                                : view === "sites"
+                                  ? "Site Recipes"
+                                  : "Downloader"}
+                        </h2>
                     </div>
                     <div className="downloaderHeadActions">
                         {view === "queue" ? (
@@ -218,6 +291,16 @@ const DownloaderPanel = ({
                                 <span>{state.paused ? "Resume" : "Pause"}</span>
                             </button>
                         ) : null}
+                        <button
+                            type="button"
+                            className={`downloaderSitesBtn${view === "sites" ? " is-active" : ""}`}
+                            title={view === "sites" ? "Back to downloads" : "Site Recipes"}
+                            aria-label={view === "sites" ? "Back to downloads" : "Site Recipes"}
+                            aria-pressed={view === "sites"}
+                            onClick={() => setView((current) => (current === "sites" ? "queue" : "sites"))}
+                        >
+                            <FontAwesomeIcon icon={faGlobe} />
+                        </button>
                         <button
                             type="button"
                             className={`downloaderHistoryBtn${view === "history" ? " is-active" : ""}`}
@@ -379,7 +462,7 @@ const DownloaderPanel = ({
                             )}
                         </div>
                     </>
-                ) : (
+                ) : view === "history" ? (
                     <div className="downloaderHistory">
                         <div className="downloaderHistoryHead">
                             <span>Download History</span>
@@ -438,6 +521,78 @@ const DownloaderPanel = ({
                                 ))}
                             </div>
                         )}
+                    </div>
+                ) : (
+                    <div className="downloaderSites">
+                        <div className="downloaderSitesToolbar">
+                            <button type="button" onClick={() => void importRecipe()}>
+                                Import Recipe
+                            </button>
+                            <button type="button" onClick={openRecipeFolder}>
+                                Open Folder
+                            </button>
+                            <button type="button" onClick={() => void refreshRecipes()} disabled={recipesBusy}>
+                                {recipesBusy ? "Loading…" : "Refresh"}
+                            </button>
+                        </div>
+                        {recipeMessage ? <p className="downloaderSitesMessage">{recipeMessage}</p> : null}
+                        <div className="downloaderRecipes">
+                            {recipes.length === 0 ? (
+                                <p className="downloaderEmpty">
+                                    No site recipes. Import a JSON recipe or add files to the recipes folder.
+                                </p>
+                            ) : (
+                                recipes.map((recipe) => (
+                                    <div className="downloaderRecipeRow" key={recipe.id}>
+                                        <div className="downloaderRecipeText">
+                                            <strong>{recipe.name}</strong>
+                                            <span>
+                                                {recipe.hosts.join(", ")} · {recipe.mode}
+                                            </span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            title="Remove recipe"
+                                            onClick={() => deleteRecipe(recipe)}
+                                        >
+                                            <FontAwesomeIcon icon={faTrash} />
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                        <div className="downloaderPreviewBox">
+                            <label>
+                                <span>Test URL</span>
+                                <input
+                                    value={previewUrl}
+                                    onChange={(event) => setPreviewUrl(event.currentTarget.value)}
+                                    placeholder="https://example.com/series"
+                                    spellCheck={false}
+                                />
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => void runPreview()}
+                                disabled={previewBusy || !previewUrl.trim()}
+                            >
+                                {previewBusy ? "Previewing…" : "Preview"}
+                            </button>
+                            {preview ? (
+                                <div className="downloaderPreviewResult">
+                                    <strong>{preview.title || "No title"}</strong>
+                                    <span>
+                                        {preview.mode} · {preview.chapters} chapters · {preview.images} images
+                                    </span>
+                                    <p>{preview.message}</p>
+                                    {preview.sample.slice(0, 3).map((url) => (
+                                        <span className="downloaderPreviewUrl" key={url} title={url}>
+                                            {url}
+                                        </span>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </div>
                     </div>
                 )}
             </div>

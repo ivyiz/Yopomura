@@ -43,6 +43,15 @@ export type AddDownloaderJobInput = {
     keepFolder?: boolean;
 };
 
+/** One imported declarative downloader recipe. */
+export type DownloaderRecipeSummary = {
+    id: string;
+    name: string;
+    hosts: string[];
+    mode: string;
+    file: string;
+};
+
 /** Dry-run result from the generic Chromium resolver. */
 export type DownloaderPreview = {
     ok: boolean;

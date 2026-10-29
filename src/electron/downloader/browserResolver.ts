@@ -2,6 +2,7 @@ import { BROWSER_SESSION_PARTITION } from "@electron/browser/BrowserManager";
 import { applyProxyToSession } from "@electron/network/proxySettings";
 import { createMainLogger } from "@electron/util/logger";
 import { BrowserWindow, session as electronSession } from "electron";
+import { type DownloaderRecipe, type PageRecipeConfig, pageRecipeConfig, recipeStore } from "./recipeStore";
 
 const log = createMainLogger("downloader/resolver");
 
@@ -45,6 +46,13 @@ type PageData = {
     links: RawLink[];
     scriptUrls: string[];
     networkImages: string[];
+};
+
+type RecipePageData = {
+    title: string;
+    chapters: { href: string; name: string }[];
+    images: RawImage[];
+    next: string;
 };
 
 export type ResolvedDownloadItem = {
@@ -335,10 +343,13 @@ const waitForPageContent = async (contents: Electron.WebContents): Promise<void>
         (async () => {
             const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
             const deadline = Date.now() + 12000;
+            let stable = 0;
             while (Date.now() < deadline) {
                 const links = document.querySelectorAll("a[href]").length;
                 const images = document.images.length;
-                if (document.readyState === "complete" && (links > 5 || images > 2)) return;
+                const ready = document.readyState === "complete" && (links > 1 || images > 0);
+                stable = ready ? stable + 1 : 0;
+                if (stable >= 2) return;
                 await wait(200);
             }
         })();
@@ -492,6 +503,98 @@ const extractPage = (): Omit<PageData, "networkImages"> => {
     };
 };
 
+const extractRecipePage = (config: PageRecipeConfig): RecipePageData => {
+    const absolute = (raw: string | null | undefined): string => {
+        if (!raw) return "";
+        try {
+            const url = new URL(raw, location.href);
+            return url.protocol === "http:" || url.protocol === "https:" ? url.href : "";
+        } catch {
+            return "";
+        }
+    };
+
+    const parseSrcset = (value: string): string => {
+        let best = "";
+        let bestScore = -1;
+        for (const part of value.split(",")) {
+            const pieces = part.trim().split(/\s+/);
+            const url = pieces[0];
+            if (!url) continue;
+            const score = Number.parseFloat(pieces[1] || "1x") || 1;
+            if (score > bestScore) {
+                bestScore = score;
+                best = url;
+            }
+        }
+        return best;
+    };
+
+    const readValue = (element: Element, attribute: string): string => {
+        if (attribute === "text") return (element.textContent || "").replace(/\s+/g, " ").trim();
+        if (attribute === "html") return (element as HTMLElement).innerHTML || "";
+        if (attribute === "srcset") {
+            return parseSrcset(element.getAttribute("srcset") || "");
+        }
+        if (attribute === "src" && element instanceof HTMLImageElement) {
+            return element.currentSrc || element.src || element.getAttribute("src") || "";
+        }
+        if (attribute === "href" && element instanceof HTMLAnchorElement) return element.href;
+        return element.getAttribute(attribute) || "";
+    };
+
+    const images: RawImage[] = [];
+    const seen = new Set<string>();
+    for (const element of Array.from(document.querySelectorAll<HTMLElement>(config.pages.selector))) {
+        let raw = "";
+        for (const attribute of config.pages.attributes) {
+            raw = readValue(element, attribute);
+            if (raw) break;
+        }
+        if (!raw) {
+            const background = getComputedStyle(element).backgroundImage;
+            const match = background.match(/url\(["']?([^"')]+)["']?\)/i);
+            if (match) raw = match[1];
+        }
+        const url = absolute(raw);
+        if (!url || seen.has(url)) continue;
+        seen.add(url);
+        const image = element instanceof HTMLImageElement ? element : null;
+        const width = image?.naturalWidth || image?.width || element.clientWidth || 0;
+        const height = image?.naturalHeight || image?.height || element.clientHeight || 0;
+        images.push({ url, width, height, area: width * height, source: "recipe" });
+    }
+
+    const chapters: { href: string; name: string }[] = [];
+    if (config.chapters) {
+        for (const element of Array.from(document.querySelectorAll<HTMLElement>(config.chapters.selector))) {
+            const href = absolute(readValue(element, config.chapters.linkAttribute));
+            if (!href) continue;
+            const name =
+                config.chapters.nameAttribute === "text"
+                    ? (element.textContent || "").replace(/\s+/g, " ").trim()
+                    : readValue(element, config.chapters.nameAttribute);
+            chapters.push({ href, name });
+            if (config.chapters.limit > 0 && chapters.length >= config.chapters.limit) break;
+        }
+    }
+
+    let title = "";
+    if (config.title) {
+        const element = document.querySelector<HTMLElement>(config.title.selector);
+        if (element) title = readValue(element, config.title.attribute);
+    }
+    if (!title) title = document.querySelector("h1")?.textContent?.trim() || document.title || "";
+
+    let next = "";
+    if (config.next) {
+        const element = document.querySelector<HTMLElement>(config.next.selector);
+        if (element) next = absolute(readValue(element, config.next.attribute));
+    }
+
+    return { title, chapters, images, next };
+};
+
 class PageRenderer {
     private window: BrowserWindow | null = null;
     private debuggerAttached = false;
@@ -586,6 +689,39 @@ class PageRenderer {
             ...data,
             networkImages: [...this.networkImages],
         };
+    }
+
+    async renderRecipe(url: string, config: PageRecipeConfig): Promise<RecipePageData> {
+        const window = await this.ensureWindow();
+        const contents = window.webContents;
+        await Promise.race([contents.loadURL(url).catch(() => undefined), sleep(PAGE_TIMEOUT_MS)]);
+        await sleep(400);
+        await waitForPageContent(contents);
+        if (config.waitFor) {
+            const script = `
+                (async () => {
+                    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+                    const deadline = Date.now() + 8000;
+                    const selector = ${JSON.stringify(config.waitFor)};
+                    while (Date.now() < deadline) {
+                        if (document.querySelector(selector)) return;
+                        await wait(200);
+                    }
+                })();
+            `;
+            await contents.executeJavaScript(script, true).catch(() => undefined);
+        }
+        await scrollPage(contents);
+        await sleep(500);
+        try {
+            return (await contents.executeJavaScript(
+                `(${extractRecipePage.toString()})(${JSON.stringify(config)})`,
+                true,
+            )) as RecipePageData;
+        } catch (error) {
+            log.warn("could not extract recipe page", { url, error });
+            return { title: "", chapters: [], images: [], next: "" };
+        }
     }
 
     close(): void {
@@ -683,6 +819,112 @@ const collectReaderItems = async (
     return { items, pages, title: cleanTitle(firstPage, hostOf(startUrl) || "download") };
 };
 
+const recipeExcluded = (url: string, patterns: readonly string[]): boolean =>
+    patterns.some((pattern) => {
+        if (!pattern) return false;
+        if (pattern.startsWith("/") && pattern.endsWith("/") && pattern.length > 2) {
+            try {
+                return new RegExp(pattern.slice(1, -1), "i").test(url);
+            } catch {
+                return false;
+            }
+        }
+        return url.toLowerCase().includes(pattern.toLowerCase());
+    });
+
+const recipeImages = (page: RecipePageData, pageUrl: string, config: PageRecipeConfig): RawImage[] => {
+    const seen = new Set<string>();
+    const rows: RawImage[] = [];
+    for (const image of page.images) {
+        const url = normalizeHttpUrl(image.url, pageUrl);
+        if (!url || recipeExcluded(url, config.exclude)) continue;
+        const key = imageKey(url);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        rows.push({ ...image, url });
+        if (rows.length >= MAX_IMAGES) break;
+    }
+    return rows;
+};
+
+const resolveWithRecipe = async (
+    recipe: DownloaderRecipe,
+    url: string,
+    renderer: PageRenderer,
+    signal: AbortSignal | undefined,
+    deadline: number,
+): Promise<ResolvedDownload> => {
+    const config = pageRecipeConfig(recipe);
+    const firstPage = await renderer.renderRecipe(url, config);
+    const title = cleanTitle(
+        {
+            title: firstPage.title,
+            h1: "",
+            ogTitle: firstPage.title,
+            images: [],
+            links: [],
+            scriptUrls: [],
+            networkImages: [],
+        },
+        hostOf(url) || "download",
+    );
+    const explicitMode = recipe.mode && recipe.mode !== "auto" ? recipe.mode : null;
+    const mode = explicitMode ?? (config.chapters && firstPage.chapters.length > 0 ? "series" : "gallery");
+    const items: ResolvedDownloadItem[] = [];
+    const seen = new Set<string>();
+    let pages = 1;
+    let chapters = 0;
+
+    const collect = async (startUrl: string, startPage: RecipePageData): Promise<void> => {
+        let page = startPage;
+        let pageUrl = startUrl;
+        for (let index = 0; index < MAX_READER_PAGES; index += 1) {
+            if (signal?.aborted) throw new Error("Download cancelled");
+            if (Date.now() > deadline) break;
+            for (const image of recipeImages(page, pageUrl, config)) {
+                const key = imageKey(image.url);
+                if (seen.has(key)) continue;
+                seen.add(key);
+                items.push({ url: image.url, referer: pageUrl });
+                if (items.length >= MAX_IMAGES) return;
+            }
+            if (!config.next || !page.next) return;
+            pageUrl = page.next;
+            page = await renderer.renderRecipe(pageUrl, config);
+            pages += 1;
+        }
+    };
+
+    if (mode === "series" && config.chapters) {
+        const limit = config.chapters.limit > 0 ? Math.min(config.chapters.limit, MAX_CHAPTERS) : MAX_CHAPTERS;
+        for (const chapter of firstPage.chapters.slice(0, limit)) {
+            if (signal?.aborted) throw new Error("Download cancelled");
+            if (Date.now() > deadline) break;
+            try {
+                const chapterPage = await renderer.renderRecipe(chapter.href, config);
+                await collect(chapter.href, chapterPage);
+                chapters += 1;
+            } catch (error) {
+                log.warn("recipe chapter failed", { chapter: chapter.href, error });
+            }
+            if (items.length >= MAX_IMAGES) break;
+        }
+    } else {
+        await collect(url, firstPage);
+        if (mode === "reader") chapters = 1;
+    }
+
+    const finalItems = items.length > 0 ? items : [];
+    return {
+        title,
+        mode,
+        items: finalItems,
+        headers: finalItems.length > 0 ? await buildHeaders(url, finalItems) : {},
+        chapters,
+        pages,
+    };
+};
+
 /** Resolve a page/series URL into a concrete list of downloadable image URLs. */
 export const resolveDownload = async (inputUrl: string, signal?: AbortSignal): Promise<ResolvedDownload> => {
     const url = normalizeHttpUrl(inputUrl);
@@ -703,6 +945,37 @@ export const resolveDownload = async (inputUrl: string, signal?: AbortSignal): P
     const renderer = new PageRenderer();
     const deadline = Date.now() + MAX_RESOLVE_MS;
     try {
+        let matchedRecipe: DownloaderRecipe | null = null;
+        try {
+            matchedRecipe = recipeStore.match(url);
+        } catch (error) {
+            log.warn("could not load downloader recipes", error);
+        }
+        if (matchedRecipe) {
+            try {
+                const recipeResult = await resolveWithRecipe(matchedRecipe, url, renderer, signal, deadline);
+                if (recipeResult.items.length > 0) {
+                    log.info("recipe resolved page", {
+                        url,
+                        recipe: matchedRecipe.id,
+                        mode: recipeResult.mode,
+                        images: recipeResult.items.length,
+                    });
+                    return recipeResult;
+                }
+                log.info("recipe found no images; trying generic resolver", {
+                    url,
+                    recipe: matchedRecipe.id,
+                });
+            } catch (error) {
+                log.warn("recipe resolution failed; trying generic resolver", {
+                    url,
+                    recipe: matchedRecipe.id,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        }
+
         let firstPage = await renderer.render(url);
         const title = cleanTitle(firstPage, hostOf(url) || "download");
         const reader = isReaderUrl(url);

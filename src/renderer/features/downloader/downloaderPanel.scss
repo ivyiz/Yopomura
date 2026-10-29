@@ -124,6 +124,7 @@ body.downloaderSideOpen .browserHost.is-full {
     font-size: 0.75rem !important;
 }
 
+.downloaderSitesBtn,
 .downloaderHistoryBtn {
     width: 32px;
     height: 32px;
@@ -137,6 +138,153 @@ body.downloaderSideOpen .browserHost.is-full {
         color: var(--btn-color-focus);
         background: color-mix(in srgb, var(--btn-color-focus) 10%, transparent);
     }
+}
+
+.downloaderSites {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.downloaderSitesToolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    button {
+        padding: 6px 9px;
+        font-size: 0.72rem;
+    }
+}
+
+.downloaderSitesMessage {
+    margin: 0;
+    color: var(--font-color-secondary);
+    font-size: 0.72rem;
+}
+
+.downloaderRecipes {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.downloaderRecipeRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--divider-color);
+    border-radius: 8px;
+    background: rgba(127, 127, 127, 0.06);
+}
+
+.downloaderRecipeText {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    strong {
+        overflow: hidden;
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    span {
+        overflow: hidden;
+        color: var(--font-color-secondary);
+        font-size: 0.68rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.downloaderRecipeRow > button {
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+}
+
+.downloaderPreviewBox {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--divider-color);
+
+    label {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+        padding: 0;
+        background: transparent;
+
+        &:hover {
+            background: transparent;
+        }
+
+        span {
+            color: var(--font-color-secondary);
+            font-size: 0.7rem;
+        }
+
+        input {
+            width: 100%;
+        }
+    }
+
+    > button {
+        align-self: flex-start;
+        padding: 6px 10px;
+        font-size: 0.72rem;
+    }
+}
+
+.downloaderPreviewResult {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(127, 127, 127, 0.08);
+
+    strong {
+        font-size: 0.78rem;
+    }
+
+    span {
+        color: var(--font-color-secondary);
+        font-size: 0.7rem;
+    }
+
+    p {
+        margin: 0;
+        color: var(--font-color-secondary);
+        font-size: 0.7rem;
+    }
+}
+
+.downloaderPreviewUrl {
+    overflow: hidden;
+    color: var(--font-color-secondary);
+    font-size: 0.64rem;
+    opacity: 0.8;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .downloaderHistory {

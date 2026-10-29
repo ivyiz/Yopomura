@@ -15,6 +15,7 @@ import type {
     AddDownloaderJobInput,
     DownloaderJob,
     DownloaderPreview,
+    DownloaderRecipeSummary,
     DownloaderState,
 } from "@common/types/downloader";
 import type {
@@ -400,6 +401,13 @@ export type DownloaderChannels = {
     "downloader:add": ChannelDefinition<AddDownloaderJobInput, DownloaderJob>;
     /** Resolve a URL without queueing it; used by Preview and diagnostics. */
     "downloader:preview": ChannelDefinition<{ url: string }, DownloaderPreview>;
+    "downloader:listRecipes": ChannelDefinition<void, DownloaderRecipeSummary[]>;
+    "downloader:importRecipe": ChannelDefinition<
+        void,
+        { ok: true; recipe: DownloaderRecipeSummary } | { ok: false; message: string }
+    >;
+    "downloader:deleteRecipe": ChannelDefinition<{ id: string }, boolean>;
+    "downloader:openRecipeFolder": ChannelDefinition<void, void>;
     "downloader:cancel": ChannelDefinition<{ id: string }, void>;
     "downloader:remove": ChannelDefinition<{ id: string }, void>;
     "downloader:clearFinished": ChannelDefinition<void, void>;
