@@ -77,7 +77,6 @@
                 white-space: nowrap;
                 opacity: 0.88;
                 font-variant-numeric: tabular-nums;
-                letter-spacing: 0.02em;
             }
         }
         .viewToggle {
@@ -124,11 +123,13 @@
 
     .mainTitleCont {
         position: absolute;
+        left: var(--topbar-title-left, calc(var(--button-width) * 4));
+        right: var(--topbar-title-right, 138px);
         height: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: calc(100% - (var(--button-width) * 10));
+        min-width: 0;
         color: inherit;
         /* Decorative title; never block clicks on the top-bar buttons underneath. */
         pointer-events: none;
@@ -271,12 +272,11 @@
     }
     .libraryScanPopoverPhase {
         font-size: 0.78em;
-        letter-spacing: 0.08em;
         opacity: 0.7;
     }
     .libraryScanPopoverFolder {
         font-size: 1.05em;
-        font-weight: 600;
+        font-weight: bold;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -363,7 +363,7 @@
 
 .bookmarkPopoverTitle {
     font-size: 1.05em;
-    font-weight: 600;
+    font-weight: bold;
 }
 
 .bookmarkPopoverCount {
@@ -386,7 +386,7 @@
 .bookmarkPopoverKeys kbd {
     font-family: inherit;
     font-size: 0.62em;
-    font-weight: 600;
+    font-weight: bold;
     line-height: 1;
     padding: 0.28em 0.42em;
     border-radius: 4px;

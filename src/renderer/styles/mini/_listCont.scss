@@ -319,7 +319,7 @@
 
     .locationCoverLetter {
         font-size: 1.8rem;
-        font-weight: 700;
+        font-weight: bold;
         color: var(--font-color-secondary);
         opacity: 0.75;
         text-transform: uppercase;
@@ -337,7 +337,7 @@
 
     .locationTitle {
         font-size: var(--location-title-font-size, 1.12rem);
-        font-weight: 600;
+        font-weight: bold;
         line-height: 1.32;
         color: var(--font-color);
         -webkit-line-clamp: 2;
@@ -351,7 +351,6 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        letter-spacing: 0.01em;
     }
 
     &.alreadyRead .locationCover img {
@@ -413,7 +412,7 @@
             margin-bottom: 10px;
             text-align: center;
             padding-bottom: 10px;
-            font-weight: 400;
+            font-weight: normal;
             border-bottom: 5px solid var(--divider-color);
             box-sizing: border-box;
 

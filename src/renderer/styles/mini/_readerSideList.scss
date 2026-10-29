@@ -62,7 +62,7 @@
         flex-direction: column;
         gap: 6px;
         cursor: text;
-        font-weight: 300;
+        font-weight: normal;
         font-size: 16px;
         > div {
             display: grid;
@@ -76,7 +76,7 @@
             }
             .bold {
                 font-size: 20px;
-                font-weight: 700;
+                font-weight: bold;
                 display: inline-block;
                 position: relative;
             }
@@ -108,7 +108,7 @@
         span {
             &.bold {
                 font-size: 20px;
-                font-weight: 700;
+                font-weight: bold;
                 display: inline-block;
                 position: relative;
             }
@@ -223,7 +223,7 @@
             }
             .shuffle-label {
                 font-size: 0.65em;
-                font-weight: 600;
+                font-weight: bold;
             }
         }
         .btnOptions {

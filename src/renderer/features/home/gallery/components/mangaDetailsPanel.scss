@@ -229,7 +229,7 @@
         h2 {
             margin: 0;
             font-size: 1.15rem;
-            font-weight: 600;
+            font-weight: bold;
         }
 
         p {
@@ -240,7 +240,6 @@
         }
 
         .missing-path {
-            font-family: ui-monospace, monospace;
             font-size: 0.8rem;
             word-break: break-all;
             opacity: 0.85;
@@ -290,7 +289,7 @@
                 }
 
                 &.continue-reading {
-                    font-weight: 500;
+                    font-weight: bold;
                     background-color: var(--btn-color-focus);
                 }
             }
@@ -435,7 +434,7 @@
     .details-title {
         margin: 0;
         font-size: 2rem;
-        font-weight: 600;
+        font-weight: bold;
         line-height: 1.25;
         user-select: text;
         cursor: text;
@@ -448,7 +447,6 @@
     .details-type-badge {
         flex: 0 0 auto;
         font-size: 0.85rem;
-        letter-spacing: 0.06em;
         color: var(--font-color-secondary);
         background: var(--btn-color);
         padding: 0.25em 0.5em;
@@ -490,7 +488,7 @@
 
         .continue-reading {
             font-size: 1.2rem;
-            font-weight: 400;
+            font-weight: normal;
             background-color: var(--btn-color-focus);
             min-width: 10rem;
             padding: 0 1.25rem;
@@ -591,7 +589,7 @@
     .details-field-value {
         font-size: 1.2rem;
         line-height: 1.4;
-        font-weight: 500;
+        font-weight: bold;
         user-select: text;
         cursor: text;
         overflow-wrap: anywhere;
@@ -625,7 +623,7 @@
         border: 0;
         border-radius: 6px;
         text-align: left;
-        font-weight: 400;
+        font-weight: normal;
         overflow: visible;
         background: var(--text-input-bg);
         white-space: pre-wrap;
@@ -786,7 +784,7 @@
             }
 
             &.current {
-                font-weight: 500;
+                font-weight: bold;
                 background-color: var(--listItem-bg-color-current);
 
                 &:hover {
@@ -871,7 +869,7 @@
             }
 
             .note-chapter {
-                font-weight: 500;
+                font-weight: bold;
                 font-size: 1.2rem;
                 white-space: nowrap;
                 overflow: hidden;
@@ -933,7 +931,7 @@
 
                     .bookmark-chapter {
                         flex: 1;
-                        font-weight: 500;
+                        font-weight: bold;
                         font-size: 1.2rem;
                     }
 

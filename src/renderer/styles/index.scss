@@ -125,7 +125,7 @@ html{
  */
 .itemDisplayTitle-original {
     color: var(--font-color-secondary);
-    font-weight: 400;
+    font-weight: normal;
     font-size: 0.85em;
 }
 
@@ -300,14 +300,6 @@ html{
             padding: 2px 4px;
             border-radius: 4px;
             white-space: nowrap;
-            font-family:
-                ui-monospace,
-                SFMono-Regular,
-                SF Mono,
-                Menlo,
-                Consolas,
-                Liberation Mono,
-                monospace;
             font-size: 90%;
             align-self: center;
             cursor: inherit;
@@ -733,8 +725,6 @@ html{
                                 h3 {
                                     font-size: 1.4em;
                                     margin-bottom: 0.4em;
-                                    word-spacing: 0.3em;
-                                    letter-spacing: 0.02em;
                                 }
                                 h4 {
                                     margin-top: 1.2em;
@@ -851,7 +841,6 @@ html{
                                                 gap: 0.5em;
                                             }
                                             .librarySkipPatternInput {
-                                                font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
                                                 flex: 1 1 12em;
                                                 min-width: 8em;
                                             }
@@ -963,7 +952,6 @@ html{
                             font-size: 1em;
                             padding: 20px;
                             user-select: text;
-                            letter-spacing: 0.02em;
                             * {
                                 scroll-margin-top: 4em;
                             }
@@ -978,16 +966,6 @@ html{
                                     padding: 0;
                                     line-height: 1.2em;
                                     list-style: none;
-                                    &::before {
-                                        font-family:
-                                            ui-monospace,
-                                            SFMono-Regular,
-                                            SF Mono,
-                                            Menlo,
-                                            Consolas,
-                                            Liberation Mono,
-                                            monospace;
-                                    }
                                 }
                                 > li {
                                     &::before {
@@ -1106,8 +1084,7 @@ html{
                         .shortcutKey {
                             --shortcut-control-height: 2.5em;
                             --shortcut-add-width: 7.25em;
-                            --shortcut-key-font: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
-                                "Liberation Mono", monospace;
+                            --shortcut-key-font: inherit;
                             .settingItem2 ul.shortcutHints {
                                 list-style: disc;
                                 margin: 0 0 0 1.25em;
@@ -1169,7 +1146,7 @@ html{
                                     align-items: center;
                                     font-family: var(--shortcut-key-font);
                                     font-size: 0.95em;
-                                    font-weight: 600;
+                                    font-weight: bold;
                                     white-space: nowrap;
                                 }
                                 .shortcutChipRemove {
@@ -1235,7 +1212,7 @@ html{
                                 }
                                 .shortcutDiagChord {
                                     font-family: var(--shortcut-key-font);
-                                    font-weight: 600;
+                                    font-weight: bold;
                                     margin-right: 0.35em;
                                 }
                             }
@@ -1487,7 +1464,6 @@ html{
                 }
                 .epubChapterBreakTitle {
                     font-size: 0.72em;
-                    letter-spacing: 0.1em;
                     opacity: 0.42;
                     max-width: 50%;
                     overflow: hidden;
@@ -1777,4 +1753,13 @@ html{
         color: var(--font-color-secondary);
         font-variant-numeric: tabular-nums;
     }
+}
+
+/*
+ * Unified UI typography: every piece of app chrome uses Roboto with the default
+ * tracking. Only weight (normal vs bold) may differ. Book content keeps its own
+ * EPUB typography, so `#EPubReader .htmlCont` is excluded from tracking.
+ */
+body *:not(#EPubReader .htmlCont):not(#EPubReader .htmlCont *) {
+    letter-spacing: normal !important;
 }

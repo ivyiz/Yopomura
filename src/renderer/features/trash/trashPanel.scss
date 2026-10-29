@@ -46,7 +46,7 @@
         }
         &.is-primary {
             border-color: var(--btn-color-focus);
-            font-weight: 500;
+            font-weight: bold;
         }
     }
 
@@ -90,7 +90,7 @@
     h2 {
         margin: 2px 0 6px;
         font-size: 1.45rem;
-        font-weight: 600;
+        font-weight: bold;
     }
 
     p {
@@ -104,7 +104,6 @@
 
 .trashPanelEyebrow {
     font-size: 0.62rem;
-    letter-spacing: 0.16em;
     color: var(--font-color-secondary);
 }
 
@@ -187,7 +186,6 @@
     > span {
         color: var(--font-color-secondary);
         font-size: 0.72rem;
-        letter-spacing: 0.08em;
     }
 }
 
@@ -277,7 +275,7 @@
 
     strong {
         font-size: 0.92rem;
-        font-weight: 600;
+        font-weight: bold;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -291,7 +289,6 @@
     border: 1px solid var(--divider-color);
     color: var(--font-color-secondary);
     font-size: 0.65rem;
-    letter-spacing: 0.04em;
 }
 
 .trashRowPath,

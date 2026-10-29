@@ -424,7 +424,7 @@
     strong {
         flex: 1 1 auto;
         font-size: 0.9rem;
-        font-weight: 600;
+        font-weight: bold;
     }
 }
 
@@ -529,7 +529,7 @@
     overflow: hidden;
     color: var(--font-color);
     font-size: 0.78rem;
-    font-weight: 600;
+    font-weight: bold;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -775,7 +775,7 @@
     background: var(--btn-color-focus);
     color: #fff;
     font-size: 0.78rem;
-    font-weight: 600;
+    font-weight: bold;
     cursor: pointer;
 
     &:hover:not(:disabled) {

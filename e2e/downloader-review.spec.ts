@@ -3,7 +3,19 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import zlib from "node:zlib";
+import type { ElectronApplication } from "@playwright/test";
 import { _electron as electron, expect, test } from "@playwright/test";
+
+const setWindowSize = async (app: ElectronApplication, width: number, height: number): Promise<void> => {
+    await app.evaluate(
+        ({ BrowserWindow }, size) => {
+            const win = BrowserWindow.getAllWindows()[0];
+            win?.setBounds({ width: size.width, height: size.height });
+        },
+        { width, height },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 300));
+};
 
 const crcTable = (() => {
     const table = new Uint32Array(256);
@@ -143,6 +155,76 @@ test("review modal starts with every image selected and downloads only the selec
         await expect(page.locator(".downloaderReviewItem input:checked")).toHaveCount(3);
         await expect(page.locator(".downloaderReviewCount")).toContainText("3 / 3 selected");
 
+        const measureGrid = () =>
+            page.evaluate(() => {
+                const items = Array.from(document.querySelectorAll<HTMLElement>(".downloaderReviewItem"));
+                const thumbs = items.map((item) => item.querySelector<HTMLElement>(".downloaderReviewThumb"));
+                const top = thumbs[0]?.getBoundingClientRect().top ?? 0;
+                const firstRow = thumbs.filter(
+                    (thumb) => Math.abs((thumb?.getBoundingClientRect().top ?? 0) - top) < 2,
+                ).length;
+                const thumbRect = thumbs[0]?.getBoundingClientRect();
+                const boxRect = items[0]?.querySelector("input")?.getBoundingClientRect();
+                const overlay = getComputedStyle(
+                    items[0]?.querySelector(".downloaderReviewThumb") as Element,
+                    "::after",
+                ).backgroundColor;
+                return {
+                    firstRow,
+                    thumbHeight: Math.round(thumbRect?.height ?? 0),
+                    checkboxInside: Boolean(
+                        thumbRect &&
+                            boxRect &&
+                            boxRect.left >= thumbRect.left &&
+                            boxRect.top >= thumbRect.top &&
+                            boxRect.right <= thumbRect.right &&
+                            boxRect.bottom <= thumbRect.bottom,
+                    ),
+                    overlay,
+                };
+            });
+
+        const wide = await measureGrid();
+        expect(wide.firstRow).toBe(3);
+        expect(wide.thumbHeight).toBe(240);
+        expect(wide.checkboxInside).toBe(true);
+        expect(wide.overlay).toBe("rgba(0, 0, 0, 0)");
+
+        await setWindowSize(app, 1200, 800);
+        await expect.poll(async () => (await measureGrid()).firstRow).toBe(3);
+
+        // The window has a 853px minimum, so emulate narrower viewports for the fallback columns.
+        const cdp = await page.context().newCDPSession(page);
+        const emulateWidth = (width: number) =>
+            cdp.send("Emulation.setDeviceMetricsOverride", {
+                width,
+                height: 900,
+                deviceScaleFactor: 1,
+                mobile: false,
+            });
+        await emulateWidth(800);
+        await expect.poll(async () => (await measureGrid()).firstRow).toBe(2);
+        await emulateWidth(500);
+        await expect.poll(async () => (await measureGrid()).firstRow).toBe(1);
+        await cdp.send("Emulation.clearDeviceMetricsOverride");
+        await expect.poll(async () => (await measureGrid()).firstRow).toBe(3);
+
+        const typography = await page.evaluate(() =>
+            ["#topBar .title", ".downloaderReviewName", ".downloaderReviewHost", ".downloaderReviewConfirm"].map(
+                (selector) => {
+                    const element = document.querySelector<HTMLElement>(selector);
+                    if (!element) return null;
+                    const style = getComputedStyle(element);
+                    return { selector, family: style.fontFamily, spacing: style.letterSpacing };
+                },
+            ),
+        );
+        for (const sample of typography) {
+            if (!sample) continue;
+            expect(sample.family).toContain("Roboto");
+            expect(sample.spacing).toBe("normal");
+        }
+
         const review = await page.evaluate(async (id) => {
             const bridge = (
                 window as unknown as {
@@ -160,6 +242,8 @@ test("review modal starts with every image selected and downloads only the selec
 
         await rows.first().locator("input").uncheck();
         await expect(page.locator(".downloaderReviewCount")).toContainText("2 / 3 selected");
+        await page.mouse.move(0, 0);
+        await expect.poll(async () => (await measureGrid()).overlay).toBe("rgba(0, 0, 0, 0.55)");
         await page.locator(".downloaderReviewConfirm").click();
 
         await expect
@@ -192,6 +276,26 @@ test("review modal starts with every image selected and downloads only the selec
 
         await expect(page.locator(".downloaderReviewOverlay")).toHaveCount(0);
         await expect(page.locator(".browserHost")).toHaveCount(1);
+
+        // The brand must stay clear of the Trash button as the window narrows.
+        for (const width of [1920, 1200, 900, 700]) {
+            await setWindowSize(app, width, 800);
+            await expect
+                .poll(async () =>
+                    page.evaluate(() => {
+                        const brand = document.querySelector<HTMLElement>("#topBar .mainTitleCont");
+                        const trash = Array.from(
+                            document.querySelectorAll<HTMLElement>("#topBar .homeBtns button"),
+                        ).find((button) => button.querySelector('svg[data-icon="trash"]'));
+                        if (!brand || !trash) return -10_000;
+                        return Math.round(
+                            brand.getBoundingClientRect().left - trash.getBoundingClientRect().right,
+                        );
+                    }),
+                )
+                .toBeGreaterThanOrEqual(0);
+        }
+
         expect(errors).toEqual([]);
         console.log("DOWNLOADER_REVIEW_OK");
     } finally {

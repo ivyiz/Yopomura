@@ -24,7 +24,7 @@ import { setSysBtnColor } from "@store/themes";
 import { setSettingsOpen, toggleSettingsOpen } from "@store/ui";
 import { formatUtils } from "@utils/file";
 import { isWidgetEnterKey } from "@utils/keyboard";
-import { type ReactElement, useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { type ReactElement, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppContext } from "./App";
 import LibraryScanStatusButton from "./components/LibraryScanStatusButton";
@@ -32,6 +32,9 @@ import LibraryScanStatusButton from "./components/LibraryScanStatusButton";
 const TopBar = (): ReactElement => {
     const { t } = useTranslation("common");
     const [title, setTitle] = useState<string>("Yopomura");
+    const topBarRef = useRef<HTMLDivElement>(null);
+    const homeBtnsRef = useRef<HTMLDivElement>(null);
+    const windowBtnsRef = useRef<HTMLDivElement>(null);
     const {
         pageNumberInputRef,
         bookProgressRef,
@@ -137,6 +140,35 @@ const TopBar = (): ReactElement => {
     useEffect(() => {
         setTitleWithSize();
     }, [setTitleWithSize]);
+    /* Keep the brand centred inside the free gap, clear of the left buttons and window controls. */
+    useLayoutEffect(() => {
+        const topBar = topBarRef.current;
+        const homeBtns = homeBtnsRef.current;
+        const windowBtns = windowBtnsRef.current;
+        if (!topBar || !homeBtns || !windowBtns) return;
+
+        const update = () => {
+            const barRect = topBar.getBoundingClientRect();
+            const homeRect = homeBtns.getBoundingClientRect();
+            const windowRect = windowBtns.getBoundingClientRect();
+            const gap = 8;
+            const left = Math.max(0, homeRect.right - barRect.left + gap);
+            const right = Math.max(0, barRect.right - windowRect.left + gap);
+            topBar.style.setProperty("--topbar-title-left", `${Math.round(left)}px`);
+            topBar.style.setProperty("--topbar-title-right", `${Math.round(right)}px`);
+        };
+
+        update();
+        const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+        observer?.observe(topBar);
+        observer?.observe(homeBtns);
+        observer?.observe(windowBtns);
+        window.addEventListener("resize", update);
+        return () => {
+            observer?.disconnect();
+            window.removeEventListener("resize", update);
+        };
+    }, []);
 
     const viewMode = useAppSelector((store) => store.appSettings.homeViewMode);
     const toggleViewMode = () => {
@@ -148,9 +180,9 @@ const TopBar = (): ReactElement => {
     };
 
     return (
-        <div id="topBar">
+        <div id="topBar" ref={topBarRef}>
             <div className="titleDragable"></div>
-            <div className="homeBtns">
+            <div className="homeBtns" ref={homeBtnsRef}>
                 <button
                     className="home"
                     onFocus={(e) => e.currentTarget.blur()}
@@ -256,7 +288,7 @@ const TopBar = (): ReactElement => {
             <div className="mainTitleCont">
                 <div className="title">{title}</div>
             </div>
-            <div className="windowBtnCont">
+            <div className="windowBtnCont" ref={windowBtnsRef}>
                 {readerContentType === "manga" && (
                     <label
                         className="pageNumber noBG"

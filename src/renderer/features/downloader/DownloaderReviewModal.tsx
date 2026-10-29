@@ -177,8 +177,15 @@ const DownloaderReviewModal = ({ onOpenChange }: DownloaderReviewModalProps) => 
                                     className={`downloaderReviewItem${checked ? " is-selected" : ""}`}
                                     key={item.url}
                                 >
-                                    <input type="checkbox" checked={checked} onChange={() => toggle(item.url)} />
                                     <span className="downloaderReviewThumb">
+                                        <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => toggle(item.url)}
+                                        />
+                                        <span className="downloaderReviewIndex">
+                                            {String(index + 1).padStart(3, "0")}
+                                        </span>
                                         <FontAwesomeIcon icon={faImage} />
                                         <img
                                             src={item.url}
@@ -192,9 +199,6 @@ const DownloaderReviewModal = ({ onOpenChange }: DownloaderReviewModalProps) => 
                                         />
                                     </span>
                                     <span className="downloaderReviewText">
-                                        <span className="downloaderReviewIndex">
-                                            {String(index + 1).padStart(3, "0")}
-                                        </span>
                                         <span className="downloaderReviewName">{filenameOf(item.url)}</span>
                                         <span className="downloaderReviewHost">{hostOf(item.url)}</span>
                                     </span>

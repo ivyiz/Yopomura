@@ -34,7 +34,7 @@
     align-items: center;
     gap: 8px;
     font-size: 0.8rem;
-    font-weight: 600;
+    font-weight: bold;
 
     svg {
         font-size: 0.72rem;
@@ -106,7 +106,7 @@
     > span:first-child {
         color: var(--font-color-secondary);
         font-size: 0.66rem;
-        font-weight: 500;
+        font-weight: bold;
     }
 
     input,
@@ -180,7 +180,7 @@
     border-color: var(--btn-color-focus);
     background: var(--btn-color-focus);
     color: #fff;
-    font-weight: 600;
+    font-weight: bold;
 
     &:hover:not(:disabled) {
         filter: brightness(1.1);
