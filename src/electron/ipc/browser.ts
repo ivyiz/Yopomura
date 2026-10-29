@@ -2,7 +2,11 @@ import path from "node:path";
 import { getAdblockState, setAdblockEnabled } from "@electron/browser/adblock";
 import { BrowserManager } from "@electron/browser/BrowserManager";
 import { type BookmarkStore, BROWSER_BOOKMARKS_FILE, createBookmarkStore } from "@electron/browser/bookmarks";
-import { notifyDownloadComplete, resolveDownloadDir } from "@electron/util/downloadImport";
+import {
+    notifyDownloadComplete,
+    resolveDownloadDir,
+    resolveVideoDownloadDir,
+} from "@electron/util/downloadImport";
 import { app, BrowserWindow } from "electron";
 import { ipc } from "./utils";
 
@@ -36,6 +40,7 @@ const managerFor = (event: Electron.IpcMainInvokeEvent): BrowserManager => {
     const manager = new BrowserManager({
         window,
         downloadDir: resolveDownloadDir(),
+        videoDownloadDir: resolveVideoDownloadDir(),
         searchEngine: "brave",
         forceDark: true,
     });
@@ -104,6 +109,9 @@ export const registerBrowserHandlers = (): void => {
     ipc.handle("browser:getDisabledHosts", (event) => managerFor(event).getDisabledHosts());
     ipc.handle("browser:setSearchEngine", (event, { engine }) => managerFor(event).setSearchEngine(engine));
     ipc.handle("browser:setDownloadDir", (event, { dir }) => managerFor(event).setDownloadDir(dir));
+    ipc.handle("browser:setVideoDownloadDir", (event, { dir }) =>
+        managerFor(event).setVideoDownloadDir(dir.trim() || resolveVideoDownloadDir()),
+    );
     ipc.handle("browser:cancelDownload", (event, { id }) => managerFor(event).cancelDownload(id));
     ipc.handle("browser:scanLinks", (event, { tabId }) => managerFor(event).scanLinks(tabId));
     ipc.handle("browser:getAdblock", () => getAdblockState());

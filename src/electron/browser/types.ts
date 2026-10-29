@@ -76,6 +76,8 @@ export interface BrowserManagerOptions {
     window: BrowserWindow;
     /** Directory for automatic downloads. Omit to let Electron prompt. */
     downloadDir?: string;
+    /** Directory for video downloads (mp4/webm); defaults to {@link downloadDir}. */
+    videoDownloadDir?: string;
     /** Defaults to Brave. */
     searchEngine?: BrowserSearchEngine;
     /** Global force-dark switch. Defaults to true. */

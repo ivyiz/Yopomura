@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import path from "node:path";
+import { VIDEO_EXTS } from "@common/library/formats";
 import type { BrowserScannedLink } from "@common/types/browser";
 import type { DownloaderRecipeDraft } from "@common/types/downloader";
 import { applyProxyToSession } from "@electron/network/proxySettings";
@@ -302,7 +303,7 @@ export class BrowserManager extends EventEmitter {
         if (this.destroyed) return;
 
         const filename = item.getFilename() || "download";
-        const dir = this.downloadDir;
+        const dir = this.directoryFor(filename);
         const existing = dir ? path.join(dir, sanitizeDownloadFilename(filename)) : "";
 
         if (existing && fs.existsSync(existing)) {
@@ -384,6 +385,7 @@ export class BrowserManager extends EventEmitter {
 
     private searchEngine: BrowserSearchEngine;
     private downloadDir: string | null = null;
+    private videoDownloadDir: string | null = null;
     private activeId: string | null = null;
     private bounds: BrowserBounds = { x: 0, y: 0, width: 0, height: 0 };
     private visible = false;
@@ -405,6 +407,7 @@ export class BrowserManager extends EventEmitter {
 
         this.configureSession();
         if (options.downloadDir) this.setDownloadDir(options.downloadDir);
+        if (options.videoDownloadDir) this.videoDownloadDir = path.resolve(options.videoDownloadDir);
 
         this.window.once("closed", this.handleWindowClosed);
         BrowserManager.instances.add(this);
@@ -878,6 +881,19 @@ export class BrowserManager extends EventEmitter {
         return this.downloadDir;
     }
 
+    /** `null` restores the OS Videos default. */
+    setVideoDownloadDir(dir: string | null): void {
+        const resolved = dir ? path.resolve(dir) : null;
+        if (resolved) {
+            try {
+                fs.mkdirSync(resolved, { recursive: true });
+            } catch (error) {
+                logger.warn("could not create video download directory", resolved, error);
+            }
+        }
+        this.videoDownloadDir = resolved;
+    }
+
     /** Cancels an in-flight download by the id emitted on the `download` event. */
     cancelDownload(id: string): boolean {
         const download = this.activeDownloads.get(id);
@@ -1263,8 +1279,17 @@ export class BrowserManager extends EventEmitter {
         }
     }
 
+    /** Videos go to the media folder so they never mix into the manga library root. */
+    private directoryFor(filename: string): string | null {
+        const extension = path.extname(filename).toLowerCase();
+        if (VIDEO_EXTS.includes(extension as (typeof VIDEO_EXTS)[number]) && this.videoDownloadDir) {
+            return this.videoDownloadDir;
+        }
+        return this.downloadDir;
+    }
+
     private prepareDownloadPath(filename: string, item: DownloadItem): string {
-        const dir = this.downloadDir;
+        const dir = this.directoryFor(filename);
         if (!dir) return "";
 
         try {

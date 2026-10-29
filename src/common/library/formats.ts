@@ -21,6 +21,9 @@ export const BOOK_EXTS = [".epub"] as const;
 /** Video files the in-app media player can open (no library/reader classification). */
 export const VIDEO_EXTS = [".mp4", ".webm"] as const;
 
+/** Subfolder under the OS Videos directory used for browser video downloads. */
+export const VIDEO_DOWNLOAD_FOLDER_NAME = "Yopomura";
+
 /** Packed manga, PDF, and EPUB — Locations / drop treat these as openable files. */
 export const OPENABLE_FILE_EXTS = [...PACKED_MANGA_EXTS, ...PDF_EXTS, ...BOOK_EXTS] as const;
 

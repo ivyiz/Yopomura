@@ -465,6 +465,8 @@ export type BrowserChannels = {
     "browser:getDisabledHosts": ChannelDefinition<void, string[]>;
     "browser:setSearchEngine": ChannelDefinition<{ engine: BrowserSearchEngine }, void>;
     "browser:setDownloadDir": ChannelDefinition<{ dir: string | null }, void>;
+    /** Overrides where mp4/webm downloads are saved; empty restores the default. */
+    "browser:setVideoDownloadDir": ChannelDefinition<{ dir: string }, void>;
     /** Extracts http(s) links from the active/requested tab. */
     "browser:scanLinks": ChannelDefinition<{ tabId?: string }, BrowserScannedLink[]>;
     "browser:getAdblock": ChannelDefinition<void, BrowserAdblockState>;

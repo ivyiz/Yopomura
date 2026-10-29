@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { getDefaultLocationPath, type LibraryFolder } from "@common/library/folders";
-import { isBookFileName, isMangaFileName } from "@common/library/formats";
+import { isBookFileName, isMangaFileName, VIDEO_DOWNLOAD_FOLDER_NAME } from "@common/library/formats";
 import { app } from "electron";
 import { startLibraryScan } from "./libraryScan";
 import { createMainLogger } from "./logger";
@@ -24,8 +24,7 @@ const libraryFolders = (): LibraryFolder[] => {
     }
 };
 
-/**
- * Directory used for browser and downloader output. Prefers the library
+/** Directory used for browser and downloader output. Prefers the library
  * Default Location so finished files show up in Location, Library and Media
  * without a second copy. Falls back to `<userData>/downloads`.
  */
@@ -36,6 +35,17 @@ export const resolveDownloadDir = (): string => {
         fs.mkdirSync(dir, { recursive: true });
     } catch (error) {
         log.warn("could not create download directory", dir, error);
+    }
+    return dir;
+};
+
+/** Videos are not manga: keep browser video downloads out of the library root. */
+export const resolveVideoDownloadDir = (): string => {
+    const dir = path.join(app.getPath("videos"), VIDEO_DOWNLOAD_FOLDER_NAME);
+    try {
+        fs.mkdirSync(dir, { recursive: true });
+    } catch (error) {
+        log.warn("could not create video download directory", dir, error);
     }
     return dir;
 };

@@ -1,4 +1,5 @@
 import { getDefaultLocationPath } from "@common/library/folders";
+import { VIDEO_DOWNLOAD_FOLDER_NAME } from "@common/library/formats";
 import {
     faArrowLeft,
     faArrowsRotate,
@@ -171,6 +172,9 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         }
         add(getDefaultLocationPath(folders));
         for (const folder of folders) add(folder.path);
+        // Browser video downloads are kept out of the manga root but still shown here.
+        const videoRoot = window.path.join(window.electron.app.getPath("videos"), VIDEO_DOWNLOAD_FOLDER_NAME);
+        if (window.fs.existsSync(videoRoot)) add(videoRoot);
         return result;
     }, [customRoot, folders]);
 

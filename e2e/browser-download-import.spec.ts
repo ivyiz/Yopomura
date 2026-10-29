@@ -63,8 +63,15 @@ test("browser downloads land in the library and recent Media playlist", async ()
         env: { ...process.env, NODE_ENV: "production" },
     });
     const errors: string[] = [];
+    let browserClip = "";
     try {
         const page = await app.firstWindow();
+        const videoDir = path.join(
+            await app.evaluate(({ app: electronApp }) => electronApp.getPath("videos")),
+            "Yopomura",
+        );
+        browserClip = path.join(videoDir, "browser-clip.webm");
+        fs.rmSync(browserClip, { force: true });
         page.on("pageerror", (error) => errors.push(error.message));
         await page.waitForSelector(".locationRow", { timeout: 60_000 });
         await page.waitForTimeout(1200);
@@ -85,12 +92,12 @@ test("browser downloads land in the library and recent Media playlist", async ()
             [libraryDir, comicDownload],
         );
 
-        const download = async (file: string, url: string) => {
+        const download = async (file: string, url: string, dir = libraryDir) => {
             await page.locator(".browserToggle").click();
             await page.waitForSelector(".browserHost.is-full", { timeout: 15_000 });
             await page.locator(".browserAddress").fill(url);
             await page.locator(".browserAddress").press("Enter");
-            await expect.poll(() => fs.existsSync(path.join(libraryDir, file)), { timeout: 30_000 }).toBe(true);
+            await expect.poll(() => fs.existsSync(path.join(dir, file)), { timeout: 30_000 }).toBe(true);
             await page.locator('.browserTabStrip button[title="Close browser"]').click();
             await expect(page.locator(".browserHost")).toHaveCount(0);
         };
@@ -121,10 +128,9 @@ test("browser downloads land in the library and recent Media playlist", async ()
         });
         console.log("BROWSER_DOWNLOAD_LIBRARY_OK");
 
-        await download("browser-clip.webm", `http://127.0.0.1:${port}/browser-clip.webm`);
-        await expect(page.locator(".locationRow", { hasText: "browser-clip" })).toBeVisible({
-            timeout: 20_000,
-        });
+        await download("browser-clip.webm", `http://127.0.0.1:${port}/browser-clip.webm`, videoDir);
+        await expect(page.locator(".locationRow", { hasText: "browser-clip" })).toHaveCount(0);
+        await expect.poll(() => fs.existsSync(browserClip), { timeout: 20_000 }).toBe(true);
 
         // The toolbar Downloads button opens a Chrome-style recent history bubble.
         await page.locator(".browserToggle").click();
@@ -177,7 +183,7 @@ test("browser downloads land in the library and recent Media playlist", async ()
         await expect(page.locator(".browserHost")).toHaveCount(0);
         console.log("BROWSER_DOWNLOADS_BUBBLE_OK");
 
-        const recentPath = path.join(libraryDir, "browser-clip.webm");
+        const recentPath = browserClip;
         await expect
             .poll(
                 async () =>
@@ -245,5 +251,6 @@ test("browser downloads land in the library and recent Media playlist", async ()
         await app.close();
         server.close();
         fs.rmSync(sourceDir, { recursive: true, force: true });
+        if (browserClip) fs.rmSync(browserClip, { force: true });
     }
 });

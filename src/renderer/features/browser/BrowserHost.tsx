@@ -98,6 +98,16 @@ const EMPTY_STATE: BrowserState = {
 };
 
 const DOWNLOADS_SEEN_KEY = "yomikura-browser-downloads-seen-at";
+/** Mirrors the Media panel key; when set, browser videos are saved there. */
+const MEDIA_ROOT_KEY = "yokomura-media-folder";
+
+const readMediaRoot = (): string => {
+    try {
+        return window.localStorage.getItem(MEDIA_ROOT_KEY)?.trim() ?? "";
+    } catch {
+        return "";
+    }
+};
 
 /** Resolves after the renderer has committed and painted another frame. */
 const nextPaint = (): Promise<void> =>
@@ -396,6 +406,12 @@ const BrowserHost = () => {
         if (!mode || !defaultOutDir) return;
         void window.electron.invoke("browser:setDownloadDir", { dir: defaultOutDir });
     }, [mode, defaultOutDir]);
+
+    /* Videos go to the Media folder when one is chosen, else the OS Videos folder. */
+    useEffect(() => {
+        if (!mode) return;
+        void window.electron.invoke("browser:setVideoDownloadDir", { dir: readMediaRoot() });
+    }, [mode]);
 
     useEffect(() => {
         const onToggle = (event: Event) => {
