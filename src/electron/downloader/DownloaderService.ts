@@ -26,7 +26,10 @@ const envInt = (name: string, fallback: number): number => {
 };
 
 /** How long the legacy extractor may try before the browser resolver takes over. */
-const LEGACY_PROBE_MS = envInt("YOPOMURA_LEGACY_PROBE_MS", 8000);
+const LEGACY_PROBE_MS = envInt("YOPOMURA_LEGACY_PROBE_MS", 6000);
+
+/** Reuse a successful preview resolution when the same URL is queued right after. */
+const RESOLUTION_CACHE_MS = envInt("YOPOMURA_RESOLUTION_CACHE_MS", 60_000);
 
 /** Legacy-first is on by default; set YOPOMURA_DOWNLOADER_LEGACY_FIRST=0 to disable. */
 const legacyFirstEnabled = (): boolean => {
@@ -124,6 +127,7 @@ class DownloaderService extends EventEmitter {
     private resolutionRunning = false;
     private probes = new Map<string, (result: ProbeResult) => void>();
     private browserRetries = new Set<string>();
+    private resolutionCache = new Map<string, { at: number; outcome: ResolveOutcome }>();
 
     getState(): DownloaderState {
         return {
@@ -338,6 +342,17 @@ class DownloaderService extends EventEmitter {
 
     /** Recipe -> legacy extractor -> browser resolver. */
     private async resolveTarget(url: string, allowExtractor: boolean): Promise<ResolveOutcome> {
+        const startedAt = Date.now();
+        const cached = this.resolutionCache.get(url);
+        if (cached && Date.now() - cached.at < RESOLUTION_CACHE_MS) {
+            log.info("resolution cache hit", {
+                url,
+                source: cached.outcome.source,
+                images: cached.outcome.items.length,
+            });
+            return cached.outcome;
+        }
+
         let hasRecipe = false;
         try {
             hasRecipe = Boolean(recipeStore.match(url));
@@ -349,16 +364,13 @@ class DownloaderService extends EventEmitter {
         if (allowExtractor && !hasRecipe && legacyFirstEnabled() && shouldTryExtractor(url)) {
             legacyTried = true;
             this.ensureWorker();
+            const probeStarted = Date.now();
             const probe = await this.probeLegacy(url);
             if (probe?.busy) {
                 log.info("legacy probe busy; using browser resolver", { url });
             } else if (probe && probe.items.length > 0) {
                 recordSource(url, "extractor");
-                log.info("legacy extractor resolved", {
-                    url,
-                    images: probe.items.length,
-                });
-                return {
+                const outcome: ResolveOutcome = {
                     source: "extractor",
                     title: probe.title || hostOf(url) || "download",
                     mode: "gallery",
@@ -368,18 +380,26 @@ class DownloaderService extends EventEmitter {
                     legacyTried,
                     error: "",
                 };
+                this.rememberResolution(url, outcome);
+                log.info("legacy extractor resolved", {
+                    url,
+                    images: probe.items.length,
+                    ms: Date.now() - probeStarted,
+                });
+                return outcome;
             } else {
                 recordSource(url, "browser");
                 log.info("legacy extractor found nothing; using browser resolver", {
                     url,
                     error: probe?.error || "",
+                    ms: Date.now() - probeStarted,
                 });
             }
         }
 
         try {
             const resolved = await resolveDownload(url);
-            return {
+            const outcome: ResolveOutcome = {
                 source: resolved.source,
                 title: resolved.title,
                 mode: resolved.mode,
@@ -389,6 +409,16 @@ class DownloaderService extends EventEmitter {
                 legacyTried,
                 error: "",
             };
+            this.rememberResolution(url, outcome);
+            log.info("browser resolution finished", {
+                url,
+                source: resolved.source,
+                mode: resolved.mode,
+                chapters: resolved.chapters,
+                images: resolved.items.length,
+                ms: Date.now() - startedAt,
+            });
+            return outcome;
         } catch (error) {
             return {
                 source: "unknown",
@@ -401,6 +431,20 @@ class DownloaderService extends EventEmitter {
                 error: error instanceof Error ? error.message : String(error),
             };
         }
+    }
+
+    private rememberResolution(url: string, outcome: ResolveOutcome): void {
+        if (outcome.items.length === 0) return;
+        const now = Date.now();
+        for (const [key, entry] of this.resolutionCache) {
+            if (now - entry.at > RESOLUTION_CACHE_MS) this.resolutionCache.delete(key);
+        }
+        while (this.resolutionCache.size >= 24) {
+            const oldest = this.resolutionCache.keys().next().value;
+            if (!oldest) break;
+            this.resolutionCache.delete(oldest);
+        }
+        this.resolutionCache.set(url, { at: now, outcome });
     }
 
     /** Extracts a gallery in the worker without downloading it. */

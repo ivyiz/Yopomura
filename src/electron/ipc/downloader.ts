@@ -92,6 +92,11 @@ export const registerDownloaderHandlers = (): void => {
     ipc.handle("downloader:resume", () => downloaderService.resume());
     ipc.handle("downloader:remove", (_event, { id }) => downloaderService.removeJob(id));
     ipc.handle("downloader:clearFinished", () => downloaderService.clearFinished());
+
+    // Warm the Python sidecar while the user is reading, so the first Analyze
+    // does not pay the worker startup cost.
+    const warmup = setTimeout(() => downloaderService.start(), 1500);
+    warmup.unref?.();
 };
 
 export const shutdownDownloader = (): void => {

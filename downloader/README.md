@@ -97,9 +97,11 @@ null), `queued` (number of waiting jobs), `paused` (worker pause flag).
 ## Behaviour
 
 - A job resolves in this order: matching recipe, legacy extractor probe
-  (`probe`, 8 s default), then the Chromium browser resolver. A host that
+  (`probe`, 6 s default), then the Chromium browser resolver. A host that
   needed the browser resolver is remembered for 7 days so later jobs skip the
-  probe. Set `YOPOMURA_DOWNLOADER_LEGACY_FIRST=0` to disable legacy-first.
+  probe. Successful resolutions are reused for 60 s so preview → queue does not
+  analyze the same URL twice. Set `YOPOMURA_DOWNLOADER_LEGACY_FIRST=0` to
+  disable legacy-first.
 - Obvious video URLs are skipped by `probe`, `add` and `addResolved`, so a
   manga job never writes `.mp4`/`.webm` files into its output folder.
 - Images are streamed with `requests` using `iter_content` and
