@@ -1,3 +1,12 @@
+# 1.0.1
+
+First public Yopomura release.
+
+- Local-first manga, comic, webtoon, and EPUB reader.
+- Gallery mode, integrated browser, media player, and generic downloader.
+- Generic Chromium downloader with declarative recipes and opt-in script hooks.
+- Private site extractors are not part of this repository or its public builds.
+
 > [!Note]
 > **Community Discord Server**: A Discord server for Yomikiru and Collection Extension is now open. Join for discussions, usage help, feedback, and updates. See [Discussion #495](https://github.com/mienaiyami/yomikiru/discussions/495).
 

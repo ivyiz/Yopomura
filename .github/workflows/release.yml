@@ -106,70 +106,8 @@ jobs:
 
             core.setFailed(`Timeout waiting for CI to complete for commit ${taggedCommit}\nMake sure CI ran on master/beta branch for this commit`);
 
-  buildLinux:
-    needs: check-ci-status
-    runs-on: ubuntu-22.04
-    env:
-      BUILD_COMMIT: ${{ needs.check-ci-status.outputs.commit-sha }}
-      BUILD_VERSION: ${{ needs.check-ci-status.outputs.version }}
-      BUILD_DATE: ${{ needs.check-ci-status.outputs.build-date }}
-      BUILD_BRANCH: ${{ needs.check-ci-status.outputs.build-branch }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.check-ci-status.outputs.commit-sha }}
-          fetch-depth: 0
-
-      - uses: pnpm/action-setup@v4
-        name: Setup pnpm
-        with:
-          version: 10
-          run_install: false
-
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          # serialize-javascript@7 (pnpm override) needs Node 20+ global crypto; toolchain is Node 22+
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install
-
-      # Ubuntu 22.04's unversioned clang is Clang 14. Electron 44's V8 headers
-      # use std::source_location, which Clang 14 does not provide. Clang 15 does.
-      # https://github.com/arcboxlabs/linkcode/pull/343
-      - name: Use Clang 15 for native modules
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-15
-          echo "CC=clang-15" >> "$GITHUB_ENV"
-          echo "CXX=clang++-15" >> "$GITHUB_ENV"
-
-      - name: forge make
-        run: pnpm make:deb
-
-      - name: Set version
-        id: version
-        run: |
-          VERSION="${{ needs.check-ci-status.outputs.version }}"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Building version: $VERSION"
-
-      - name: Build Arch Linux package
-        run: bash scripts/build-arch.sh
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux-build-files
-          path: |
-            ./out/all/*
-            ./out/make/*
-            ./build-artifacts/*
-          if-no-files-found: error
-
   build:
-    needs: [check-ci-status, buildLinux]
+    needs: check-ci-status
     # windows-latest currently ships VS 2026; pnpm's bundled node-gyp cannot detect it
     # when rebuilding better-sqlite3 (unknown version "undefined"). Pin VS 2022.
     runs-on: windows-2022
@@ -200,24 +138,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - uses: actions/download-artifact@v4
-        id: linux-build-files-downloader
+      - uses: actions/setup-python@v5
         with:
-          name: linux-build-files
-          path: ./linux-artifacts/
-          merge-multiple: true
+          python-version: "3.12"
 
-      - name: Move Linux artifacts and build artifacts
-        shell: bash
+      - name: Install downloader build dependencies
         run: |
-          if [ -d "./linux-artifacts/out" ]; then
-            mkdir -p ./out
-            cp -r ./linux-artifacts/out/* ./out/ || true
-          fi
-          if [ -d "./linux-artifacts/build-artifacts" ]; then
-            mkdir -p ./build-artifacts
-            cp -r ./linux-artifacts/build-artifacts/* ./build-artifacts/ || true
-          fi
+          python -m pip install --upgrade pip
+          python -m pip install -r downloader/requirements.txt pyinstaller
+
+      - name: Build downloader worker
+        run: pnpm build:downloader
 
       - name: Build for windows
         run: |
