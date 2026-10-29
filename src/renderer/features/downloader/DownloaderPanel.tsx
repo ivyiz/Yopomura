@@ -684,6 +684,23 @@ const DownloaderPanel = ({
                                             }
                                         />
                                     </label>
+                                    <label className="is-wide">
+                                        <span>Advanced script (optional)</span>
+                                        <textarea
+                                            value={editor.script || ""}
+                                            onChange={(event) =>
+                                                updateEditor({ script: event.currentTarget.value })
+                                            }
+                                            placeholder={
+                                                "async ({ url }) => ({\n  title: document.title,\n  chapters: [...document.querySelectorAll('a.chapter')].map(a => ({ href: a.href, name: a.textContent })),\n  images: [...document.querySelectorAll('.reader img')].map(img => img.src),\n  next: document.querySelector('a.next')?.href || ''\n})"
+                                            }
+                                            spellCheck={false}
+                                            rows={5}
+                                        />
+                                    </label>
+                                    <p className="downloaderRecipeEditorWarning">
+                                        Scripts run inside the sandboxed page. Only use recipes you trust.
+                                    </p>
                                 </div>
                                 <div className="downloaderRecipeEditorActions">
                                     <button
@@ -699,7 +716,11 @@ const DownloaderPanel = ({
                                     <button
                                         type="button"
                                         onClick={() => void saveEditor()}
-                                        disabled={!editor.id.trim() || editor.match.length === 0}
+                                        disabled={
+                                            !editor.id.trim() ||
+                                            editor.match.length === 0 ||
+                                            (!editor.pageSelector?.trim() && !editor.script?.trim())
+                                        }
                                     >
                                         Save Recipe
                                     </button>

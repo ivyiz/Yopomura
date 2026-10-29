@@ -1,7 +1,8 @@
 # Downloader recipes
 
 Recipes let Yopomura adapt to a manga/comic site without rebuilding the app.
-They are declarative JSON files and cannot run code.
+They are declarative JSON files. Sites that cannot be described declaratively
+may opt into a page-context script hook.
 
 ## Where recipes live
 
@@ -53,9 +54,42 @@ kept outside the repository and imported into the user profile.
 | `pages` | Image elements on a reader/gallery page. Attributes are tried in order. |
 | `next` | Optional next-page selector inside the same chapter/gallery. |
 | `exclude` | URL substrings or `/regex/` patterns to remove from the page list. |
+| `script` | Optional page-context script hook. Replaces or supplements `pages`. |
 
 `srcset` chooses the largest candidate. For `<img>` elements, `src` prefers the
 current rendered source. A recipe with no `chapters` runs in gallery/reader mode.
+
+## Script hooks
+
+A recipe may replace `pages`, or refine the result, with a `script` field. The
+script runs inside the sandboxed recipe browser page (no Node integration, no
+filesystem access) and must evaluate to an async function that returns either
+`images`, or `chapters` plus `images`, or both, optionally with `title` and
+`next`.
+
+```json
+{
+  "id": "canvas-reader",
+  "name": "Canvas Reader",
+  "match": ["canvas.example"],
+  "mode": "reader",
+  "waitFor": ".reader canvas",
+  "script": "async () => ({ images: [...document.querySelectorAll('.reader img')].map(img => img.src) })"
+}
+```
+
+Returned shape:
+
+| Field | Meaning |
+| --- | --- |
+| `title` | Optional page/series title. |
+| `chapters` | Optional chapter links: strings or `{ href, name }`. |
+| `images` | Image URLs: strings or `{ url, width, height }`. |
+| `next` | Optional next-page URL. |
+
+Only use script recipes you trust: a script runs with the same permissions as
+the page it is loaded in. Script recipes are opt-in and never shipped with the
+public app.
 
 ## Testing
 

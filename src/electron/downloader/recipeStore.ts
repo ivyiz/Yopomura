@@ -21,7 +21,7 @@ export type DownloaderRecipe = {
         nameAttribute?: string;
         limit?: number;
     };
-    pages: {
+    pages?: {
         selector: string;
         /** Attributes checked in order; defaults to common lazy-image attributes. */
         attributes?: string[];
@@ -30,6 +30,8 @@ export type DownloaderRecipe = {
         selector: string;
         attribute?: string;
     };
+    /** Optional page-context script; runs only in the sandboxed recipe browser. */
+    script?: string;
     /** URL substrings/regexes removed from the final page list. */
     exclude?: string[];
 };
@@ -55,8 +57,13 @@ export const validateRecipe = (value: unknown): DownloaderRecipe | null => {
     if (typeof row.id !== "string" || !row.id.trim()) return null;
     if (!Array.isArray(row.match) || row.match.length === 0) return null;
     if (!row.match.every((item) => typeof item === "string" && item.trim())) return null;
-    if (!row.pages || typeof row.pages !== "object" || typeof row.pages.selector !== "string") return null;
-    if (!row.pages.selector.trim()) return null;
+    const hasScript = typeof row.script === "string" && row.script.trim().length > 0;
+    if (!hasScript) {
+        if (!row.pages || typeof row.pages !== "object" || typeof row.pages.selector !== "string") {
+            return null;
+        }
+        if (!row.pages.selector.trim()) return null;
+    }
     if (row.chapters !== undefined) {
         if (!row.chapters || typeof row.chapters.selector !== "string" || !row.chapters.selector.trim()) {
             return null;
@@ -70,12 +77,15 @@ export const validateRecipe = (value: unknown): DownloaderRecipe | null => {
         id: safeId(row.id),
         name: typeof row.name === "string" && row.name.trim() ? row.name.trim() : row.id,
         match: row.match.map((item) => item.trim().toLowerCase()),
-        pages: {
-            selector: row.pages.selector.trim(),
-            attributes: Array.isArray(row.pages.attributes)
-                ? row.pages.attributes.filter((item): item is string => typeof item === "string")
-                : undefined,
-        },
+        pages: row.pages
+            ? {
+                  selector: row.pages.selector.trim(),
+                  attributes: Array.isArray(row.pages.attributes)
+                      ? row.pages.attributes.filter((item): item is string => typeof item === "string")
+                      : undefined,
+              }
+            : undefined,
+        script: hasScript ? row.script?.trim() : undefined,
     };
 };
 
@@ -188,7 +198,8 @@ class RecipeStore {
 
     saveDraft(draft: DownloaderRecipeDraft): DownloaderRecipe | null {
         const pageSelector = draft.pageSelector?.trim();
-        if (!pageSelector) return null;
+        const script = draft.script?.trim();
+        if (!pageSelector && !script) return null;
         return this.save({
             schemaVersion: 1,
             id: draft.id,
@@ -202,13 +213,16 @@ class RecipeStore {
                 draft.mode === "series" && draft.chapterSelector?.trim()
                     ? { selector: draft.chapterSelector.trim() }
                     : undefined,
-            pages: {
-                selector: pageSelector,
-                attributes: ["data-src", "src", "srcset", "data-original"],
-            },
+            pages: pageSelector
+                ? {
+                      selector: pageSelector,
+                      attributes: ["data-src", "src", "srcset", "data-original"],
+                  }
+                : undefined,
             next: draft.nextSelector?.trim()
                 ? { selector: draft.nextSelector.trim(), attribute: "href" }
                 : undefined,
+            script: script || undefined,
         });
     }
 
@@ -253,9 +267,9 @@ export const pageRecipeConfig = (recipe: DownloaderRecipe): PageRecipeConfig => 
           }
         : null,
     pages: {
-        selector: recipe.pages.selector,
+        selector: recipe.pages?.selector ?? "",
         attributes:
-            recipe.pages.attributes && recipe.pages.attributes.length > 0
+            recipe.pages?.attributes && recipe.pages.attributes.length > 0
                 ? recipe.pages.attributes
                 : ["src", "data-src", "data-original", "data-lazy-src", "data-url"],
     },

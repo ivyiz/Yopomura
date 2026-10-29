@@ -220,12 +220,37 @@ body.downloaderSideOpen .browserHost.is-full {
         }
 
         input,
-        select {
+        select,
+        textarea {
             width: 100%;
             min-width: 0;
             font-size: 0.72rem;
         }
+
+        textarea {
+            resize: vertical;
+            min-height: 64px;
+            padding: 6px 8px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            line-height: 1.45;
+            color: var(--font-color);
+            background: var(--body-bg-color);
+            border: 1px solid var(--divider-color);
+            border-radius: 7px;
+        }
     }
+}
+
+.downloaderRecipeEditorWarning {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 6px 8px;
+    border-radius: 7px;
+    color: var(--font-color-secondary);
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    font-size: 0.68rem;
+    line-height: 1.4;
 }
 
 .downloaderRecipeEditorActions {

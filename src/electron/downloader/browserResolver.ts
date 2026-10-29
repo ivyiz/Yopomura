@@ -357,6 +357,35 @@ const waitForPageContent = async (contents: Electron.WebContents): Promise<void>
     await contents.executeJavaScript(script, true).catch(() => undefined);
 };
 
+const waitForSelector = async (contents: Electron.WebContents, selector: string): Promise<void> => {
+    const script = `
+        (async () => {
+            const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+            const deadline = Date.now() + 8000;
+            const target = ${JSON.stringify(selector)};
+            while (Date.now() < deadline) {
+                if (document.querySelector(target)) return;
+                await wait(200);
+            }
+        })();
+    `;
+    await contents.executeJavaScript(script, true).catch(() => undefined);
+};
+
+const waitForDocument = async (contents: Electron.WebContents): Promise<void> => {
+    const script = `
+        (async () => {
+            const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+            const deadline = Date.now() + 5000;
+            while (Date.now() < deadline) {
+                if (document.readyState === "complete") return;
+                await wait(100);
+            }
+        })();
+    `;
+    await contents.executeJavaScript(script, true).catch(() => undefined);
+};
+
 const extractPage = (): Omit<PageData, "networkImages"> => {
     const absolute = (raw: string | null | undefined): string => {
         if (!raw) return "";
@@ -698,18 +727,7 @@ class PageRenderer {
         await sleep(400);
         await waitForPageContent(contents);
         if (config.waitFor) {
-            const script = `
-                (async () => {
-                    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-                    const deadline = Date.now() + 8000;
-                    const selector = ${JSON.stringify(config.waitFor)};
-                    while (Date.now() < deadline) {
-                        if (document.querySelector(selector)) return;
-                        await wait(200);
-                    }
-                })();
-            `;
-            await contents.executeJavaScript(script, true).catch(() => undefined);
+            await waitForSelector(contents, config.waitFor);
         }
         await scrollPage(contents);
         await sleep(500);
@@ -722,6 +740,29 @@ class PageRenderer {
             log.warn("could not extract recipe page", { url, error });
             return { title: "", chapters: [], images: [], next: "" };
         }
+    }
+
+    async runScript(url: string, script: string, waitFor?: string): Promise<unknown> {
+        const window = await this.ensureWindow();
+        const contents = window.webContents;
+        await Promise.race([contents.loadURL(url).catch(() => undefined), sleep(PAGE_TIMEOUT_MS)]);
+        await sleep(400);
+        await waitForDocument(contents);
+        if (waitFor) await waitForSelector(contents, waitFor);
+        await scrollPage(contents);
+        await sleep(300);
+        const wrapper = `
+            (async () => {
+                try {
+                    const fn = (${script});
+                    const value = await fn({ url: location.href });
+                    return { ok: true, value };
+                } catch (error) {
+                    return { ok: false, error: String(error) };
+                }
+            })()
+        `;
+        return contents.executeJavaScript(wrapper, true);
     }
 
     close(): void {
@@ -925,6 +966,160 @@ const resolveWithRecipe = async (
     };
 };
 
+const normalizeScriptPage = (
+    raw: unknown,
+    pageUrl: string,
+    config: PageRecipeConfig,
+): { title: string; chapters: { href: string; name: string }[]; images: RawImage[]; next: string } => {
+    if (!raw || typeof raw !== "object") throw new Error("Recipe script returned no data");
+    const envelope = raw as { ok?: boolean; value?: unknown; error?: string };
+    if (envelope.ok === false) throw new Error(envelope.error || "Recipe script failed");
+    const value = (envelope.ok === true ? envelope.value : raw) as {
+        title?: unknown;
+        chapters?: unknown;
+        images?: unknown;
+        next?: unknown;
+    };
+    if (!value || typeof value !== "object") throw new Error("Recipe script returned no object");
+
+    const chapters: { href: string; name: string }[] = [];
+    if (Array.isArray(value.chapters)) {
+        for (const row of value.chapters) {
+            const rawHref =
+                typeof row === "string"
+                    ? row
+                    : row && typeof row === "object"
+                      ? ((row as { href?: unknown; url?: unknown }).href ??
+                        (row as { href?: unknown; url?: unknown }).url)
+                      : "";
+            const href = normalizeHttpUrl(typeof rawHref === "string" ? rawHref : "", pageUrl);
+            if (!href) continue;
+            const name =
+                row && typeof row === "object"
+                    ? String(
+                          (row as { name?: unknown; title?: unknown }).name ??
+                              (row as { name?: unknown; title?: unknown }).title ??
+                              "",
+                      )
+                    : "";
+            chapters.push({ href, name });
+        }
+    }
+
+    const images: RawImage[] = [];
+    const seen = new Set<string>();
+    if (Array.isArray(value.images)) {
+        for (const row of value.images) {
+            const rawUrl =
+                typeof row === "string"
+                    ? row
+                    : row && typeof row === "object"
+                      ? (row as { url?: unknown }).url
+                      : "";
+            const url = normalizeHttpUrl(typeof rawUrl === "string" ? rawUrl : "", pageUrl);
+            if (!url || recipeExcluded(url, config.exclude)) continue;
+            const key = imageKey(url);
+            if (seen.has(key)) continue;
+            seen.add(key);
+            const width = row && typeof row === "object" ? Number((row as { width?: unknown }).width) || 0 : 0;
+            const height = row && typeof row === "object" ? Number((row as { height?: unknown }).height) || 0 : 0;
+            images.push({ url, width, height, area: width * height, source: "script" });
+        }
+    }
+
+    return {
+        title: typeof value.title === "string" ? value.title.trim() : "",
+        chapters,
+        images,
+        next: typeof value.next === "string" ? normalizeHttpUrl(value.next, pageUrl) || "" : "",
+    };
+};
+
+const resolveWithScript = async (
+    recipe: DownloaderRecipe,
+    url: string,
+    renderer: PageRenderer,
+    signal: AbortSignal | undefined,
+    deadline: number,
+): Promise<ResolvedDownload> => {
+    const script = recipe.script;
+    if (!script) throw new Error("Recipe has no script");
+    const config = pageRecipeConfig(recipe);
+    const run = async (pageUrl: string) =>
+        normalizeScriptPage(await renderer.runScript(pageUrl, script, recipe.waitFor), pageUrl, config);
+
+    const firstPage = await run(url);
+    const title = cleanTitle(
+        {
+            title: firstPage.title,
+            h1: "",
+            ogTitle: firstPage.title,
+            images: [],
+            links: [],
+            scriptUrls: [],
+            networkImages: [],
+        },
+        hostOf(url) || "download",
+    );
+    const explicitMode = recipe.mode && recipe.mode !== "auto" ? recipe.mode : null;
+    const mode = explicitMode ?? (config.chapters && firstPage.chapters.length > 0 ? "series" : "gallery");
+    const items: ResolvedDownloadItem[] = [];
+    const seen = new Set<string>();
+    let pages = 1;
+    let chapters = 0;
+
+    const collect = async (startUrl: string, first: typeof firstPage): Promise<void> => {
+        let page = first;
+        let pageUrl = startUrl;
+        for (let index = 0; index < MAX_READER_PAGES; index += 1) {
+            if (signal?.aborted) throw new Error("Download cancelled");
+            if (Date.now() > deadline) break;
+            for (const image of page.images) {
+                const key = imageKey(image.url);
+                if (seen.has(key)) continue;
+                seen.add(key);
+                items.push({ url: image.url, referer: pageUrl });
+                if (items.length >= MAX_IMAGES) return;
+            }
+            if (!page.next) return;
+            pageUrl = page.next;
+            page = await run(pageUrl);
+            pages += 1;
+        }
+    };
+
+    if (mode === "series" && firstPage.chapters.length > 0) {
+        const limit =
+            recipe.chapters?.limit && recipe.chapters.limit > 0
+                ? Math.min(recipe.chapters.limit, MAX_CHAPTERS)
+                : MAX_CHAPTERS;
+        for (const chapter of firstPage.chapters.slice(0, limit)) {
+            if (signal?.aborted) throw new Error("Download cancelled");
+            if (Date.now() > deadline) break;
+            try {
+                const chapterPage = await run(chapter.href);
+                await collect(chapter.href, chapterPage);
+                chapters += 1;
+            } catch (error) {
+                log.warn("script chapter failed", { chapter: chapter.href, error });
+            }
+            if (items.length >= MAX_IMAGES) break;
+        }
+    } else {
+        await collect(url, firstPage);
+        if (mode === "reader") chapters = 1;
+    }
+
+    return {
+        title,
+        mode,
+        items,
+        headers: items.length > 0 ? await buildHeaders(url, items) : {},
+        chapters,
+        pages,
+    };
+};
+
 /** Resolve a page/series URL into a concrete list of downloadable image URLs. */
 export const resolveDownload = async (inputUrl: string, signal?: AbortSignal): Promise<ResolvedDownload> => {
     const url = normalizeHttpUrl(inputUrl);
@@ -953,7 +1148,9 @@ export const resolveDownload = async (inputUrl: string, signal?: AbortSignal): P
         }
         if (matchedRecipe) {
             try {
-                const recipeResult = await resolveWithRecipe(matchedRecipe, url, renderer, signal, deadline);
+                const recipeResult = matchedRecipe.script
+                    ? await resolveWithScript(matchedRecipe, url, renderer, signal, deadline)
+                    : await resolveWithRecipe(matchedRecipe, url, renderer, signal, deadline);
                 if (recipeResult.items.length > 0) {
                     log.info("recipe resolved page", {
                         url,

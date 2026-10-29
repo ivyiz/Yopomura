@@ -33,7 +33,8 @@ export const registerDownloaderHandlers = (): void => {
     ipc.handle("downloader:saveRecipe", (_event, draft) => {
         try {
             const recipe = recipeStore.saveDraft(draft);
-            if (!recipe) return { ok: false as const, message: "Recipe needs an id and image selector" };
+            if (!recipe)
+                return { ok: false as const, message: "Recipe needs an id and an image selector or script" };
             return {
                 ok: true as const,
                 recipe: {

@@ -62,6 +62,7 @@ export type DownloaderRecipeDraft = {
     chapterSelector?: string;
     pageSelector?: string;
     nextSelector?: string;
+    script?: string;
     testUrl?: string;
 };
 
