@@ -1,10 +1,12 @@
-import * as pdfjsLib from "pdfjs-dist/build/pdf.js";
-//@ts-expect-error
-import worker from "pdfjs-dist/build/pdf.worker.js";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+//@ts-expect-error webpack emits the worker file as an asset URL
+import worker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
 import { dialogUtils } from "./dialog";
 import { createRendererLogger } from "./logger";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = worker;
+if (typeof worker === "string" && worker) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = worker;
+}
 
 const log = createRendererLogger("utils/pdf");
 

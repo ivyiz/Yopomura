@@ -120,7 +120,7 @@ export const librarySettingsSchema = z
         folders: z.array(libraryFolderSchema).default([]).transform(normalizeLibraryFolders),
     })
     .strip()
-    .default({});
+    .prefault({});
 
 export type LibrarySettings = z.infer<typeof librarySettingsSchema>;
 

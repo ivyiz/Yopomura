@@ -52,7 +52,7 @@ const inactiveRowSchema = z.object({
 const envelopeSchema = z.object({
     schemaVersion: z.number().int(),
     revision: z.number().int().nonnegative(),
-    overrides: z.record(z.array(triggerSchema)),
+    overrides: z.record(z.string(), z.array(triggerSchema)),
     inactive: z.array(inactiveRowSchema).optional(),
 });
 

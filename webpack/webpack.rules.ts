@@ -47,7 +47,7 @@ export const rules: Required<ModuleOptions>["rules"] = [
     //     },
     // },
     {
-        test: /pdf\.worker\.js/,
+        test: /pdf\.worker\.m?js/,
         loader: "file-loader",
         options: {
             name: "[name].[ext]",

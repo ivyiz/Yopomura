@@ -49,7 +49,7 @@ export const mainSettingsSchema = z
                 keepCount: z.number().int().min(1).max(100).default(10),
                 lastSuccessAt: z.number().int().nonnegative().default(0),
             })
-            .default({}),
+            .prefault({}),
 
         /**
          * Library scan roots and Default Location (Locations tab).

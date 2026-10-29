@@ -51,7 +51,7 @@ export const AddToLibrarySchema = z.discriminatedUnion("type", [
 export const UpdateLibraryItemSchema = createUpdateSchema(libraryItems, {
     /** Coerced because IPC JSON turns Date into an ISO string. */
     favouritedAt: z.coerce.date().nullable().optional(),
-    extra: z.record(z.unknown()).optional(),
+    extra: z.record(z.string(), z.unknown()).optional(),
 })
     .omit({
         id: true,
@@ -77,7 +77,6 @@ export const DeleteProgressForLinksSchema = z.object({
 export const AddMangaBookmarkSchema = createInsertSchema(mangaBookmarks).omit({
     id: true,
     createdAt: true,
-    updatedAt: true,
 });
 
 /**
@@ -99,7 +98,6 @@ export const UpdateMangaBookmarkSchema = createUpdateSchema(mangaBookmarks)
 export const AddBookBookmarkSchema = createInsertSchema(bookBookmarks).omit({
     id: true,
     createdAt: true,
-    updatedAt: true,
 });
 
 /**

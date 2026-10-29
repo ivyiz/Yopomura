@@ -21,8 +21,9 @@ export const repairZodInputWithDefaults = <T extends ZodSchema>(
         const fixed = { ...current };
         const issues = [...r.error.issues].sort((a, b) => a.path.length - b.path.length);
         for (const e of issues) {
-            const def = getDefaultValue(e.path, fixed);
-            if (def !== undefined) setValueFromDeepObject(fixed, e.path, def);
+            const path = e.path as (string | number)[];
+            const def = getDefaultValue(path, fixed);
+            if (def !== undefined) setValueFromDeepObject(fixed, path, def);
         }
         current = fixed;
     }
