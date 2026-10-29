@@ -52,6 +52,19 @@ export type DownloaderRecipeSummary = {
     file: string;
 };
 
+/** Editable draft produced by the visual recipe builder. */
+export type DownloaderRecipeDraft = {
+    id: string;
+    name: string;
+    match: string[];
+    mode: "gallery" | "reader" | "series";
+    titleSelector?: string;
+    chapterSelector?: string;
+    pageSelector?: string;
+    nextSelector?: string;
+    testUrl?: string;
+};
+
 /** Dry-run result from the generic Chromium resolver. */
 export type DownloaderPreview = {
     ok: boolean;

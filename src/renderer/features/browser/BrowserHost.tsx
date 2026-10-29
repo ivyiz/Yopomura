@@ -137,8 +137,15 @@ const readSavedAdblock = (): boolean => {
  * `.browserContent`; tabs/toolbar/menus stay in the renderer.
  */
 const BrowserHost = () => {
-    const { openDownloader, openDownloadHistory, downloaderOpen, videoOpen, trashOpen, mediaOpen } =
-        useAppContext();
+    const {
+        openDownloader,
+        openDownloadHistory,
+        openRecipeEditor,
+        downloaderOpen,
+        videoOpen,
+        trashOpen,
+        mediaOpen,
+    } = useAppContext();
     const dispatch = useAppDispatch();
     const defaultOutDir = useAppSelector((store) => {
         const folder = store.mainSettings.library.folders.find((row) => row.isDefaultLocation);
@@ -893,6 +900,13 @@ const BrowserHost = () => {
         openDownloadHistory();
     };
 
+    const buildDownloaderRecipe = async () => {
+        closeMenu();
+        await new Promise((resolve) => window.setTimeout(resolve, 250));
+        const draft = await window.electron.invoke("browser:buildRecipe");
+        if (draft) openRecipeEditor(draft);
+    };
+
     const contextAction = async (action: "open" | "new-tab" | "copy" | "download" | "external") => {
         if (!menu) return;
         const url = menu.linkURL || menu.pageURL;
@@ -1408,6 +1422,9 @@ const BrowserHost = () => {
                                     </button>
                                     <button type="button" onClick={() => void contextAction("download")}>
                                         Send page to Downloader
+                                    </button>
+                                    <button type="button" onClick={() => void buildDownloaderRecipe()}>
+                                        Create downloader recipe
                                     </button>
                                     {darkAvailable ? (
                                         <button

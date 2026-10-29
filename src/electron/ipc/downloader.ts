@@ -30,6 +30,27 @@ export const registerDownloaderHandlers = (): void => {
     ipc.handle("downloader:add", (_event, request) => downloaderService.addJob(request));
     ipc.handle("downloader:preview", (_event, { url }) => downloaderService.preview(url));
     ipc.handle("downloader:listRecipes", () => recipeStore.list());
+    ipc.handle("downloader:saveRecipe", (_event, draft) => {
+        try {
+            const recipe = recipeStore.saveDraft(draft);
+            if (!recipe) return { ok: false as const, message: "Recipe needs an id and image selector" };
+            return {
+                ok: true as const,
+                recipe: {
+                    id: recipe.id,
+                    name: recipe.name || recipe.id,
+                    hosts: recipe.match,
+                    mode: recipe.mode || "auto",
+                    file: `${recipe.id}.json`,
+                },
+            };
+        } catch (error) {
+            return {
+                ok: false as const,
+                message: error instanceof Error ? error.message : String(error),
+            };
+        }
+    });
     ipc.handle("downloader:importRecipe", async (event) => {
         const window = BrowserWindow.fromWebContents(event.sender) ?? undefined;
         const options: Electron.OpenDialogOptions = {

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { DownloaderRecipeSummary } from "@common/types/downloader";
+import type { DownloaderRecipeDraft, DownloaderRecipeSummary } from "@common/types/downloader";
 import { app } from "electron";
 
 export type RecipeSelector = string | { selector: string; attribute?: string };
@@ -176,6 +176,40 @@ class RecipeStore {
         fs.mkdirSync(this.folder(), { recursive: true });
         fs.writeFileSync(path.join(this.folder(), `${parsed.id}.json`), JSON.stringify(parsed, null, 2), "utf8");
         return parsed;
+    }
+
+    save(recipe: DownloaderRecipe): DownloaderRecipe | null {
+        const parsed = validateRecipe(recipe);
+        if (!parsed) return null;
+        fs.mkdirSync(this.folder(), { recursive: true });
+        fs.writeFileSync(path.join(this.folder(), `${parsed.id}.json`), JSON.stringify(parsed, null, 2), "utf8");
+        return parsed;
+    }
+
+    saveDraft(draft: DownloaderRecipeDraft): DownloaderRecipe | null {
+        const pageSelector = draft.pageSelector?.trim();
+        if (!pageSelector) return null;
+        return this.save({
+            schemaVersion: 1,
+            id: draft.id,
+            name: draft.name || draft.id,
+            match: draft.match,
+            mode: draft.mode,
+            title: draft.titleSelector?.trim()
+                ? { selector: draft.titleSelector.trim(), attribute: "text" }
+                : undefined,
+            chapters:
+                draft.mode === "series" && draft.chapterSelector?.trim()
+                    ? { selector: draft.chapterSelector.trim() }
+                    : undefined,
+            pages: {
+                selector: pageSelector,
+                attributes: ["data-src", "src", "srcset", "data-original"],
+            },
+            next: draft.nextSelector?.trim()
+                ? { selector: draft.nextSelector.trim(), attribute: "href" }
+                : undefined,
+        });
     }
 
     remove(id: string): boolean {

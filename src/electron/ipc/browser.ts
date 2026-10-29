@@ -109,6 +109,7 @@ export const registerBrowserHandlers = (): void => {
     ipc.handle("browser:getAdblock", () => getAdblockState());
     ipc.handle("browser:setAdblock", (_event, { enabled }) => setAdblockEnabled(enabled));
     ipc.handle("browser:capturePage", (event, { tabId }) => managerFor(event).capturePage(tabId));
+    ipc.handle("browser:buildRecipe", (event) => managerFor(event).buildRecipe());
     ipc.handle("browser:getBookmarks", () => getBookmarkStore().list());
     ipc.handle("browser:addBookmark", (_event, input) => {
         const bookmark = getBookmarkStore().add(input);

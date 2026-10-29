@@ -15,6 +15,7 @@ import type {
     AddDownloaderJobInput,
     DownloaderJob,
     DownloaderPreview,
+    DownloaderRecipeDraft,
     DownloaderRecipeSummary,
     DownloaderState,
 } from "@common/types/downloader";
@@ -402,6 +403,10 @@ export type DownloaderChannels = {
     /** Resolve a URL without queueing it; used by Preview and diagnostics. */
     "downloader:preview": ChannelDefinition<{ url: string }, DownloaderPreview>;
     "downloader:listRecipes": ChannelDefinition<void, DownloaderRecipeSummary[]>;
+    "downloader:saveRecipe": ChannelDefinition<
+        DownloaderRecipeDraft,
+        { ok: true; recipe: DownloaderRecipeSummary } | { ok: false; message: string }
+    >;
     "downloader:importRecipe": ChannelDefinition<
         void,
         { ok: true; recipe: DownloaderRecipeSummary } | { ok: false; message: string }
@@ -480,6 +485,8 @@ export type BrowserChannels = {
     "browser:bookmarks": ChannelDefinition<BrowserBookmark[], void, "m2r">;
     "browser:download": ChannelDefinition<BrowserDownload, void, "m2r">;
     "browser:cancelDownload": ChannelDefinition<{ id: string }, boolean>;
+    /** Starts the visual selector picker and returns an editable recipe draft. */
+    "browser:buildRecipe": ChannelDefinition<void, DownloaderRecipeDraft | null>;
     "browser:contextMenu": ChannelDefinition<BrowserContextMenuRequest, void, "m2r">;
 };
 

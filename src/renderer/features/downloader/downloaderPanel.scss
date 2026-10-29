@@ -167,6 +167,77 @@ body.downloaderSideOpen .browserHost.is-full {
     font-size: 0.72rem;
 }
 
+.downloaderRecipeEditor {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--divider-color);
+    border-radius: 9px;
+    background: rgba(127, 127, 127, 0.06);
+}
+
+.downloaderRecipeEditorHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    strong {
+        font-size: 0.78rem;
+    }
+
+    button {
+        padding: 4px 8px;
+        font-size: 0.7rem;
+    }
+}
+
+.downloaderRecipeEditorGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+
+    label {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 3px;
+        padding: 0;
+        background: transparent;
+
+        &:hover {
+            background: transparent;
+        }
+
+        &.is-wide {
+            grid-column: 1 / -1;
+        }
+
+        span {
+            color: var(--font-color-secondary);
+            font-size: 0.68rem;
+        }
+
+        input,
+        select {
+            width: 100%;
+            min-width: 0;
+            font-size: 0.72rem;
+        }
+    }
+}
+
+.downloaderRecipeEditorActions {
+    display: flex;
+    gap: 6px;
+
+    button {
+        padding: 6px 10px;
+        font-size: 0.72rem;
+    }
+}
+
 .downloaderRecipes {
     display: flex;
     flex-direction: column;

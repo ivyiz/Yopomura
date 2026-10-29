@@ -1,4 +1,5 @@
 import { getDefaultLocationPath, setDefaultLocationPath } from "@common/library/folders";
+import type { DownloaderRecipeDraft } from "@common/types/downloader";
 import { confirmDeleteProgressForLinks } from "@features/home/classic/listSelectionActions";
 import { useAppCommandOwner } from "@features/keybindings";
 import { useDirectoryValidator } from "@features/reader/hooks/useDirectoryValidator";
@@ -97,6 +98,8 @@ interface AppContext {
     openDownloader: (initialUrls?: string) => void;
     /** Open the downloader directly on its Download History tab. */
     openDownloadHistory: () => void;
+    /** Open the downloader Sites tab with a draft from the visual recipe builder. */
+    openRecipeEditor: (draft: DownloaderRecipeDraft) => void;
     /** True while the downloader panel is mounted. */
     downloaderOpen: boolean;
     /** Open the Recently Deleted panel. */
@@ -159,10 +162,14 @@ const App = (): ReactElement => {
 
     const [downloaderOpen, setDownloaderOpen] = useState(false);
     const [downloaderDraft, setDownloaderDraft] = useState("");
-    const [downloaderView, setDownloaderView] = useState<{ view: "queue" | "history"; request: number }>({
+    const [downloaderView, setDownloaderView] = useState<{
+        view: "queue" | "history" | "sites";
+        request: number;
+    }>({
         view: "queue",
         request: 0,
     });
+    const [recipeDraft, setRecipeDraft] = useState<DownloaderRecipeDraft | null>(null);
     const [trashOpen, setTrashOpen] = useState(false);
     const [mediaOpen, setMediaOpen] = useState(false);
 
@@ -177,6 +184,11 @@ const App = (): ReactElement => {
     }, []);
     const openDownloadHistory = useCallback(() => {
         setDownloaderView((current) => ({ view: "history", request: current.request + 1 }));
+        setDownloaderOpen(true);
+    }, []);
+    const openRecipeEditor = useCallback((draft: DownloaderRecipeDraft) => {
+        setRecipeDraft(draft);
+        setDownloaderView((current) => ({ view: "sites", request: current.request + 1 }));
         setDownloaderOpen(true);
     }, []);
     const openTrash = useCallback(() => {
@@ -875,6 +887,7 @@ const App = (): ReactElement => {
                 openVideo,
                 openDownloader,
                 openDownloadHistory,
+                openRecipeEditor,
                 downloaderOpen,
                 openTrash,
                 trashOpen,
@@ -907,6 +920,8 @@ const App = (): ReactElement => {
                     onDraftChange={setDownloaderDraft}
                     initialView={downloaderView.view}
                     viewRequest={downloaderView.request}
+                    recipeDraft={recipeDraft}
+                    onRecipeDraftConsumed={() => setRecipeDraft(null)}
                     onClose={() => setDownloaderOpen(false)}
                     onOpenOutput={(path) => void openInReaderIfValid(path)}
                 />

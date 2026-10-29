@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import path from "node:path";
 import type { BrowserScannedLink } from "@common/types/browser";
+import type { DownloaderRecipeDraft } from "@common/types/downloader";
 import { applyProxyToSession } from "@electron/network/proxySettings";
 import {
     type BrowserWindow,
@@ -48,6 +49,159 @@ const DEBUGGER_PROTOCOL_VERSION = "1.3";
 
 /** Raw anchor rows collected per scan before dedupe/sort/cap in Node. */
 const LINK_SCAN_RAW_LIMIT = 5000;
+
+type PickedSelector = {
+    selector: string;
+    groupSelector: string;
+    count: number;
+    href: string;
+    text: string;
+};
+
+/**
+ * Injected page picker. Highlights the hovered element, then resolves a CSS
+ * selector (plus a broader sibling selector for chapter/image lists).
+ */
+const pickSelectorInPage = (hint: string): Promise<PickedSelector | null> =>
+    new Promise((resolve) => {
+        const tip = document.createElement("div");
+        tip.textContent = hint;
+        Object.assign(tip.style, {
+            position: "fixed",
+            top: "14px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: "2147483647",
+            padding: "8px 14px",
+            borderRadius: "8px",
+            background: "#111827",
+            color: "#fff",
+            font: "600 13px system-ui, sans-serif",
+            boxShadow: "0 10px 30px rgba(0,0,0,.45)",
+            pointerEvents: "none",
+        });
+        document.documentElement.appendChild(tip);
+
+        let highlighted: HTMLElement | null = null;
+        let previousOutline = "";
+        const cssEscape = (value: string): string =>
+            window.CSS?.escape ? window.CSS.escape(value) : value.replace(/[^a-zA-Z0-9_-]/g, "\\$&");
+
+        const specificPath = (element: Element): string => {
+            const parts: string[] = [];
+            let current: Element | null = element;
+            while (current && current.nodeType === 1 && parts.length < 8) {
+                if (current.id) {
+                    parts.unshift(`#${cssEscape(current.id)}`);
+                    break;
+                }
+                let part = current.tagName.toLowerCase();
+                const classes = [...current.classList].filter((name) => /^[a-z][\w-]*$/i.test(name)).slice(0, 2);
+                if (classes.length > 0) part += `.${classes.map(cssEscape).join(".")}`;
+                const parent = current.parentElement;
+                if (parent) {
+                    const siblings = [...parent.children].filter((node) => node.tagName === current?.tagName);
+                    if (siblings.length > 1) part += `:nth-of-type(${siblings.indexOf(current) + 1})`;
+                }
+                parts.unshift(part);
+                const candidate = parts.join(" > ");
+                if (document.querySelectorAll(candidate).length === 1) break;
+                current = current.parentElement;
+            }
+            return parts.join(" > ");
+        };
+
+        const loosePath = (element: Element): string => {
+            const parts: string[] = [];
+            let current: Element | null = element;
+            while (current && current.nodeType === 1 && parts.length < 4) {
+                if (current.id) {
+                    parts.unshift(`#${cssEscape(current.id)}`);
+                    break;
+                }
+                let part = current.tagName.toLowerCase();
+                const classes = [...current.classList].filter((name) => /^[a-z][\w-]*$/i.test(name)).slice(0, 2);
+                if (classes.length > 0) part += `.${classes.map(cssEscape).join(".")}`;
+                parts.unshift(part);
+                current = current.parentElement;
+            }
+            return parts.join(" > ");
+        };
+
+        const groupFor = (element: Element): { selector: string; count: number } => {
+            const tag = element.tagName.toLowerCase();
+            const classes = [...element.classList].filter((name) => /^[a-z][\w-]*$/i.test(name));
+            const classSuffix = classes.length > 0 ? `.${classes.slice(0, 2).map(cssEscape).join(".")}` : "";
+            const candidates: string[] = [];
+            let ancestor: Element | null = element.parentElement;
+            for (let depth = 0; ancestor && depth < 4; depth += 1) {
+                candidates.push(`${loosePath(ancestor)} ${tag}${classSuffix}`);
+                ancestor = ancestor.parentElement;
+            }
+            candidates.push(`${tag}${classSuffix}`);
+            for (const candidate of candidates) {
+                try {
+                    const count = document.querySelectorAll(candidate).length;
+                    if (count > 1 && count <= 500) return { selector: candidate, count };
+                } catch {
+                    // invalid candidate
+                }
+            }
+            const selector = specificPath(element);
+            return { selector, count: document.querySelectorAll(selector).length };
+        };
+
+        const highlight = (element: HTMLElement | null) => {
+            if (highlighted) highlighted.style.outline = previousOutline;
+            highlighted = element;
+            if (!element) return;
+            previousOutline = element.style.outline;
+            element.style.outline = "2px solid #38bdf8";
+            element.style.outlineOffset = "-2px";
+        };
+
+        const cleanup = () => {
+            highlight(null);
+            tip.remove();
+            document.removeEventListener("mouseover", onOver, true);
+            document.removeEventListener("click", onClick, true);
+            document.removeEventListener("keydown", onKey, true);
+        };
+
+        const onOver = (event: MouseEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (!target || target === tip) return;
+            highlight(target);
+        };
+
+        const onClick = (event: MouseEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const target = event.target as HTMLElement | null;
+            if (!target || target === tip) return;
+            const group = groupFor(target);
+            const result: PickedSelector = {
+                selector: specificPath(target),
+                groupSelector: group.selector,
+                count: group.count,
+                href: target instanceof HTMLAnchorElement ? target.href : "",
+                text: (target.textContent || "").replace(/\s+/g, " ").trim().slice(0, 100),
+            };
+            cleanup();
+            resolve(result);
+        };
+
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key !== "Escape") return;
+            event.preventDefault();
+            cleanup();
+            resolve(null);
+        };
+
+        document.addEventListener("mouseover", onOver, true);
+        document.addEventListener("click", onClick, true);
+        document.addEventListener("keydown", onKey, true);
+    });
 
 /**
  * Page script used by {@link BrowserManager.scanLinks}. Anchors expose an
@@ -524,6 +678,109 @@ export class BrowserManager extends EventEmitter {
             logger.warn("could not capture browser page", error);
             return "";
         }
+    }
+
+    /** Runs the in-page visual selector picker and returns the chosen element. */
+    private async pickSelector(hint: string, tabId?: string): Promise<PickedSelector | null> {
+        const tab = this.resolveTab(tabId);
+        const view = tab?.view;
+        if (!tab || !view || view.webContents.isDestroyed()) return null;
+        try {
+            view.webContents.focus();
+            return (await view.webContents.executeJavaScript(
+                `(${pickSelectorInPage.toString()})(${JSON.stringify(hint)})`,
+                true,
+            )) as PickedSelector | null;
+        } catch (error) {
+            logger.warn("could not pick page selector", error);
+            return null;
+        }
+    }
+
+    /** Builds an editable recipe draft from the active page with visual pickers. */
+    async buildRecipe(tabId?: string): Promise<DownloaderRecipeDraft | null> {
+        const tab = this.resolveTab(tabId);
+        const view = tab?.view;
+        if (!tab || !view || view.webContents.isDestroyed()) return null;
+        if (this.window.isDestroyed()) return null;
+
+        const modeChoice = await dialog.showMessageBox(this.window, {
+            type: "question",
+            title: "Downloader recipe",
+            message: `Build a recipe for this page?\n\n${tab.title || tab.url}`,
+            detail: "Choose “Whole series” to pick a chapter link first; the app will open that chapter for the image selector.",
+            buttons: ["This chapter or gallery", "Whole series", "Cancel"],
+            defaultId: 0,
+            cancelId: 2,
+            noLink: true,
+        });
+        if (modeChoice.response === 2) return null;
+
+        const series = modeChoice.response === 1;
+        let chapter: PickedSelector | null = null;
+        if (series) {
+            chapter = await this.pickSelector("Click one chapter link", tab.id);
+            if (!chapter) return null;
+            if (!chapter.href) {
+                await dialog.showMessageBox(this.window, {
+                    type: "info",
+                    title: "Recipe cancelled",
+                    message: "That element is not a chapter link.",
+                    buttons: ["OK"],
+                });
+                return null;
+            }
+            try {
+                await view.webContents.loadURL(chapter.href);
+                await new Promise((resolve) => setTimeout(resolve, 800));
+            } catch (error) {
+                logger.warn("could not open chapter for recipe", error);
+                return null;
+            }
+        }
+
+        const image = await this.pickSelector(
+            series
+                ? "Click one page image (or the element containing page images)"
+                : "Click one page image or gallery element",
+            tab.id,
+        );
+        if (!image) return null;
+
+        const nextChoice = await dialog.showMessageBox(this.window, {
+            type: "question",
+            title: "Downloader recipe",
+            message: "Does this reader use a next-page button?",
+            buttons: ["No next page", "Add next-page button"],
+            defaultId: 0,
+            cancelId: 0,
+            noLink: true,
+        });
+        let next: PickedSelector | null = null;
+        if (nextChoice.response === 1) {
+            next = await this.pickSelector("Click the next-page button", tab.id);
+            if (!next) return null;
+        }
+
+        let host = "";
+        try {
+            host = new URL(tab.url).hostname.replace(/^www\./i, "");
+        } catch {
+            host = "site";
+        }
+        const id = host.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "") || "site";
+        const name = (tab.title || host).replace(/\s+/g, " ").trim().slice(0, 90);
+        return {
+            id,
+            name,
+            match: [host],
+            mode: series ? "series" : "gallery",
+            titleSelector: "h1",
+            chapterSelector: series ? chapter?.groupSelector : undefined,
+            pageSelector: image.groupSelector,
+            nextSelector: next?.selector,
+            testUrl: tab.url,
+        };
     }
 
     /**

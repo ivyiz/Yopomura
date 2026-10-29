@@ -8,6 +8,8 @@ They are declarative JSON files and cannot run code.
 - User recipes: `userData/downloader-recipes/*.json`
 - Import a recipe from the Downloader → Sites tab → **Import Recipe**.
 - **Open Folder** opens the active recipe directory.
+- **Create downloader recipe** in the browser page context menu starts a visual picker: choose chapter/gallery mode, click a chapter link, click a page image, and optionally a next-page button.
+- The resulting draft opens in Downloader → Sites → **Recipe Editor** for review, preview and saving.
 
 The public app ships no site-specific adult recipes. Private recipe packs can be
 kept outside the repository and imported into the user profile.
