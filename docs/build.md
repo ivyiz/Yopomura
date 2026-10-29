@@ -21,7 +21,7 @@ Feel free to ask any questions regarding building using issues.
 ## Quick Start
 
 ```bash
-git clone https://github.com/yopomura/yopomura/
+git clone https://github.com/ivyiz/Yopomura/
 
 cd yopomura
 

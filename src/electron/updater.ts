@@ -19,7 +19,7 @@ declare const DOWNLOAD_PROGRESS_WEBPACK_ENTRY: string;
 const argReleaseUrl = process.argv.find((e) => e.startsWith("--release-url="))?.split("=")[1];
 const argReleasePage = process.argv.find((e) => e.startsWith("--release-page="))?.split("=")[1];
 
-const REPO = "yopomura/yopomura";
+const REPO = "ivyiz/Yopomura";
 
 const ANNOUNCEMENTS_URL = `https://raw.githubusercontent.com/${REPO}/master/announcements.txt` as const;
 const ANNOUNCEMENTS_DISCUSSION_URL = `https://github.com/${REPO}/discussions/categories/announcements` as const;

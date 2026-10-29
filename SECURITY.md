@@ -9,7 +9,7 @@ patches.
 
 Please report security issues privately through GitHub Security Advisories:
 
-<https://github.com/yopomura/yopomura/security/advisories/new>
+<https://github.com/ivyiz/Yopomura/security/advisories/new>
 
 Do not open a public issue for a vulnerability. Include:
 

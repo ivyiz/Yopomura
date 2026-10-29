@@ -469,7 +469,7 @@ const downloadPinned = async (item: ManifestDownload, checksums: ChecksumsFile):
         const res = await fetch(item.url, {
             headers: {
                 "User-Agent":
-                    "Mozilla/5.0 (compatible; YopomuraDemoFixtures/1.0; +https://github.com/mienaiyami/yopomura)",
+                    "Mozilla/5.0 (compatible; YopomuraDemoFixtures/1.0; +https://github.com/ivyiz/Yopomura)",
                 Accept: "application/epub+zip,application/octet-stream,*/*",
             },
             redirect: "follow",

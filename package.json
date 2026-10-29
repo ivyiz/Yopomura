@@ -6,15 +6,15 @@
     "main": ".webpack/main",
     "author": {
         "name": "Yopomura contributors",
-        "url": "https://github.com/yopomura/yopomura"
+        "url": "https://github.com/ivyiz/Yopomura"
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/yopomura/yopomura.git"
+        "url": "https://github.com/ivyiz/Yopomura.git"
     },
-    "homepage": "https://github.com/yopomura/yopomura",
+    "homepage": "https://github.com/ivyiz/Yopomura",
     "bugs": {
-        "url": "https://github.com/yopomura/yopomura/issues"
+        "url": "https://github.com/ivyiz/Yopomura/issues"
     },
     "keywords": [
         "electron",

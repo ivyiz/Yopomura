@@ -3,7 +3,7 @@ pkgver=VERSION_REPLACE
 pkgrel=1
 pkgdesc="A desktop reader for manga, comics and books with a built-in media player, browser and generic downloader."
 arch=("x86_64")
-url="https://github.com/yopomura/yopomura"
+url="https://github.com/ivyiz/Yopomura"
 license=("MIT")
 
 depends=()

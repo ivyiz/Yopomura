@@ -60,7 +60,7 @@ Errors are written to local log files only. Reporting a bug opens GitHub in your
 
 When **Check for updates every 1 hour** is enabled (Settings → About), the app contacts GitHub to:
 
-- List releases (`api.github.com/repos/yopomura/yopomura/releases`)
+- List releases (`api.github.com/repos/ivyiz/Yopomura/releases`)
 - Fetch `announcements.txt` from the repository
 - Download release artifacts when **Auto download updates** is enabled
 
@@ -97,8 +97,8 @@ Yopomura is a general-purpose desktop application and is not directed at childre
 
 ## Changes to this policy
 
-Updates to this document are published in the [Yopomura repository](https://github.com/yopomura/yopomura). The **Last updated** date at the top will change when the policy changes materially.
+Updates to this document are published in the [Yopomura repository](https://github.com/ivyiz/Yopomura). The **Last updated** date at the top will change when the policy changes materially.
 
 ## Contact
 
-Questions about this policy: open a [GitHub issue](https://github.com/yopomura/yopomura/issues).
+Questions about this policy: open a [GitHub issue](https://github.com/ivyiz/Yopomura/issues).

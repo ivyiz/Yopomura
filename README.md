@@ -4,9 +4,9 @@
 
 Yopomura is a feature-rich desktop application for reading locally stored manga, comics, webtoons, and EPUB novels. It also includes a media library, an integrated browser, a generic downloader, a retention-based trash and profile backup. Built with Electron and React.
 
-[![Github Latest Release](https://img.shields.io/github/v/tag/yopomura/yopomura?label=release&style=flat-square&logo=github)](https://github.com/yopomura/yopomura/releases/latest) |
-[![Github All Releases](https://img.shields.io/github/downloads/yopomura/yopomura/total.svg?style=flat-square&logo=github)](https://github.com/yopomura/yopomura/releases) |
-[![License](https://img.shields.io/github/license/yopomura/yopomura?style=flat-square)](LICENSE)
+[![Github Latest Release](https://img.shields.io/github/v/tag/ivyiz/Yopomura?label=release&style=flat-square&logo=github)](https://github.com/ivyiz/Yopomura/releases/latest) |
+[![Github All Releases](https://img.shields.io/github/downloads/ivyiz/Yopomura/total.svg?style=flat-square&logo=github)](https://github.com/ivyiz/Yopomura/releases) |
+[![License](https://img.shields.io/github/license/ivyiz/Yopomura?style=flat-square)](LICENSE)
 
 [Privacy Policy](PRIVACY.md)
 
@@ -63,7 +63,7 @@ Yopomura is a feature-rich desktop application for reading locally stored manga,
 
 ### Quick Install
 
-1. **Download** the latest version from [Releases](https://github.com/yopomura/yopomura/releases/latest)
+1. **Download** the latest version from [Releases](https://github.com/ivyiz/Yopomura/releases/latest)
 2. **Choose your platform**:
    - Windows: Download `.exe` (installer) or `.zip` (portable)
    - Linux: Download `.deb` (Debian/Ubuntu)
@@ -75,7 +75,7 @@ Beta versions are available for users who want to try the latest features before
 
 ### Accessing Beta Releases
 
-- **Beta Releases**: Available on the [Releases page](https://github.com/yopomura/yopomura/releases) (marked as "Pre-release")
+- **Beta Releases**: Available on the [Releases page](https://github.com/ivyiz/Yopomura/releases) (marked as "Pre-release")
 - **Beta Branch**: Check the `beta` branch for the latest development code
 
 ### Beta vs Stable
@@ -157,9 +157,9 @@ Add the printed `demo/` path as a library location in Settings. Details: [Demo f
 
 ## Support & Issues
 
-- **Bug Reports**: [GitHub Issues](https://github.com/yopomura/yopomura/issues)
-- **Feature Requests**: [GitHub Issues](https://github.com/yopomura/yopomura/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yopomura/yopomura/discussions)
+- **Bug Reports**: [GitHub Issues](https://github.com/ivyiz/Yopomura/issues)
+- **Feature Requests**: [GitHub Issues](https://github.com/ivyiz/Yopomura/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/ivyiz/Yopomura/discussions)
 - **Documentation**: Check the `docs/` folder for detailed guides
 
 ## License
@@ -189,6 +189,6 @@ mienaiyami, used under the MIT License. See [NOTICE](NOTICE) for attribution.
 
 <div align="center">
 
-**[Download Now](https://github.com/yopomura/yopomura/releases/latest)** • **[Documentation](docs/GUIDE.md)** • **[Screenshots](docs/SCREENSHOTS.md)**
+**[Download Now](https://github.com/ivyiz/Yopomura/releases/latest)** • **[Documentation](docs/GUIDE.md)** • **[Screenshots](docs/SCREENSHOTS.md)**
 
 </div>

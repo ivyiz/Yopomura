@@ -109,9 +109,7 @@ const About: React.FC = () => {
                     </button>
                     <button onClick={() => setShowDetailedInfo(true)}>{t("about.detailedInfo")}</button>
                     <button
-                        onClick={() =>
-                            window.electron.openExternal("https://github.com/yopomura/yopomura/releases")
-                        }
+                        onClick={() => window.electron.openExternal("https://github.com/ivyiz/Yopomura/releases")}
                     >
                         {t("about.changelogs")}
                     </button>
@@ -134,33 +132,33 @@ const About: React.FC = () => {
                 <div className="main col">
                     <button
                         onClick={() =>
-                            window.electron.openExternal("https://github.com/yopomura/yopomura/discussions/495")
+                            window.electron.openExternal("https://github.com/ivyiz/Yopomura/discussions")
                         }
                         style={{ border: "2px solid #5865F2" }}
                     >
                         <FontAwesomeIcon icon={faDiscord} /> {t("about.joinDiscord")}
                     </button>
-                    <button onClick={() => window.electron.openExternal("https://github.com/yopomura/yopomura/")}>
+                    <button onClick={() => window.electron.openExternal("https://github.com/ivyiz/Yopomura/")}>
                         <FontAwesomeIcon icon={faGithub} /> {t("about.homePage")}
                     </button>
                     <button
                         onClick={() =>
                             window.electron.openExternal(
-                                "https://github.com/yopomura/yopomura/discussions/categories/announcements",
+                                "https://github.com/ivyiz/Yopomura/discussions/categories/announcements",
                             )
                         }
                     >
                         <FontAwesomeIcon icon={faGithub} /> {t("about.announcements")}
                     </button>
                     <button
-                        onClick={() => window.electron.openExternal("https://github.com/yopomura/yopomura/issues")}
+                        onClick={() => window.electron.openExternal("https://github.com/ivyiz/Yopomura/issues")}
                     >
                         <FontAwesomeIcon icon={faGithub} /> {t("about.submitIssue")}
                     </button>
                     <button
                         onClick={() =>
                             window.electron.openExternal(
-                                "https://github.com/yopomura/yopomura/blob/master/PRIVACY.md",
+                                "https://github.com/ivyiz/Yopomura/blob/master/PRIVACY.md",
                             )
                         }
                     >

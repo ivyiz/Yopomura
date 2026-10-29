@@ -256,7 +256,7 @@ const config: ForgeConfig = {
             {
                 options: {
                     maintainer: "Yopomura contributors",
-                    homepage: "https://github.com/yopomura/yopomura",
+                    homepage: "https://github.com/ivyiz/Yopomura",
                     bin: "./Yopomura",
                     depends: ["xdg-utils"],
                 },

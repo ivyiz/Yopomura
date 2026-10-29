@@ -35,7 +35,7 @@ export class WindowManager {
                     buttons: [t("buttons.okAlt", { ns: "dialogs" }), t("buttons.homePage", { ns: "dialogs" })],
                 })
                 .then((e) => {
-                    if (e.response === 1) shell.openExternal("https://github.com/yopomura/yopomura");
+                    if (e.response === 1) shell.openExternal("https://github.com/ivyiz/Yopomura");
                 });
         }, 1000 * 10);
     }
@@ -124,7 +124,7 @@ export class WindowManager {
                         buttons: [t("buttons.okAlt", { ns: "dialogs" }), t("buttons.homePage", { ns: "dialogs" })],
                     })
                     .then((e) => {
-                        if (e.response === 1) shell.openExternal("https://github.com/yopomura/yopomura");
+                        if (e.response === 1) shell.openExternal("https://github.com/ivyiz/Yopomura");
                     });
             });
         });

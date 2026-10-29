@@ -21,7 +21,7 @@ const EPUB_SOURCE_MARKER = "SOURCE";
 const EPUB_CONTAINER_SEGMENTS = ["META-INF", "container.xml"] as const;
 
 /** Project issue page linked from the recoverable chapter-read error shown inside the reader. */
-const EPUB_ISSUES_URL = "https://github.com/yopomura/yopomura/issues";
+const EPUB_ISSUES_URL = "https://github.com/ivyiz/Yopomura/issues";
 
 /** Class on in-chapter find marks; CSS lives on `#EPubReader .findInPage-highlight`. */
 const FIND_HIGHLIGHT_CLASS = "findInPage-highlight";
