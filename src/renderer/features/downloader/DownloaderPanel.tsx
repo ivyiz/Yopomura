@@ -69,6 +69,26 @@ const SOURCE_LABEL: Record<DownloaderPreview["source"], string> = {
     unknown: "Unknown",
 };
 
+const DOWNLOADER_OUT_DIR_KEY = "yokomura-downloader-out-dir";
+
+const readDownloaderOutDir = (fallback: string): string => {
+    try {
+        return window.localStorage.getItem(DOWNLOADER_OUT_DIR_KEY)?.trim() || fallback;
+    } catch {
+        return fallback;
+    }
+};
+
+const rememberDownloaderOutDir = (value: string): void => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    try {
+        window.localStorage.setItem(DOWNLOADER_OUT_DIR_KEY, trimmed);
+    } catch {
+        // Storage can be unavailable; the folder still applies to this session.
+    }
+};
+
 const HISTORY_STATUS_LABEL: Record<DownloadHistoryStatus, string> = {
     done: "Done",
     error: "Error",
@@ -100,7 +120,7 @@ const DownloaderPanel = ({
     const folders = useAppSelector((store) => store.mainSettings.library.folders);
     const defaultDir =
         getDefaultLocationPath(folders) || window.path.join(window.electron.app.getPath("userData"), "downloads");
-    const [outDir, setOutDir] = useState(defaultDir);
+    const [outDir, setOutDir] = useState(() => readDownloaderOutDir(defaultDir));
     const [keepFolder, setKeepFolder] = useState(false);
     const [state, setState] = useState<DownloaderState>({ ready: false, activeId: null, paused: false, jobs: [] });
     const [busy, setBusy] = useState(false);
@@ -218,6 +238,7 @@ const DownloaderPanel = ({
                     keepFolder,
                 });
             }
+            rememberDownloaderOutDir(outDir);
             onDraftChange("");
         } finally {
             setBusy(false);
@@ -393,7 +414,10 @@ const DownloaderPanel = ({
                                     onClick={() =>
                                         promptSelectDir((selected) => {
                                             const path = Array.isArray(selected) ? selected[0] : selected;
-                                            if (path) setOutDir(path);
+                                            if (path) {
+                                                setOutDir(path);
+                                                rememberDownloaderOutDir(path);
+                                            }
                                         })
                                     }
                                 >
