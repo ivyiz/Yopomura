@@ -29,6 +29,8 @@ export const registerDownloaderHandlers = (): void => {
     });
     ipc.handle("downloader:add", (_event, request) => downloaderService.addJob(request));
     ipc.handle("downloader:preview", (_event, { url }) => downloaderService.preview(url));
+    ipc.handle("downloader:getReview", (_event, { id }) => downloaderService.getReview(id));
+    ipc.handle("downloader:confirmReview", (_event, { id, urls }) => downloaderService.confirmReview(id, urls));
     ipc.handle("downloader:listRecipes", () => recipeStore.list());
     ipc.handle("downloader:saveRecipe", (_event, draft) => {
         try {

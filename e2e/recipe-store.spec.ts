@@ -138,6 +138,7 @@ test("declarative recipe loads, previews and downloads", async () => {
         env: {
             ...process.env,
             NODE_ENV: "production",
+            YOPOMURA_DOWNLOADER_REVIEW: "0",
             YOPOMURA_RESOLVER_MAX_CHAPTERS: "2",
             YOPOMURA_RESOLVER_MAX_IMAGES: "10",
             YOPOMURA_RESOLVER_MAX_READER_PAGES: "2",

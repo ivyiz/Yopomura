@@ -1,0 +1,254 @@
+.downloaderReviewOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 3300000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 22px;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(2px);
+}
+
+.downloaderReview {
+    width: min(1180px, 100%);
+    height: min(820px, calc(100vh - 44px));
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    color: var(--font-color);
+    background: var(--body-bg-color);
+    border: 1px solid var(--divider-color);
+    border-radius: 12px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+}
+
+.downloaderReviewHead {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--divider-color);
+
+    h2 {
+        margin: 0;
+        font-size: 1.05rem;
+    }
+
+    p {
+        margin: 3px 0 0;
+        color: var(--font-color-secondary);
+        font-size: 0.76rem;
+        max-width: 720px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.downloaderReviewCount {
+    margin-left: auto;
+    color: var(--font-color-secondary);
+    font-size: 0.78rem;
+
+    strong {
+        color: var(--font-color);
+        font-size: 1rem;
+    }
+}
+
+.downloaderReviewClose {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: 7px;
+    border: 1px solid var(--divider-color);
+    background: transparent;
+    color: var(--font-color-secondary);
+    cursor: pointer;
+
+    &:hover {
+        background: var(--btn-color-hover);
+        color: var(--font-color);
+    }
+}
+
+.downloaderReviewToolbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--divider-color);
+
+    input {
+        width: min(360px, 38vw);
+        min-width: 0;
+        padding: 7px 9px;
+        border-radius: 8px;
+        border: 1px solid var(--divider-color);
+        background: var(--text-input-bg);
+        color: var(--font-color);
+        font-size: 0.78rem;
+    }
+
+    button {
+        padding: 7px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--divider-color);
+        background: var(--btn-color);
+        color: var(--font-color);
+        font-size: 0.74rem;
+        cursor: pointer;
+
+        &:hover:not(:disabled) {
+            background: var(--btn-color-hover);
+        }
+    }
+}
+
+.downloaderReviewHint {
+    margin-left: auto;
+    color: var(--font-color-secondary);
+    font-size: 0.72rem;
+}
+
+.downloaderReviewGrid {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    align-content: start;
+    gap: 8px;
+    padding: 12px 18px;
+    overflow: auto;
+}
+
+.downloaderReviewItem {
+    display: grid;
+    grid-template-columns: auto 58px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 7px 8px;
+    border: 1px solid var(--divider-color);
+    border-radius: 9px;
+    background: rgba(127, 127, 127, 0.05);
+    cursor: pointer;
+    content-visibility: auto;
+    contain-intrinsic-size: 74px;
+
+    &:hover {
+        background: rgba(127, 127, 127, 0.1);
+    }
+
+    &.is-selected {
+        border-color: color-mix(in srgb, var(--btn-color-focus) 55%, var(--divider-color));
+        background: color-mix(in srgb, var(--btn-color-focus) 10%, transparent);
+    }
+
+    input {
+        margin: 0;
+    }
+}
+
+.downloaderReviewThumb {
+    position: relative;
+    width: 58px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 6px;
+    background: rgba(127, 127, 127, 0.12);
+    color: var(--font-color-secondary);
+
+    img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+}
+
+.downloaderReviewText {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 1px;
+}
+
+.downloaderReviewIndex {
+    color: var(--font-color-secondary);
+    font-size: 0.62rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.downloaderReviewName {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.75rem;
+}
+
+.downloaderReviewHost {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--font-color-secondary);
+    font-size: 0.64rem;
+}
+
+.downloaderReviewEmpty {
+    grid-column: 1 / -1;
+    margin: 20px;
+    text-align: center;
+    color: var(--font-color-secondary);
+    font-size: 0.8rem;
+}
+
+.downloaderReviewActions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--divider-color);
+
+    button {
+        padding: 8px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--divider-color);
+        background: var(--btn-color);
+        color: var(--font-color);
+        font-size: 0.78rem;
+        cursor: pointer;
+
+        &:hover:not(:disabled) {
+            background: var(--btn-color-hover);
+        }
+
+        &:disabled {
+            opacity: 0.55;
+            cursor: default;
+        }
+    }
+}
+
+.downloaderReviewConfirm {
+    background: var(--btn-color-focus) !important;
+    border-color: var(--btn-color-focus) !important;
+    color: #fff !important;
+}
+
+.downloaderReviewMessage {
+    margin-right: auto;
+    color: #f59e0b;
+    font-size: 0.75rem;
+}

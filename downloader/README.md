@@ -102,6 +102,9 @@ null), `queued` (number of waiting jobs), `paused` (worker pause flag).
   probe. Successful resolutions are reused for 60 s so preview → queue does not
   analyze the same URL twice. Set `YOPOMURA_DOWNLOADER_LEGACY_FIRST=0` to
   disable legacy-first.
+- By default a resolved job opens an image review with every image selected.
+  Uncheck unwanted images and confirm before any download starts. Set
+  `YOPOMURA_DOWNLOADER_REVIEW=0` to download immediately.
 - Obvious video URLs are skipped by `probe`, `add` and `addResolved`, so a
   manga job never writes `.mp4`/`.webm` files into its output folder.
 - Images are streamed with `requests` using `iter_content` and

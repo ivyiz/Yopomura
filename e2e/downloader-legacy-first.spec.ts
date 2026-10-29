@@ -1,4 +1,4 @@
-﻿import fs from "node:fs";
+import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -138,6 +138,7 @@ test("legacy extractor runs first, browser is the fallback, and failures retry",
         env: {
             ...process.env,
             NODE_ENV: "production",
+            YOPOMURA_DOWNLOADER_REVIEW: "0",
             YOPOMURA_DOWNLOADER_EXTRACTOR_PATH: extractorPath,
             YOPOMURA_LEGACY_PROBE_MS: "1500",
             YOPOMURA_RESOLVER_MAX_CHAPTERS: "2",

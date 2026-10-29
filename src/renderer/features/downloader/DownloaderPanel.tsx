@@ -51,6 +51,7 @@ type DownloaderPanelProps = {
 const STATUS_LABEL: Record<DownloaderJob["status"], string> = {
     queued: "Queued",
     resolving: "Resolving",
+    review: "Review Images",
     downloading: "Downloading",
     paused: "Paused",
     packing: "Packing ZIP",
@@ -60,7 +61,14 @@ const STATUS_LABEL: Record<DownloaderJob["status"], string> = {
 };
 
 /** Statuses that mean the worker still owes this job work. */
-const PENDING_STATUSES: DownloaderJob["status"][] = ["queued", "resolving", "downloading", "paused", "packing"];
+const PENDING_STATUSES: DownloaderJob["status"][] = [
+    "queued",
+    "resolving",
+    "review",
+    "downloading",
+    "paused",
+    "packing",
+];
 
 const SOURCE_LABEL: Record<DownloaderPreview["source"], string> = {
     recipe: "Recipe",
@@ -499,6 +507,7 @@ const DownloaderPanel = ({
                                                 ) : null}
                                                 {(job.status === "queued" ||
                                                     job.status === "resolving" ||
+                                                    job.status === "review" ||
                                                     job.status === "downloading" ||
                                                     job.status === "paused" ||
                                                     job.status === "packing") && (

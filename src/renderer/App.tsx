@@ -54,6 +54,7 @@ import UiBlockOverlay from "./components/UiBlockOverlay";
 import BrowserHost from "./features/browser/BrowserHost";
 import { closeBrowser } from "./features/browser/browserEvents";
 import DownloaderPanel from "./features/downloader/DownloaderPanel";
+import DownloaderReviewModal from "./features/downloader/DownloaderReviewModal";
 import MediaPanel from "./features/media/MediaPanel";
 import VideoPlayer from "./features/media/VideoPlayer";
 import TrashPanel from "./features/trash/TrashPanel";
@@ -952,6 +953,7 @@ const App = (): ReactElement => {
                     onOpenOutput={(path) => void openReaderExclusive(path)}
                 />
             ) : null}
+            <DownloaderReviewModal />
             {trashOpen ? <TrashPanel onClose={() => setTrashOpen(false)} /> : null}
             {mediaOpen ? <MediaPanel onClose={() => setMediaOpen(false)} /> : null}
             <BrowserHost />

@@ -2,6 +2,8 @@
 export type DownloaderJobStatus =
     | "queued"
     | "resolving"
+    /** Images resolved; waiting for the user to confirm the selection. */
+    | "review"
     | "downloading"
     /** Active job held by a worker-wide pause; not terminal. */
     | "paused"
@@ -67,6 +69,13 @@ export type DownloaderRecipeDraft = {
     nextSelector?: string;
     script?: string;
     testUrl?: string;
+};
+
+/** Images waiting for the user to choose before a job downloads them. */
+export type DownloaderReview = {
+    id: string;
+    title: string;
+    items: Array<{ url: string; referer?: string }>;
 };
 
 /** Dry-run result from the active resolver chain. */

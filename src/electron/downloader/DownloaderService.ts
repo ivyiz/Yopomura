@@ -8,6 +8,7 @@ import type {
     DownloaderJob,
     DownloaderJobStatus,
     DownloaderPreview,
+    DownloaderReview,
     DownloaderSource,
     DownloaderState,
 } from "@common/types/downloader";
@@ -34,6 +35,12 @@ const RESOLUTION_CACHE_MS = envInt("YOPOMURA_RESOLUTION_CACHE_MS", 60_000);
 /** Legacy-first is on by default; set YOPOMURA_DOWNLOADER_LEGACY_FIRST=0 to disable. */
 const legacyFirstEnabled = (): boolean => {
     const raw = (process.env.YOPOMURA_DOWNLOADER_LEGACY_FIRST || "").trim().toLowerCase();
+    return !["0", "false", "no", "off"].includes(raw);
+};
+
+/** Default on: resolved jobs wait for the user to deselect images. */
+const reviewImagesEnabled = (): boolean => {
+    const raw = (process.env.YOPOMURA_DOWNLOADER_REVIEW || "").trim().toLowerCase();
     return !["0", "false", "no", "off"].includes(raw);
 };
 
@@ -128,6 +135,10 @@ class DownloaderService extends EventEmitter {
     private probes = new Map<string, (result: ProbeResult) => void>();
     private browserRetries = new Set<string>();
     private resolutionCache = new Map<string, { at: number; outcome: ResolveOutcome }>();
+    private reviews = new Map<
+        string,
+        { title: string; items: ResolvedDownloadItem[]; headers: Record<string, string> }
+    >();
 
     getState(): DownloaderState {
         return {
@@ -177,6 +188,51 @@ class DownloaderService extends EventEmitter {
         } catch (error) {
             return empty(error instanceof Error ? error.message : String(error));
         }
+    }
+
+    /** Images resolved for a job that is waiting for user confirmation. */
+    getReview(id: string): DownloaderReview | null {
+        const job = this.jobs.get(id);
+        const review = this.reviews.get(id);
+        if (!job || !review || job.status !== "review") return null;
+        return {
+            id,
+            title: review.title,
+            items: review.items.map((item) => ({ url: item.url, referer: item.referer })),
+        };
+    }
+
+    /** Queues only the selected URLs from a review job. */
+    confirmReview(id: string, urls: string[]): { ok: true } | { ok: false; message: string } {
+        const job = this.jobs.get(id);
+        const review = this.reviews.get(id);
+        if (!job || !review) return { ok: false, message: "Review is no longer available" };
+        if (job.status !== "review") return { ok: false, message: "Job is not waiting for review" };
+        const selected = new Set(urls.filter((url) => typeof url === "string" && url.trim()));
+        const items = review.items.filter((item) => selected.has(item.url));
+        if (items.length === 0) return { ok: false, message: "Select at least one image" };
+
+        this.reviews.delete(id);
+        this.patchJob(id, {
+            status: "resolving",
+            total: items.length,
+            downloaded: 0,
+            progress: 0,
+            error: "",
+            message: `Starting ${items.length} selected image(s)`,
+            updatedAt: Date.now(),
+        });
+        this.send({
+            cmd: "addResolved",
+            id,
+            url: job.url,
+            outDir: job.outDir,
+            keepFolder: job.keepFolder,
+            title: review.title,
+            items,
+            headers: review.headers,
+        });
+        return { ok: true };
     }
 
     /**
@@ -230,6 +286,7 @@ class DownloaderService extends EventEmitter {
         if (!job) return;
         if (job.status === "done" || job.status === "error" || job.status === "cancelled") return;
         this.resolutionQueue = this.resolutionQueue.filter((item) => item.id !== id);
+        this.reviews.delete(id);
         this.send({ cmd: "cancel", id });
         this.patchJob(id, { status: "cancelled", message: "Cancelled", updatedAt: Date.now() });
     }
@@ -237,6 +294,7 @@ class DownloaderService extends EventEmitter {
     removeJob(id: string): void {
         this.resolutionQueue = this.resolutionQueue.filter((item) => item.id !== id);
         this.browserRetries.delete(id);
+        this.reviews.delete(id);
         this.jobs.delete(id);
         this.broadcast();
     }
@@ -307,6 +365,28 @@ class DownloaderService extends EventEmitter {
                         });
                         this.failJob(next.id, outcome.error || "No downloadable images found");
                     }
+                    continue;
+                }
+
+                if (reviewImagesEnabled()) {
+                    this.reviews.set(next.id, {
+                        title: outcome.title,
+                        items: outcome.items,
+                        headers: outcome.headers,
+                    });
+                    this.patchJob(next.id, {
+                        status: "review",
+                        title: outcome.title,
+                        total: outcome.items.length,
+                        source: outcome.source,
+                        message: `Review ${outcome.items.length} image(s)`,
+                        updatedAt: Date.now(),
+                    });
+                    log.info("download waiting for image review", {
+                        url: next.url,
+                        source: outcome.source,
+                        images: outcome.items.length,
+                    });
                     continue;
                 }
 
@@ -503,6 +583,7 @@ class DownloaderService extends EventEmitter {
 
     private failJob(id: string, message: string): void {
         if (this.activeId === id) this.activeId = null;
+        this.reviews.delete(id);
         this.patchJob(id, {
             status: "error",
             message: "Download failed",
