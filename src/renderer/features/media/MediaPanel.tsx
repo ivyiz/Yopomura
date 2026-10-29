@@ -771,15 +771,6 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
             const key = event.key;
             const lower = key.toLowerCase();
 
-            /* A focused button already activates on Space; avoid toggling playback twice. */
-            if (
-                (key === " " || key === "Spacebar") &&
-                event.target instanceof HTMLElement &&
-                (event.target.tagName === "BUTTON" || event.target.tagName === "A")
-            ) {
-                return;
-            }
-
             if (key === " " || key === "Spacebar") {
                 if (!selected) return;
                 event.preventDefault();

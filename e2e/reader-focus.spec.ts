@@ -93,6 +93,11 @@ test("reader focus closes the browser and toolbar panels toggle", async () => {
         await expect(page.locator(".downloaderPanel")).toHaveCount(0, { timeout: 15_000 });
         await expect(page.locator("#reader")).toBeVisible({ timeout: 30_000 });
 
+        // Media is full-screen and owns the keyboard, so the reader must unmount.
+        await page.locator(".mediaToggle").click();
+        await expect(page.locator(".mediaPanelOverlay")).toHaveCount(1, { timeout: 15_000 });
+        await expect(page.locator("#reader")).toHaveCount(0);
+
         expect(errors).toEqual([]);
         console.log("READER_FOCUS_OK");
     } finally {

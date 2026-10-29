@@ -198,8 +198,6 @@ const App = (): ReactElement => {
         setMediaOpen(false);
         setTrashOpen((open) => !open);
     }, []);
-    /** TopBar Media icon toggles the panel. */
-    const openMedia = useCallback(() => setMediaOpen((open) => !open), []);
 
     /**
      * Reader is the primary view: opening a title closes panels and the native
@@ -389,6 +387,16 @@ const App = (): ReactElement => {
             window.electron.webFrame.clearCache();
             window.electron.webFrame.clearCache();
         }, 1000);
+    };
+
+    /** Media is full-screen; leaving the reader mounted lets its shortcuts steal keys. */
+    const openMedia = () => {
+        if (mediaOpen) {
+            setMediaOpen(false);
+            return;
+        }
+        if (isReaderOpen) void closeReader();
+        setMediaOpen(true);
     };
 
     const openInNewWindow = (link: string) => {
