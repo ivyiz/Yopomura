@@ -52,6 +52,7 @@ import {
 import DownloadToast from "./components/DownloadToast";
 import UiBlockOverlay from "./components/UiBlockOverlay";
 import BrowserHost from "./features/browser/BrowserHost";
+import { closeBrowser } from "./features/browser/browserEvents";
 import DownloaderPanel from "./features/downloader/DownloaderPanel";
 import MediaPanel from "./features/media/MediaPanel";
 import VideoPlayer from "./features/media/VideoPlayer";
@@ -176,11 +177,13 @@ const App = (): ReactElement => {
     /** Media is a full panel; opening another app panel must close it, not sit behind it. */
     const closeMedia = useCallback(() => setMediaOpen(false), []);
     const openDownloader = useCallback((initialUrls?: string) => {
-        if (initialUrls?.trim()) {
-            setDownloaderDraft((current) => appendDownloadDraft(current, initialUrls));
+        const urls = initialUrls?.trim();
+        if (urls) {
+            setDownloaderDraft((current) => appendDownloadDraft(current, urls));
         }
         setDownloaderView((current) => ({ view: "queue", request: current.request + 1 }));
-        setDownloaderOpen(true);
+        // A URL handoff opens the pane; a toolbar click toggles it.
+        setDownloaderOpen((open) => (urls ? true : !open));
     }, []);
     const openDownloadHistory = useCallback(() => {
         setDownloaderView((current) => ({ view: "history", request: current.request + 1 }));
@@ -193,10 +196,25 @@ const App = (): ReactElement => {
     }, []);
     const openTrash = useCallback(() => {
         setMediaOpen(false);
-        setTrashOpen(true);
+        setTrashOpen((open) => !open);
     }, []);
     /** TopBar Media icon toggles the panel. */
     const openMedia = useCallback(() => setMediaOpen((open) => !open), []);
+
+    /**
+     * Reader is the primary view: opening a title closes panels and the native
+     * browser view, which would otherwise paint over the reader.
+     */
+    const openReaderExclusive = useCallback(
+        async (link: string, options?: Parameters<typeof openInReaderIfValid>[1]) => {
+            closeBrowser();
+            setDownloaderOpen(false);
+            setMediaOpen(false);
+            setTrashOpen(false);
+            return openInReaderIfValid(link, options);
+        },
+        [openInReaderIfValid],
+    );
     const importedDownloadJobs = useRef(new Set<string>());
 
     useEffect(() => {
@@ -436,7 +454,7 @@ const App = (): ReactElement => {
         listeners.push(
             window.electron.on("reader:loadLink", ({ link }) => {
                 if (link)
-                    openInReaderIfValid(link, {
+                    openReaderExclusive(link, {
                         maxSubdirectoryDepth: 0,
                     }).then((isValid) => {
                         if (!isValid) {
@@ -558,7 +576,7 @@ const App = (): ReactElement => {
                     label: i18n.t("contextMenu.open", { ns: "common" }),
                     disabled: !url,
                     action() {
-                        openInReaderIfValid(url);
+                        openReaderExclusive(url);
                     },
                 };
             },
@@ -825,7 +843,7 @@ const App = (): ReactElement => {
                 };
             },
         };
-    }, [appSettings, openInReaderIfValid]);
+    }, [appSettings, openReaderExclusive]);
 
     useEffect(() => {
         const abortController = new AbortController();
@@ -849,13 +867,13 @@ const App = (): ReactElement => {
                             await window.fs.access(droppedPath);
                             if (window.fs.isDir(droppedPath)) {
                                 await closeReader();
-                                await openInReaderIfValid(droppedPath);
+                                await openReaderExclusive(droppedPath);
                             } else if (formatUtils.files.test(droppedPath)) {
                                 await closeReader();
-                                await openInReaderIfValid(droppedPath);
+                                await openReaderExclusive(droppedPath);
                             } else if (formatUtils.image.test(droppedPath.toLowerCase())) {
                                 await closeReader();
-                                await openInReaderIfValid(window.path.dirname(droppedPath));
+                                await openReaderExclusive(window.path.dirname(droppedPath));
                             }
                         }
                     }
@@ -881,7 +899,7 @@ const App = (): ReactElement => {
             value={{
                 pageNumberInputRef,
                 bookProgressRef,
-                openInReader: openInReaderIfValid,
+                openInReader: openReaderExclusive,
                 closeReader,
                 openInNewWindow,
                 openVideo,
@@ -923,7 +941,7 @@ const App = (): ReactElement => {
                     recipeDraft={recipeDraft}
                     onRecipeDraftConsumed={() => setRecipeDraft(null)}
                     onClose={() => setDownloaderOpen(false)}
-                    onOpenOutput={(path) => void openInReaderIfValid(path)}
+                    onOpenOutput={(path) => void openReaderExclusive(path)}
                 />
             ) : null}
             {trashOpen ? <TrashPanel onClose={() => setTrashOpen(false)} /> : null}
