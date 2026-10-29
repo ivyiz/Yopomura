@@ -71,7 +71,7 @@ export class WindowManager {
             minWidth: 853,
             minHeight: 480,
             frame: false,
-            backgroundColor: "#000000",
+            backgroundColor: "#1b1b1f",
             show: false,
             titleBarStyle: process.platform === "win32" ? "hidden" : "default",
             titleBarOverlay: {

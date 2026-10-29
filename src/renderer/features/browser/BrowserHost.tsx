@@ -99,6 +99,23 @@ const EMPTY_STATE: BrowserState = {
 
 const DOWNLOADS_SEEN_KEY = "yomikura-browser-downloads-seen-at";
 
+/** Resolves after the renderer has committed and painted another frame. */
+const nextPaint = (): Promise<void> =>
+    new Promise((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+
+/** Decodes a snapshot before the native view is hidden, avoiding a blank frame. */
+const decodeSnapshot = async (source: string): Promise<void> => {
+    const image = new Image();
+    image.src = source;
+    try {
+        await image.decode();
+    } catch {
+        // A failed decode still leaves the data URL usable by the <img> element.
+    }
+};
+
 const DOWNLOAD_KIND_ICON: Record<DownloadFileKind, IconDefinition> = {
     video: faFilm,
     archive: faFileZipper,
@@ -257,7 +274,11 @@ const BrowserHost = () => {
                     window.electron.invoke("browser:capturePage", {}),
                     new Promise<string>((resolve) => window.setTimeout(() => resolve(""), timeoutMs)),
                 ]);
-                if (image) setSnapshot(image);
+                if (!image) return "";
+                await decodeSnapshot(image);
+                setSnapshot(image);
+                // Keep the native view attached until the snapshot is on screen.
+                await nextPaint();
                 return image;
             } catch {
                 return "";
@@ -509,10 +530,12 @@ const BrowserHost = () => {
 
     useEffect(() => {
         let cancelled = false;
-        void window.electron.invoke("browser:setVisible", { visible: showNative }).then(() => {
+        void window.electron.invoke("browser:setVisible", { visible: showNative }).then(async () => {
             if (cancelled || !showNative || overlayOpenRef.current) return;
-            // Keep the frozen frame until Chromium has shown the native view again.
-            setSnapshot("");
+            // Chromium needs a beat to composite the reattached view; keep the
+            // frozen frame underneath until then so the window background never shows.
+            await new Promise((resolve) => window.setTimeout(resolve, 250));
+            if (!cancelled && !overlayOpenRef.current) setSnapshot("");
         });
         if (showNative) {
             lastBounds.current = "";
@@ -880,7 +903,7 @@ const BrowserHost = () => {
             return;
         }
         // Freeze the page before hiding the native view so the bubble never flashes the fallback.
-        await capturePageSnapshot(1200);
+        await capturePageSnapshot(2500);
         setMenu(null);
         setScanOpen(false);
         setExtensionsOpen(false);

@@ -76,6 +76,8 @@ test("browser context menu, background tabs and downloader draft", async () => {
 
         // Leaving the menu with the mouse must not dismiss it.
         await openMenu(`${pageUrl}one`);
+        await expect(page.locator(".browserSnapshot")).toHaveCount(1);
+        await expect(page.locator(".browserSnapshotBlank")).toHaveCount(0);
         await page.mouse.move(4, 4);
         await page.waitForTimeout(500);
         await expect(page.locator(".browserContextMenu")).toBeVisible();
