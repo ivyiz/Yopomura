@@ -337,11 +337,7 @@ const generateRelease = () => {
     // const downloadSection = `## Downloads\n\n${downloadButtons.join(" ")}\n`;
     const downloadSection = `## Downloads
 
-32-bit Windows builds are no longer produced. The Windows files in the table below are 64-bit (portable zip and setup). Windows 7, 8, and 8.1 are not supported. Details: https://github.com/ivyiz/Yopomura/discussions
-
-The last stable release that still supports those systems and 32-bit Windows is **2.24.0**. The last beta is **2.25.0-beta.7**.
-
-A 32-bit install that checks for updates will download a file that still uses the old 32-bit filename. That file is the 64-bit app, so the update only runs on 64-bit Windows. A 32-bit PC should stay on 2.24.0 (stable) or 2.25.0-beta.7 (beta).
+Windows 10/11, 64-bit. The Portable ZIP and Setup installer contain the same build; the installer adds Start Menu shortcuts.
 
 `;
     fs.writeFileSync(DOWNLOAD_BTNS_TXT, downloadSection, "utf-8");
