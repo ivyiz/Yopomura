@@ -396,7 +396,7 @@
     "anilist": {
         "title": "AniList",
         "desc": "Link Yopomura to your AniList account.",
-        "note": "NOTE: Yopomura does not use internet for anything other than app updates if it is not linked with AniList.",
+        "note": "Note: Reading local files works offline. The browser, downloader, update checks and AniList sync use your connection only when you use them.",
         "login": "Login with AniList",
         "loggedInAs": "Logged in as {{username}}",
         "logout": "Logout",

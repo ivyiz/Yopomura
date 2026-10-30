@@ -4,11 +4,12 @@ Headless Python downloader used by Yopomura. It has no GUI, no Tkinter and no
 ctypes. The Electron app spawns `worker.py`, writes one JSON command per line to
 its stdin and reads one JSON event per line from its stdout.
 
-The public worker is generic: it downloads direct image/archive URLs and images
-found on ordinary HTML pages, with an optional `gallery-dl` fallback. It does
-not ship site-specific extractors. Private builds can provide an extractor
-module through `YOPOMURA_DOWNLOADER_EXTRACTOR_MODULE` or a Python file through
-`YOPOMURA_DOWNLOADER_EXTRACTOR_PATH`.
+The worker core is generic: it downloads direct image/archive URLs and images
+found on ordinary HTML pages, with an optional `gallery-dl` fallback. The public
+source tree does not ship site-specific extractors. A build can load an optional
+extractor overlay through `YOPOMURA_DOWNLOADER_EXTRACTOR_MODULE` or a Python file
+through `YOPOMURA_DOWNLOADER_EXTRACTOR_PATH`, so site support can be added
+without patching `worker.py`.
 
 ## Requirements
 

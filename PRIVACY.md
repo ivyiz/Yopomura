@@ -2,7 +2,7 @@
 
 **Last updated:** August 31, 2026
 
-Yopomura is a desktop reader with an optional media library, integrated browser, generic downloader, trash and profile backup. This policy describes what data the app handles on your device and when it contacts third-party services. Yopomura does not run its own servers and does not sell personal data.
+Yopomura is a desktop reader with an optional media library, integrated browser, downloader, trash and profile backup. This policy describes what data the app handles on your device and when it contacts third-party services. Yopomura does not run its own servers and does not sell personal data.
 
 ## Summary
 
@@ -38,9 +38,9 @@ If you log in to AniList, your OAuth access token is stored in the renderer's `l
 
 The browser uses its own Chromium session partition. Pages you visit can set cookies, use local storage and cache data in that partition. Bookmarks are stored in `browser-bookmarks.json`. The New Tab page uses neutral default sites and may request favicons from those sites; no browsing history is uploaded to Yopomura.
 
-### Generic downloader
+### Downloader
 
-When you start a download, the Python worker contacts the URL you supplied and follows the site's response. Downloaded files stay on your disk. The public build has no site-specific extractors; optional `gallery-dl` support runs locally if installed.
+When you start a download, the Python worker contacts the URL you supplied, either directly or through a matching recipe, a site-extractor overlay, or the hidden Chromium resolver, and follows the site's response. Downloaded files stay on your disk. The public source tree ships a generic worker; builds may load an optional extractor overlay. Optional `gallery-dl` support runs locally if installed.
 
 ### Browser proxy
 

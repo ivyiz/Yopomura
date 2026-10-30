@@ -12,8 +12,8 @@ may opt into a page-context script hook.
 - **Create downloader recipe** in the browser page context menu starts a visual picker: choose chapter/gallery mode, click a chapter link, click a page image, and optionally a next-page button.
 - The resulting draft opens in Downloader → Sites → **Recipe Editor** for review, preview and saving.
 
-The public app ships no site-specific adult recipes. Private recipe packs can be
-kept outside the repository and imported into the user profile.
+The public repository ships no bundled site recipes. Private or local recipe
+packs can be kept outside the repository and imported into the user profile.
 
 ## Recipe shape
 

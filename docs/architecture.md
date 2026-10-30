@@ -2,7 +2,7 @@
 
 > Last updated: 2026-08-22. Covers v2.24.x.
 
-Yomikiru is an offline Electron desktop app (Windows + Linux) for reading manga/comics and EPUB novels.
+Yopomura is a local-first Electron desktop app (Windows + Linux) for reading manga/comics and EPUB novels. Reading works offline; the integrated browser and downloader make network requests only for URLs you use.
 No server component; all data lives on the user's machine.
 
 ---
