@@ -404,6 +404,11 @@ export type DownloaderChannels = {
     /** Resolve a URL without queueing it; used by Preview and diagnostics. */
     "downloader:preview": ChannelDefinition<{ url: string }, DownloaderPreview>;
     "downloader:getReview": ChannelDefinition<{ id: string }, DownloaderReview | null>;
+    /** Review thumbnail proxy: adds the page Referer and uses the browser session cookies. */
+    "downloader:getReviewImage": ChannelDefinition<
+        { url: string; referer?: string },
+        { ok: true; data: string; contentType: string } | { ok: false; message: string }
+    >;
     "downloader:confirmReview": ChannelDefinition<
         { id: string; urls: string[] },
         { ok: true } | { ok: false; message: string }
@@ -477,6 +482,14 @@ export type BrowserChannels = {
     "browser:scanLinks": ChannelDefinition<{ tabId?: string }, BrowserScannedLink[]>;
     "browser:getAdblock": ChannelDefinition<void, BrowserAdblockState>;
     "browser:setAdblock": ChannelDefinition<{ enabled: boolean }, BrowserAdblockState>;
+    /** Pause/resume ad blocking for one page host. */
+    "browser:setAdblockException": ChannelDefinition<{ host: string; disabled: boolean }, BrowserAdblockState>;
+    "browser:resetAdblockStats": ChannelDefinition<void, BrowserAdblockState>;
+    /** Re-downloads the filter lists and rebuilds the engine. */
+    "browser:updateAdblock": ChannelDefinition<void, BrowserAdblockState>;
+    "browser:getAdblockFilters": ChannelDefinition<void, string>;
+    "browser:setAdblockFilters": ChannelDefinition<{ text: string }, BrowserAdblockState>;
+    "browser:adblockState": ChannelDefinition<BrowserAdblockState, void, "m2r">;
     /** Cached data URLs for the New Tab site tiles. */
     "browser:capturePage": ChannelDefinition<{ tabId?: string }, string>;
     "browser:getBookmarks": ChannelDefinition<void, BrowserBookmark[]>;

@@ -16,6 +16,7 @@ import { PAGE_SEARCH_PRIORITY } from "@renderer/hooks/usePageSearchFocus";
 import { setAppSettings } from "@store/appSettings";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import type { GalleryTrackingFilter } from "@utils/gallerySort";
+import { sortKeyLabel } from "@utils/utils";
 import { useTranslation } from "react-i18next";
 import GalleryTabBar, { type GalleryTabId } from "./GalleryTabBar";
 import GalleryTagFilterBar, { type GalleryTagFilterSelection } from "./GalleryTagFilterBar";
@@ -287,7 +288,7 @@ const GalleryToolbar: React.FC<GalleryToolbarProps> = ({
                         <button
                             data-tooltip={t("shared.sort.tooltip", {
                                 arrow: sortType === "normal" ? "▲ " : "▼ ",
-                                by: sortBy.toUpperCase(),
+                                by: sortKeyLabel(sortBy),
                             })}
                             onClick={handleSortClick}
                         >

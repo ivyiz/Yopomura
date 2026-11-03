@@ -96,7 +96,7 @@ export const openableFileStem = (
 };
 
 /**
- * Uppercase extension label for an openable archive/book file; otherwise `""`.
+ * Capitalised extension label (`Cbz`, `Epub`) for an openable archive/book file; otherwise `""`.
  */
 export const openableFileExtLabel = (
     str: string,
@@ -104,7 +104,8 @@ export const openableFileExtLabel = (
 ): string => {
     const ext = extname(str);
     if (!hasListedExt(str, OPENABLE_FILE_EXTS, extname)) return "";
-    return ext.replace(".", "").toUpperCase();
+    const label = ext.replace(".", "");
+    return label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
 };
 
 /**

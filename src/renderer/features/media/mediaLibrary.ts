@@ -415,6 +415,23 @@ export const writeWatchedPosition = (
 };
 
 /**
+ * Removes every saved resume position. Used by the Media history settings section.
+ * Storage failures are ignored so the caller can still clear the rest of the history.
+ */
+export const clearAllWatchedPositions = (storage: MediaPositionStorage = window.localStorage): void => {
+    try {
+        const keys: string[] = [];
+        for (let index = 0; index < storage.length; index += 1) {
+            const key = storage.key(index);
+            if (key?.startsWith(POSITION_KEY_PREFIX)) keys.push(key);
+        }
+        for (const key of keys) storage.removeItem(key);
+    } catch {
+        /* storage can be unavailable; nothing else to clear */
+    }
+};
+
+/**
  * Joins resume positions to the current scan result, newest first. Positions for files that are
  * no longer on disk, finished files, and duplicate paths are dropped.
  */

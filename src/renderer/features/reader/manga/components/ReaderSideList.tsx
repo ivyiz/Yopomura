@@ -46,6 +46,7 @@ import {
     selectChapterNavList,
     shuffleArray,
 } from "@utils/mangaChapters";
+import { sortKeyLabel } from "@utils/utils";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MANGA_BOOKMARK_OWNER_ID, MANGA_READER_OWNER_ID, MANGA_SIDE_LIST_OWNER_ID } from "../useMangaCommandOwner";
@@ -788,7 +789,7 @@ const ReaderSideList = memo(
                             <button
                                 data-tooltip={t("sideList.sortTooltip", {
                                     arrow: appSettings.locationListSortType === "normal" ? "▲ " : "▼ ",
-                                    by: appSettings.locationListSortBy.toUpperCase(),
+                                    by: sortKeyLabel(appSettings.locationListSortBy),
                                 })}
                                 onClick={handleSortClick}
                             >

@@ -57,7 +57,7 @@
     "otherSettings": {
         "title": "Other Settings",
         "hardwareAcceleration": "Hardware Acceleration",
-        "hardwareAccelerationDesc": "Use GPU to accelerate rendering. Prevents reader stuttering.",
+        "hardwareAccelerationDesc": "Use Gpu to accelerate rendering. Prevents reader stuttering.",
         "confirmCloseWindow": "Confirm Close Window",
         "confirmCloseWindowDesc": "Ask for confirmation before closing a window.",
         "minimizeToTray": "Minimize to Tray",
@@ -87,14 +87,16 @@
         "autoRefreshSideListDesc": "Automatically refresh reader-side-list when change in files is detected. It can be heavy task if you have slow storage and chapter+page count is high.",
         "canvasBasedRendering": "Canvas Based Rendering",
         "canvasBasedRenderingDesc1": "Make scrolling smooth and prevent stuttering when reading high res images.",
-        "canvasBasedRenderingDesc2": "Drawbacks : high RAM usage and less sharp images when size is set to a low value.",
+        "canvasBasedRenderingDesc2": "Drawbacks : high Ram usage and less sharp images when size is set to a low value.",
         "dynamicImageLoading": "Dynamic Image Loading",
         "dynamicImageLoadingDesc1": "Removes Initial loading screen and load Images as you scroll. Doesn't work with \"Canvas Based Rendering\"",
         "dynamicImageLoadingDesc2": "Drawbacks : Inconsistent scroll size, no double-span images support, stuttering while scrolling.",
+        "maxCachedPages": "Max Cached Pages (LRU)",
+        "maxCachedPagesDesc": "Maximum number of pages kept in memory during reading (20-200). Pages outside the active window are freed to reduce RAM usage.",
         "autoFocusChapter": "Auto-Focus current chapter in side-list ",
         "autoFocusChapterDesc": "Automatically scroll the side-list so the current chapter stays in view when you change chapters.",
-        "epubAutoFocusChapter": "EPUB: Auto-Focus current chapter in side-list ",
-        "epubDisableTextSelect": "EPUB: Disable Text Select / Enable double-click zen mode",
+        "epubAutoFocusChapter": "Epub: Auto-Focus current chapter in side-list ",
+        "epubDisableTextSelect": "Epub: Disable Text Select / Enable double-click zen mode",
         "epubDisableTextSelectDesc": "Removes ability to select text in epub reader and enabled double-click zen mode."
     },
     "styleSettings": {
@@ -178,23 +180,52 @@
         "refreshing": "Refreshing…",
         "close": "Close"
     },
+    "mediaHistory": {
+        "title": "Media history",
+        "desc": "Clear the Continue Playing, Recently Downloaded and Recent Folders lists shown in the Media panel. Video files are never deleted.",
+        "clearVideos": "Clear Continue Playing",
+        "clearVideosDesc": "Removes saved playback positions and the recently opened video list.",
+        "clearFolders": "Clear recent folders",
+        "clearFoldersDesc": "Forgets folders opened in the Media panel.",
+        "clearDownloads": "Clear recently downloaded",
+        "clearDownloadsDesc": "Removes the browser and downloader history shown in Media.",
+        "clear": "Clear",
+        "confirmTitle": "Clear media history?",
+        "confirmMessage": "This only clears the saved lists. Video files are not deleted.",
+        "cleared": "Media history cleared."
+    },
     "browser": {
         "title": "Browser",
         "desc": "Choose the search engine and dark-mode behavior for the integrated browser. You can also change the search engine from the Extensions popover.",
         "searchEngine": "Search engine",
         "forceDark": "Force dark mode",
-        "forceDarkDesc": "Apply a forced dark theme to pages that support it. Disable it for individual sites from the browser page context menu.",
+        "forceDarkDesc": "Off by default. When enabled, a forced dark theme is applied to pages that support it; some sites look washed out, so it can be disabled per site from the browser page context menu.",
         "exceptions": "Dark mode disabled on these sites",
         "noExceptions": "No site exceptions.",
-        "enableSite": "Enable"
+        "enableSite": "Enable",
+        "adblockTitle": "Ad blocking",
+        "adblockDesc": "Blocks ads and trackers in the integrated browser with the uBlock Origin, EasyList and Brave filter sets.",
+        "adblockPrebuilt": "Using Ghostery's prebuilt filter set because the full list download failed.",
+        "adblockFallback": "Filter lists could not be loaded; only the fallback host blocker is active.",
+        "adblockBlocked": "{{count}} requests blocked this session.",
+        "adblockUpdated": "Lists updated {{date}}.",
+        "adblockExceptions": "Ad blocking paused on these sites",
+        "adblockNoExceptions": "No sites are paused.",
+        "adblockReset": "Reset counters",
+        "adblockUpdate": "Update filter lists",
+        "adblockUpdating": "Updating...",
+        "adblockCustomFilters": "Custom filters",
+        "adblockCustomFiltersDesc": "One uBlock Origin rule per line. Cosmetic rules (##selector) are supported.",
+        "adblockCustomFiltersSave": "Save filters",
+        "adblockCustomFiltersSaved": "Saved."
     },
     "proxy": {
         "title": "Browser proxy",
-        "desc": "Route only the integrated browser through an HTTP, HTTPS or SOCKS5 proxy. Other apps and the reader stay on your normal connection."
+        "desc": "Route only the integrated browser through an Http, Https or Socks5 proxy. Other apps and the reader stay on your normal connection."
     },
     "profileBackup": {
         "title": "Profile backup",
-        "desc": "Save your library database, settings, presets, shortcuts, themes, covers and trash to a ZIP file. Restoring replaces them on the next launch."
+        "desc": "Save your library database, settings, presets, shortcuts, themes, covers and trash to a Zip file. Restoring replaces them on the next launch."
     },
     "dbBackup": {
         "title": "Library Database Backup",
@@ -224,8 +255,8 @@
         "invalidName": "Invalid backup file name.",
         "notFound": "Backup file not found.",
         "sizeBytes": "B",
-        "sizeKb": "KB",
-        "sizeMb": "MB"
+        "sizeKb": "KiB",
+        "sizeMb": "MiB"
     },
     "reset": {
         "title": "Reset",
@@ -306,7 +337,7 @@
         "clearCacheError": "Could not clear cover cache.",
         "regenTitle": "Regenerate all covers",
         "regenMessage": "Rebuild WebP thumbnails for every library item? This may take several minutes.",
-        "regenDetail": "Manga uses folder cover images when present; books require reading each EPUB. You can cancel by closing the app.",
+        "regenDetail": "Manga uses folder cover images when present; books require reading each Epub. You can cancel by closing the app.",
         "regenerate": "Regenerate",
         "regenError": "Regenerate stopped due to an error.",
         "regenSkippedTitle": "Some covers were skipped",
@@ -331,7 +362,7 @@
         "backfillTitle": "Apply folder tags",
         "backfillMessage": "Add these tags to {{count}} titles already in the library under this folder? Other tags on those titles stay.",
         "importTitle": "Scan library folders",
-        "importMessage": "Walk nested folders and add manga series and EPUB books to the library. Grouping folders are skipped. Existing entries are skipped. This does not mark titles as in-progress.",
+        "importMessage": "Walk nested folders and add manga series and Epub books to the library. Grouping folders are skipped. Existing entries are skipped. This does not mark titles as in-progress.",
         "importBtn": "Scan",
         "importError": "Scan stopped due to an error.",
         "importFinishedTitle": "Scan finished",
@@ -387,11 +418,11 @@
         "mangaDescBefore": "For folders, ",
         "mangaDescAfter": " (Opened in Manga/Image Reader)",
         "epubDescBefore": "For ",
-        "epubDescAfter": " (Opened in EPUB Reader)",
+        "epubDescAfter": " (Opened in Epub Reader)",
         "addedManga": "Explorer option added successfully for manga/image files",
         "removedManga": "Explorer option removed successfully for manga/image files",
-        "addedEpub": "Explorer option added successfully for EPUB files",
-        "removedEpub": "Explorer option removed successfully for EPUB files"
+        "addedEpub": "Explorer option added successfully for Epub files",
+        "removedEpub": "Explorer option removed successfully for Epub files"
     },
     "anilist": {
         "title": "AniList",
@@ -405,8 +436,8 @@
         "errorUsername": "Error"
     },
     "pdf": {
-        "title": "PDF options",
-        "scaleDesc": "Scales PDF render quality. Higher scale results in higher quality.",
+        "title": "Pdf options",
+        "scaleDesc": "Scales Pdf render quality. Higher scale results in higher quality.",
         "scaleLabel": "Scale",
         "renderDescBefore": "Render your pdf into png for faster loading. The ",
         "tempFolder": "temp folder",
@@ -415,7 +446,7 @@
         "renderDescAfter": " must be enabled to use this.",
         "selectPdfs": "Select PDFs to render",
         "rendering": "[{{current}}/{{total}}] Rendering \"{{name}}...\"",
-        "renderError": "Error in rendering PDF",
+        "renderError": "Error in rendering Pdf",
         "renderedAll": "Rendered all PDFs"
     },
     "tempFolder": {
@@ -427,7 +458,7 @@
         "deleteCache": "Delete all File Cache",
         "keepTempFiles": "Keep Temp Files",
         "keepDesc1": "Keep temporary files, mainly extracted archives, pdf and epub. Skip extracting part when opening same title again. ",
-        "keepDesc2": "NOTE: A custom folder that the system cleans can still lose those files after a restart.",
+        "keepDesc2": "Note: A custom folder that the system cleans can still lose those files after a restart.",
         "clearConfirm": "Clear all extracted/rendered files?",
         "alsoClearCache": "Also clear app's cache."
     },
@@ -472,7 +503,7 @@
         "chromium": "Chromium: ",
         "nodejs": "Node.js: ",
         "v8": "V8: ",
-        "os": "OS: ",
+        "os": "System: ",
         "unknown": "unknown",
         "trackBeta": "Beta",
         "trackDefault": "Default"

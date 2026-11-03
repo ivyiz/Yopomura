@@ -8,7 +8,7 @@
     gap: 14px;
     max-width: min(520px, calc(100vw - 36px));
     padding: 12px 14px;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--divider-color);
     background: var(--body-bg-color);
     color: var(--font-color);
@@ -51,7 +51,7 @@
             border: 1px solid var(--divider-color);
             background: var(--btn-color);
             color: var(--font-color);
-            border-radius: 7px;
+            border-radius: var(--radius-md);
             font-size: 0.72rem;
             padding: 5px 9px;
             cursor: pointer;

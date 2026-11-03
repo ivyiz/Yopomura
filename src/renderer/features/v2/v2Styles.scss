@@ -1,0 +1,134 @@
+/* V2 No-Slop Clean Design System & Dynamic Theme Tokens */
+
+:root {
+  --v2-bg: var(--body-bg-color, #0a0818);
+  --v2-surface: color-mix(in srgb, var(--body-bg-color, #0a0818) 75%, var(--btn-color, #15112b));
+  --v2-glass: color-mix(in srgb, var(--body-bg-color, #0a0818) 85%, transparent);
+  --v2-border: var(--divider-color, rgba(255, 255, 255, 0.08));
+  --v2-border-strong: color-mix(in srgb, var(--font-color, #fff) 18%, transparent);
+  --v2-text: var(--font-color, #ffffff);
+  --v2-text-muted: var(--font-color-secondary, #8a7ba6);
+  --v2-accent: var(--btn-shadow-focus, #38bdf8);
+  --v2-btn: var(--btn-color, rgba(255, 255, 255, 0.06));
+  --v2-btn-hover: var(--btn-color-hover, rgba(255, 255, 255, 0.12));
+  --v2-input-bg: var(--text-input-bg, rgba(255, 255, 255, 0.05));
+  --v2-radius-sm: 6px;
+  --v2-radius-md: 8px;
+  --v2-radius-lg: 14px;
+}
+
+.v2-container {
+  width: 100%;
+  height: 100%;
+  background-color: var(--v2-bg);
+  color: var(--v2-text);
+  font-family: "Roboto", sans-serif;
+  overflow: hidden;
+  display: flex;
+}
+
+/* Glassmorphism Surface without Slop Glows */
+.v2-glass {
+  background: var(--v2-glass);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border: 1px solid var(--v2-border);
+}
+
+/* Buttons */
+.v2-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 10px;
+  border-radius: var(--v2-radius-md);
+  color: var(--v2-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  box-shadow: none !important;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+
+  &:hover {
+    background: var(--v2-btn-hover);
+    color: var(--v2-text);
+  }
+
+  &[data-active='true'] {
+    background: color-mix(in srgb, var(--v2-accent) 18%, transparent);
+    color: var(--v2-accent);
+    border-color: color-mix(in srgb, var(--v2-accent) 40%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--v2-accent);
+    outline-offset: 1px;
+  }
+}
+
+.v2-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--v2-border);
+}
+
+.v2-kbd {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--v2-text-muted);
+  background: color-mix(in srgb, var(--v2-text) 6%, transparent);
+  border: 1px solid var(--v2-border);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Clean sliders without neon glow */
+input[type='range'].v2-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--v2-text) 14%, transparent);
+  outline: none;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--v2-accent);
+    border: 2px solid var(--v2-bg);
+    cursor: pointer;
+    box-shadow: none !important;
+  }
+}
+
+/* Popover Animation */
+@keyframes v2-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.v2-pop {
+  animation: v2-pop 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

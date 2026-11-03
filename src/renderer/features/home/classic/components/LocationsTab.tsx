@@ -16,6 +16,7 @@ import { dialogUtils } from "@utils/dialog";
 import { formatUtils } from "@utils/file";
 import { indexLibraryItemsByLink, locationLinkKey } from "@utils/locationCover";
 import { createRendererLogger } from "@utils/logger";
+import { sortKeyLabel } from "@utils/utils";
 import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppContext } from "src/renderer/App";
@@ -307,7 +308,7 @@ const LocationsTab = (): ReactElement => {
                         <button
                             data-tooltip={t("shared.sort.tooltip", {
                                 arrow: appSettings.locationListSortType === "normal" ? "▲ " : "▼ ",
-                                by: appSettings.locationListSortBy.toUpperCase(),
+                                by: sortKeyLabel(appSettings.locationListSortBy),
                             })}
                             onClick={(e) => {
                                 const items: Menu.ListItem[] = [

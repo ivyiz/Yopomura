@@ -32,6 +32,7 @@ import { useHeldScroll } from "../hooks/useHeldScroll";
 import useSmoothScroll from "../hooks/useSmoothScroll";
 import ReaderSettings from "./components/ReaderSettings";
 import ReaderSideList from "./components/ReaderSideList";
+import { MangaPageLRUCache } from "./services/mangaPageLRU";
 import {
     MANGA_BOOKMARK_OWNER_ID,
     MANGA_READER_SETTINGS_OWNER_ID,
@@ -188,25 +189,190 @@ const Reader: React.FC = () => {
         }
     };
     window.app.scrollToPage = scrollToPage;
+    useEffect(() => {
+        return () => {
+            if (window.app.scrollToPage === scrollToPage) {
+                delete (window.app as Partial<typeof window.app>).scrollToPage;
+            }
+            pageLRURef.current.clear();
+            try {
+                window.electron?.webFrame?.clearCache();
+            } catch {
+                /* cache clearing is best effort */
+            }
+        };
+    }, []);
+
+    const handleEvictPage = useCallback((pageIndex: number) => {
+        const pageNumber = pageIndex + 1;
+        const elem = imgContRef.current?.querySelector(`[data-pagenumber='${pageNumber}']`);
+        if (!elem) return;
+
+        if (elem instanceof HTMLCanvasElement) {
+            const h = elem.offsetHeight || elem.height;
+            const w = elem.offsetWidth || elem.width;
+            if (h > 0) elem.style.minHeight = `${h}px`;
+            if (w > 0) elem.style.minWidth = `${w}px`;
+            elem.width = 0;
+            elem.height = 0;
+            elem.setAttribute("data-evicted", "true");
+        } else if (elem instanceof HTMLImageElement) {
+            const h = elem.offsetHeight;
+            if (h > 0) elem.style.minHeight = `${h}px`;
+            const currentSrc = elem.src;
+            if (currentSrc && currentSrc.startsWith("blob:")) {
+                try {
+                    URL.revokeObjectURL(currentSrc);
+                } catch {
+                    /* revoking a stale blob url is best effort */
+                }
+            }
+            if (
+                !elem.getAttribute("data-load-src") &&
+                currentSrc &&
+                !currentSrc.startsWith("data:image/svg+xml")
+            ) {
+                elem.setAttribute("data-load-src", currentSrc);
+            }
+            elem.setAttribute("data-evicted", "true");
+            elem.src = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E";
+        }
+    }, []);
+
+    const handleReloadPage = useCallback(
+        (pageIndex: number) => {
+            const pageNumber = pageIndex + 1;
+            const elem = imgContRef.current?.querySelector(`[data-pagenumber='${pageNumber}']`);
+            if (!elem || elem.getAttribute("data-evicted") !== "true") return;
+
+            const imgURL = images[pageIndex];
+            if (!imgURL) return;
+
+            if (elem instanceof HTMLCanvasElement) {
+                const img = new Image();
+                const safeURL = `file://${imgURL.replaceAll("#", "%23")}`;
+                const drawOnCanvas = () => {
+                    elem.width = img.width;
+                    elem.height = img.height;
+                    const ctx = elem.getContext("2d");
+                    ctx?.drawImage(img, 0, 0);
+                    elem.removeAttribute("data-evicted");
+                    elem.style.minHeight = "";
+                    elem.style.minWidth = "";
+                };
+                img.onload = drawOnCanvas;
+                if (imgURL.length < 256) {
+                    img.src = safeURL;
+                } else {
+                    window.fs
+                        .readFile(imgURL, "base64")
+                        .then((data) => {
+                            img.src = `data:image/${window.path.extname(imgURL).substring(1)};base64,${data}`;
+                        })
+                        .catch((err) => log.error("Failed to reload canvas image", err));
+                }
+            } else if (elem instanceof HTMLImageElement) {
+                const rawSrc = elem.getAttribute("data-load-src") || elem.getAttribute("data-src") || imgURL;
+                const safeURL =
+                    rawSrc.startsWith("file:") || rawSrc.startsWith("data:")
+                        ? rawSrc
+                        : `file://${rawSrc.replaceAll("#", "%23")}`;
+                const applyImg = (srcToUse: string) => {
+                    const temp = new Image();
+                    temp.onload = () => {
+                        elem.src = srcToUse;
+                        elem.removeAttribute("data-evicted");
+                        elem.style.minHeight = "";
+                    };
+                    temp.src = srcToUse;
+                };
+                if (rawSrc.length < 256 || rawSrc.startsWith("data:") || rawSrc.startsWith("file:")) {
+                    applyImg(safeURL);
+                } else {
+                    window.fs
+                        .readFile(rawSrc, "base64")
+                        .then((data) => {
+                            applyImg(`data:image/${window.path.extname(rawSrc).substring(1)};base64,${data}`);
+                        })
+                        .catch((err) => log.error("Failed to reload image", err));
+                }
+            }
+        },
+        [images],
+    );
+
+    const pageLRURef = useRef<MangaPageLRUCache>(
+        new MangaPageLRUCache({
+            maxCapacity: appSettings.maxCachedPages || 50,
+            onEvict: (idx) => handleEvictPage(idx),
+            onReload: (idx) => handleReloadPage(idx),
+        }),
+    );
+
+    useEffect(() => {
+        if (appSettings.maxCachedPages) {
+            pageLRURef.current.setMaxCapacity(appSettings.maxCachedPages);
+        }
+    }, [appSettings.maxCachedPages]);
+
+    useEffect(() => {
+        if (typeof IntersectionObserver === "undefined" || !imgContRef.current || imageRow.length === 0) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                for (const entry of entries) {
+                    const pageStr = entry.target.getAttribute("data-pagenumber");
+                    if (pageStr) {
+                        const pageIdx = parseInt(pageStr, 10) - 1;
+                        if (!isNaN(pageIdx) && pageIdx >= 0) {
+                            pageLRURef.current.setVisible(pageIdx, entry.isIntersecting);
+                            if (entry.isIntersecting) {
+                                pageLRURef.current.touch(pageIdx);
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                root: isSideListPinned ? imgContRef.current : readerRef.current,
+                rootMargin: "800px 0px 800px 0px",
+            },
+        );
+
+        const pageElems = imgContRef.current.querySelectorAll("[data-pagenumber]");
+        pageElems.forEach((el) => {
+            observer.observe(el);
+        });
+
+        return () => {
+            observer.disconnect();
+        };
+    }, [imageRow, isSideListPinned]);
+
     const [imageDecodeQueue, setImageDecodeQueue] = useState<HTMLImageElement[]>([]);
     const [currentlyDecoding, setCurrentlyDecoding] = useState(false);
     useEffect(() => {
         if (!currentlyDecoding && imageDecodeQueue.length > 0) {
             setCurrentlyDecoding(true);
-            imageDecodeQueue
-                .shift()
+            const nextImg = imageDecodeQueue[0];
+            setImageDecodeQueue((queue) => queue.slice(1));
+            nextImg
                 ?.decode()
-                .then(() => {
+                .catch((err) => log.error("Image decode() failed in decode queue", err))
+                .finally(() => {
                     setCurrentlyDecoding(false);
-                })
-                .catch((err) => log.error("Image decode() failed in decode queue", err));
+                });
         }
     }, [currentlyDecoding, imageDecodeQueue]);
 
     useEffect(() => {
         currentPageNumberRef.current = currentPageNumber;
         dispatch(updateReaderMangaCurrentPage(currentPageNumber));
-    }, [currentPageNumber]);
+        if (images.length > 0) {
+            const currentIdx = currentPageNumber - 1;
+            pageLRURef.current.touch(currentIdx);
+            pageLRURef.current.setVisible(currentIdx, true);
+        }
+    }, [currentPageNumber, images.length]);
     useLayoutEffect(() => {
         currentImageRowRef.current = currentImageRow;
         changePageNumber();
@@ -364,6 +530,7 @@ const Reader: React.FC = () => {
             return;
         }
         if (chapterChangerDisplay) return setChapterChangerDisplay(false);
+        pageLRURef.current.clear();
         setCurrentImageRow((init) => {
             const next = init - 1;
             currentImageRowRef.current = next;
@@ -546,6 +713,19 @@ const Reader: React.FC = () => {
         setUpdatedAnilistProgress(false);
         setCurrentlyDecoding(false);
         setChapterChangerDisplay(false);
+        if (imageData.length > 0) {
+            imageData.forEach((item) => {
+                if (item.img instanceof HTMLCanvasElement) {
+                    item.img.width = 0;
+                    item.img.height = 0;
+                }
+            });
+        }
+        try {
+            window.electron?.webFrame?.clearCache();
+        } catch {
+            /* cache clearing is best effort */
+        }
         /* overlay stays until the imageRow open-scroll so a stored page does not flash page 1 */
         dispatch(
             setReaderLoading({
@@ -755,6 +935,12 @@ const Reader: React.FC = () => {
                 index++;
             }
             setImageRow(tempImageRow);
+            for (let i = 0; i < images.length; i++) {
+                pageLRURef.current.registerInitial(i);
+            }
+            const initialPage = chapterOpenPageRef.current || 1;
+            pageLRURef.current.touch(initialPage - 1);
+            pageLRURef.current.setVisible(initialPage - 1, true);
         }
     }, [
         imageData,
@@ -1289,27 +1475,50 @@ const Reader: React.FC = () => {
                             <InView
                                 as="div"
                                 initialInView={false}
+                                rootMargin="600px 0px 600px 0px"
                                 onChange={(inView, entry) => {
-                                    if (!inView) return;
-                                    const onImgLoad = (e: HTMLImageElement) => {
-                                        (entry.target as HTMLElement).style.height = "auto";
-                                        const src = e.getAttribute("data-load-src");
-                                        if (src) {
-                                            e.setAttribute("data-loading", "false");
-                                            e.src = src;
+                                    const target = entry.target as HTMLElement;
+                                    if (inView) {
+                                        const onImgLoad = (e: HTMLImageElement) => {
+                                            target.style.minHeight = "";
+                                            target.style.height = "auto";
+                                            const src = e.getAttribute("data-load-src");
+                                            if (src) {
+                                                e.setAttribute("data-loading", "false");
+                                                e.src = src;
+                                            }
+                                            target.setAttribute("data-rendered", "true");
+                                        };
+                                        const rendered = target.querySelectorAll("[data-loading='true']");
+                                        if (rendered.length === 0) return;
+
+                                        target.querySelectorAll("img").forEach((e) => {
+                                            const tempImg = new Image();
+                                            tempImg.onload = () => onImgLoad(e);
+                                            tempImg.src = e.getAttribute("data-load-src") as string;
+                                        });
+                                    } else {
+                                        if (target.getAttribute("data-rendered") === "true") {
+                                            const currentHeight = target.offsetHeight;
+                                            if (currentHeight > 0) {
+                                                target.style.minHeight = `${currentHeight}px`;
+                                            }
+                                            target.removeAttribute("data-rendered");
+                                            target.querySelectorAll("img").forEach((e) => {
+                                                e.setAttribute("data-loading", "true");
+                                                const currentSrc = e.src;
+                                                if (currentSrc && currentSrc.startsWith("blob:")) {
+                                                    try {
+                                                        URL.revokeObjectURL(currentSrc);
+                                                    } catch {
+                                                        /* revoking a stale blob url is best effort */
+                                                    }
+                                                }
+                                                e.src =
+                                                    "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E";
+                                            });
                                         }
-                                        entry.target.setAttribute("data-rendered", "true");
-                                    };
-                                    const rendered = entry.target.querySelectorAll("[data-loading='true']");
-                                    if (rendered.length === 0) return;
-
-                                    entry.target.querySelectorAll("img").forEach((e) => {
-                                        const tempImg = new Image();
-                                        tempImg.onload = () => onImgLoad(e);
-                                        tempImg.src = e.getAttribute("data-load-src") as string;
-                                    });
-
-                                    // unloading image does not free ram
+                                    }
                                 }}
                                 {...props}
                             >
@@ -1357,6 +1566,8 @@ const Reader: React.FC = () => {
                                             data-src={images[e]}
                                             key={imageData[e].img as string}
                                             alt={`Page ${imageData[e].index + 1}`}
+                                            loading="lazy"
+                                            decoding="async"
                                         />
                                     ),
                             )}

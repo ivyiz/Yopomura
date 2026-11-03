@@ -52,7 +52,7 @@
             gap: 4px;
             height: var(--galleryToolbarRowHeight);
             padding: 2px;
-            border-radius: 6px;
+            border-radius: var(--radius-md);
             background-color: var(--text-input-bg);
             overflow: visible;
 
@@ -64,7 +64,7 @@
                 height: 100%;
                 padding: 0 8px;
                 border: none;
-                border-radius: 4px;
+                border-radius: var(--radius-sm);
                 background: none;
                 cursor: pointer;
                 color: var(--font-color);
@@ -127,7 +127,7 @@
             min-width: 0;
             max-width: 15em;
             padding: 2px;
-            border-radius: 6px;
+            border-radius: var(--radius-md);
             background-color: var(--text-input-bg);
             overflow: visible;
 
@@ -143,7 +143,7 @@
                 max-width: 14em;
                 height: 100%;
                 padding: 0 0.5em 0 0.55em;
-                border-radius: 4px;
+                border-radius: var(--radius-sm);
                 background: none;
                 border: none;
                 color: var(--font-color);
@@ -167,7 +167,7 @@
                 height: 100%;
                 padding: 0 0.7em;
                 border: none;
-                border-radius: 4px;
+                border-radius: var(--radius-sm);
                 background: none;
                 color: var(--font-color);
                 opacity: 0.78;
@@ -295,7 +295,7 @@
             border: none;
             padding: 0;
             cursor: pointer;
-            border-radius: 6px;
+            border-radius: var(--radius-md);
             /* same footprint as classic .listCont .tools action buttons */
             width: var(--button-width);
             height: 100%;
@@ -327,7 +327,7 @@
             height: 100%;
             padding: 6px 12px;
             font-size: 1.2rem;
-            border-radius: 6px;
+            border-radius: var(--radius-md);
             color: var(--font-color);
             background-color: var(--text-input-bg);
 
@@ -484,7 +484,7 @@
 
             .galleryItem {
                 cursor: pointer;
-                border-radius: 8px;
+                border-radius: var(--radius-md);
                 /* Keep overflow visible so multi-select outline/offset is not clipped;
                    cover rounding is handled on `.coverContainer`. */
                 overflow: visible;
@@ -551,7 +551,7 @@
                     z-index: 11;
                     width: 32px;
                     height: 32px;
-                    border-radius: 8px;
+                    border-radius: var(--radius-md);
                     cursor: pointer;
                     opacity: 0;
                     transition:
@@ -579,7 +579,7 @@
                     .checkBox {
                         width: 20px;
                         height: 20px;
-                        border-radius: 4px;
+                        border-radius: var(--radius-sm);
                         border: 2px solid #fff;
                         background-color: transparent;
                         position: relative;
@@ -616,7 +616,7 @@
                 .coverContainer {
                     position: relative;
                     aspect-ratio: 2/3;
-                    border-radius: 8px;
+                    border-radius: var(--radius-md);
                     overflow: hidden;
                     background-color: var(--listItem-bg-color);
 
@@ -706,7 +706,7 @@
                     z-index: 10;
                     font-size: 12px;
                     padding: 0.4em;
-                    border-radius: 4px;
+                    border-radius: var(--radius-sm);
                 }
                 &:hover {
                     .continueReadingBtn {
@@ -745,7 +745,7 @@
     padding: 6px 10px;
     background-color: var(--btn-color-hover);
     color: var(--font-color);
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     box-shadow: inset 0 0 0 1px var(--btn-color-focus);
 
     .listSelectionCount {
@@ -762,7 +762,7 @@
         border: none;
         cursor: pointer;
         padding: 6px 8px;
-        border-radius: 4px;
+        border-radius: var(--radius-sm);
         color: var(--font-color);
         min-width: 32px;
         height: 32px;

@@ -6,12 +6,12 @@ export const DISABLED_HOSTS_EVENT = "yokomura-browser-disabled-hosts-changed";
 
 type DarkStorage = Pick<Storage, "getItem" | "setItem">;
 
-/** Force-dark defaults to on; "off" is the only stored disabled value. */
+/** Force-dark is opt-in; only the explicit "on" value enables it. */
 export const readForceDark = (storage: DarkStorage = window.localStorage): boolean => {
     try {
-        return storage.getItem(FORCE_DARK_KEY) !== "off";
+        return storage.getItem(FORCE_DARK_KEY) === "on";
     } catch {
-        return true;
+        return false;
     }
 };
 

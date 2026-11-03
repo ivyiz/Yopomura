@@ -21,7 +21,7 @@
         color: var(--font-color);
         background: var(--text-input-bg);
         border: 1px solid var(--divider-color);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         padding: 6px 8px;
         outline: none;
     }

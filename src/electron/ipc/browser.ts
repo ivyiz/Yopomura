@@ -1,5 +1,14 @@
 import path from "node:path";
-import { getAdblockState, setAdblockEnabled } from "@electron/browser/adblock";
+import {
+    getAdblockCustomFilters,
+    getAdblockState,
+    resetAdblockStats,
+    setAdblockCustomFilters,
+    setAdblockEnabled,
+    setAdblockException,
+    subscribeAdblockState,
+    updateAdblockFilters,
+} from "@electron/browser/adblock";
 import { BrowserManager } from "@electron/browser/BrowserManager";
 import { type BookmarkStore, BROWSER_BOOKMARKS_FILE, createBookmarkStore } from "@electron/browser/bookmarks";
 import {
@@ -31,6 +40,19 @@ const broadcastBookmarks = (): void => {
     }
 };
 
+/** Pushes the current adblock state to every open window (throttled upstream). */
+const broadcastAdblock = (): void => {
+    const state = getAdblockState();
+    for (const window of BrowserWindow.getAllWindows()) {
+        if (window.isDestroyed() || window.webContents.isDestroyed()) continue;
+        try {
+            ipc.send(window.webContents, "browser:adblockState", state);
+        } catch {
+            // window closed while broadcasting
+        }
+    }
+};
+
 const managerFor = (event: Electron.IpcMainInvokeEvent): BrowserManager => {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (!window) throw new Error("Browser IPC sender is not a window");
@@ -42,7 +64,7 @@ const managerFor = (event: Electron.IpcMainInvokeEvent): BrowserManager => {
         downloadDir: resolveDownloadDir(),
         videoDownloadDir: resolveVideoDownloadDir(),
         searchEngine: "brave",
-        forceDark: true,
+        forceDark: false,
     });
     manager.on("state", (state) => {
         if (window.isDestroyed() || window.webContents.isDestroyed()) return;
@@ -85,6 +107,7 @@ const managerFor = (event: Electron.IpcMainInvokeEvent): BrowserManager => {
 };
 
 export const registerBrowserHandlers = (): void => {
+    subscribeAdblockState(broadcastAdblock);
     ipc.handle("browser:getState", (event) => managerFor(event).getState());
     ipc.handle("browser:createTab", (event, { url, activate }) => ({
         id: managerFor(event).createTab(url, { activate }),
@@ -116,6 +139,11 @@ export const registerBrowserHandlers = (): void => {
     ipc.handle("browser:scanLinks", (event, { tabId }) => managerFor(event).scanLinks(tabId));
     ipc.handle("browser:getAdblock", () => getAdblockState());
     ipc.handle("browser:setAdblock", (_event, { enabled }) => setAdblockEnabled(enabled));
+    ipc.handle("browser:setAdblockException", (_event, { host, disabled }) => setAdblockException(host, disabled));
+    ipc.handle("browser:resetAdblockStats", () => resetAdblockStats());
+    ipc.handle("browser:updateAdblock", () => updateAdblockFilters());
+    ipc.handle("browser:getAdblockFilters", () => getAdblockCustomFilters());
+    ipc.handle("browser:setAdblockFilters", (_event, { text }) => setAdblockCustomFilters(text));
     ipc.handle("browser:capturePage", (event, { tabId }) => managerFor(event).capturePage(tabId));
     ipc.handle("browser:buildRecipe", (event) => managerFor(event).buildRecipe());
     ipc.handle("browser:getBookmarks", () => getBookmarkStore().list());

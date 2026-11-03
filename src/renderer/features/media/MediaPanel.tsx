@@ -2,7 +2,6 @@ import { getDefaultLocationPath } from "@common/library/folders";
 import { VIDEO_DOWNLOAD_FOLDER_NAME } from "@common/library/formats";
 import {
     faArrowLeft,
-    faArrowsRotate,
     faClockRotateLeft,
     faDownload,
     faFilm,
@@ -19,6 +18,7 @@ import { promptSelectDir } from "@utils/file";
 import { absolutePathToFileUrl } from "@utils/libraryCover";
 import type { DragEvent, SyntheticEvent } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import MediaHome from "./MediaHome";
 import MediaPlayerControls from "./MediaPlayerControls";
 import MediaThumbnail from "./MediaThumbnail";
 import {
@@ -42,11 +42,16 @@ import {
     writeWatchedPosition,
 } from "./mediaLibrary";
 import {
-    clearRecentDownloads,
-    RECENT_DOWNLOADS_EVENT,
-    type RecentDownload,
-    readRecentDownloads,
-} from "./recentDownloads";
+    addRecentFolder,
+    addRecentVideo,
+    MEDIA_RECENTS_EVENT,
+    type RecentFolder,
+    type RecentVideo,
+    readRecentFolders,
+    readRecentVideos,
+} from "./mediaRecents";
+import { videoTitleFromPath } from "./playlist";
+import { RECENT_DOWNLOADS_EVENT, type RecentDownload, readRecentDownloads } from "./recentDownloads";
 import "./mediaPanel.scss";
 
 export type MediaPanelProps = {
@@ -56,29 +61,10 @@ export type MediaPanelProps = {
 const MEDIA_VOLUME_KEY = "yokomura-media-volume";
 const THEATER_KEY = "yokomura-media-theater";
 const CUSTOM_ROOT_KEY = "yokomura-media-folder";
-const SCAN_DEPTH_KEY = "yokomura-media-depth";
 const AUTOPLAY_KEY = "yokomura-media-autoplay";
 
-type ScanDepth = 1 | 3 | 5 | 8 | "all";
-
-const SCAN_DEPTH_OPTIONS: readonly { value: ScanDepth; label: string }[] = [
-    { value: 1, label: "1 level" },
-    { value: 3, label: "3 levels" },
-    { value: 5, label: "5 levels" },
-    { value: 8, label: "8 levels" },
-    { value: "all", label: "All subfolders" },
-];
-
-const readScanDepth = (): ScanDepth => {
-    try {
-        const stored = window.localStorage.getItem(SCAN_DEPTH_KEY);
-        if (stored === "all") return "all";
-        const parsed = Number.parseInt(stored ?? "", 10);
-        return parsed === 1 || parsed === 3 || parsed === 5 || parsed === 8 ? parsed : 8;
-    } catch {
-        return 8;
-    }
-};
+/** Media scans always walk this many subfolder levels. */
+const MEDIA_SCAN_DEPTH = 8;
 
 const isDriveRoot = (path: string): boolean => /^[a-zA-Z]:[\\/]?$/.test(path.trim());
 const POSITION_SAVE_DELAY_MS = 1000;
@@ -99,10 +85,10 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 const formatMediaDate = (timestampMs: number): string =>
     Number.isFinite(timestampMs) && timestampMs > 0 ? dateFormatter.format(new Date(timestampMs)) : "Unknown date";
 
-/** Supported-container badge (`MP4`, `WEBM`); falls back to `VIDEO`. */
+/** Supported-container badge (`Mp4`, `Webm`); falls back to `Video`. */
 const extensionLabel = (path: string): string => {
-    const extension = window.path.extname(path).replace(/^\./, "").toUpperCase();
-    return extension || "VIDEO";
+    const extension = window.path.extname(path).replace(/^\./, "").toLowerCase();
+    return extension ? extension.charAt(0).toUpperCase() + extension.slice(1) : "Video";
 };
 
 /** Parent folder name used in compact list rows. */
@@ -147,10 +133,11 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
             return "";
         }
     });
-    const [scanDepth, setScanDepth] = useState<ScanDepth>(readScanDepth);
     const [dragActive, setDragActive] = useState(false);
     const [autoplayNotice, setAutoplayNotice] = useState("");
     const scanAbortRef = useRef<AbortController | null>(null);
+    const libraryListRef = useRef<HTMLUListElement>(null);
+    const lastAutoScanRef = useRef(0);
     const pendingSelectRef = useRef<string | null>(null);
     const autoplayNoticeTimer = useRef<number>(0);
 
@@ -178,8 +165,8 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         return result;
     }, [customRoot, folders]);
 
-    const maxScanDepth = scanDepth === "all" ? Number.POSITIVE_INFINITY : scanDepth;
-    const depthLabel = scanDepth === "all" ? "all subfolders" : `${scanDepth} levels deep`;
+    const maxScanDepth = MEDIA_SCAN_DEPTH;
+    const depthLabel = `${MEDIA_SCAN_DEPTH} levels deep`;
 
     /* Preload-backed reader; depth and error handling live in the pure scan helper. */
     const scanIo = useMemo<VideoScanIo>(
@@ -217,11 +204,22 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
     const [refreshToken, setRefreshToken] = useState(0);
     const [query, setQuery] = useState("");
     const [recentDownloads, setRecentDownloads] = useState<RecentDownload[]>(readRecentDownloads);
+    const [recentVideos, setRecentVideos] = useState<RecentVideo[]>(() => readRecentVideos());
+    const [recentFolders, setRecentFolders] = useState<RecentFolder[]>(() => readRecentFolders());
 
     useEffect(() => {
         const sync = () => setRecentDownloads(readRecentDownloads());
         window.addEventListener(RECENT_DOWNLOADS_EVENT, sync);
         return () => window.removeEventListener(RECENT_DOWNLOADS_EVENT, sync);
+    }, []);
+
+    useEffect(() => {
+        const sync = () => {
+            setRecentVideos(readRecentVideos());
+            setRecentFolders(readRecentFolders());
+        };
+        window.addEventListener(MEDIA_RECENTS_EVENT, sync);
+        return () => window.removeEventListener(MEDIA_RECENTS_EVENT, sync);
     }, []);
 
     /* Rescan when a browser download or downloader job finishes while this panel is open. */
@@ -247,7 +245,6 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
     }, []);
     const [sort, setSort] = useState<VideoSortMode>("newest");
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
-    const [showHome, setShowHome] = useState(false);
     const [watched, setWatched] = useState<WatchedPosition[]>(() => readWatchedPositions(window.localStorage));
 
     const [status, setStatus] = useState<PlayerStatus>("loading");
@@ -342,10 +339,49 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
     const selectedIsRecent = selected ? recentKeySet.has(normalizeVideoPath(selected.path)) : false;
     const playbackList = selectedIsRecent && recentPlaylist.length > 0 ? recentPlaylist : visible;
 
-    const clearRecent = () => {
-        clearRecentDownloads();
-        setRecentDownloads([]);
-    };
+    const availableRecentFolders = useMemo(
+        () =>
+            recentFolders.filter((folder) => {
+                try {
+                    return window.fs.existsSync(folder.path);
+                } catch {
+                    return false;
+                }
+            }),
+        [recentFolders],
+    );
+
+    /** In-progress history for Media Home, including files outside the current roots. */
+    const homeContinueItems = useMemo(() => {
+        const byKey = new Map(entries.map((entry) => [normalizeVideoPath(entry.path), entry]));
+        const rows: { entry: VideoEntry; position: WatchedPosition }[] = [];
+        for (const row of recentVideos) {
+            const key = normalizeVideoPath(row.path);
+            const position = watchedByPath.get(key);
+            if (!position || position.time <= 0) continue;
+            if (position.duration > 0 && position.duration - position.time <= END_CLEAR_THRESHOLD_SECONDS) {
+                continue;
+            }
+            let exists = false;
+            try {
+                exists = window.fs.existsSync(row.path);
+            } catch {
+                exists = false;
+            }
+            if (!exists) continue;
+            const entry = byKey.get(key) ?? { path: row.path, title: row.title, sizeBytes: 0, modifiedMs: 0 };
+            rows.push({ entry, position });
+            if (rows.length >= MAX_CONTINUE_ITEMS) break;
+        }
+        return rows;
+    }, [entries, recentVideos, watchedByPath]);
+
+    /* Seed the folder history from the single custom root older builds stored. */
+    useEffect(() => {
+        if (!customRoot) return;
+        if (readRecentFolders().length > 0) return;
+        setRecentFolders(addRecentFolder(customRoot));
+    }, [customRoot]);
 
     const refreshWatched = useCallback(() => {
         if (!mountedRef.current) return;
@@ -367,6 +403,7 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         const controller = new AbortController();
         scanAbortRef.current = controller;
         setScanState("scanning");
+        lastAutoScanRef.current = Date.now();
 
         /* The token itself is unused; referencing it keeps the rescan dependency explicit. */
         void refreshToken;
@@ -407,20 +444,33 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         };
     }, [refreshToken, roots, scanIo, maxScanDepth]);
 
-    /* Keep the active file valid after rescans; first load selects the newest video. */
+    /* Refresh the playlist when the user returns from another app (manual Rescan removed). */
     useEffect(() => {
-        if (showHome) return;
-        if (entries.length === 0) {
-            setSelectedPath(null);
-            return;
-        }
-        if (selectedPath) {
-            const key = normalizeVideoPath(selectedPath);
-            if (entries.some((entry) => normalizeVideoPath(entry.path) === key)) return;
-        }
-        const newest = filterAndSortVideos(entries, { sort: "newest" })[0];
-        setSelectedPath(newest?.path ?? null);
-    }, [entries, selectedPath, showHome]);
+        const onFocus = () => {
+            if (scanAbortRef.current) return;
+            const now = Date.now();
+            if (now - lastAutoScanRef.current < 30_000) return;
+            lastAutoScanRef.current = now;
+            setRefreshToken((token) => token + 1);
+        };
+        window.addEventListener("focus", onFocus);
+        return () => window.removeEventListener("focus", onFocus);
+    }, []);
+
+    /* A new root starts its playlist from the top. */
+    useEffect(() => {
+        /* Referenced so the reset runs on root changes, not on every render. */
+        void customRoot;
+        libraryListRef.current?.scrollTo({ top: 0 });
+    }, [customRoot]);
+
+    /* Keep the active file valid after rescans; never auto-play on open. */
+    useEffect(() => {
+        if (!selectedPath) return;
+        const key = normalizeVideoPath(selectedPath);
+        if (entries.some((entry) => normalizeVideoPath(entry.path) === key)) return;
+        setSelectedPath(null);
+    }, [entries, selectedPath]);
 
     /* Path and transport state must be current before a new <video> can fire metadata. */
     useLayoutEffect(() => {
@@ -583,6 +633,11 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
     const selectVideo = useCallback(
         (path: string) => {
             if (!path) return;
+            const title =
+                entries.find((entry) => normalizeVideoPath(entry.path) === normalizeVideoPath(path))?.title ??
+                videoTitleFromPath(path);
+            setRecentVideos(addRecentVideo(path, title));
+            setRecentFolders(addRecentFolder(window.path.dirname(path)));
             if (pathRef.current && normalizeVideoPath(path) === normalizeVideoPath(pathRef.current)) {
                 const video = videoRef.current;
                 if (video?.paused) void video.play().catch(() => undefined);
@@ -590,11 +645,10 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
             }
             flushPosition();
             autoplayRef.current = true;
-            setShowHome(false);
             setSelectedPath(path);
             refreshWatched();
         },
-        [flushPosition, refreshWatched],
+        [entries, flushPosition, refreshWatched],
     );
 
     const navigateVideo = useCallback(
@@ -833,12 +887,6 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [adjustVolume, goNext, goPrev, onClose, seekBy, selected, speedMenuOpen, toggleFullscreen, togglePlay]);
 
-    const handleRefresh = () => {
-        flushPosition();
-        scanAbortRef.current?.abort();
-        setRefreshToken((token) => token + 1);
-    };
-
     const confirmRiskyRoot = async (path: string): Promise<boolean> => {
         if (!isDriveRoot(path)) return true;
         const { response } = await dialogUtils.warn({
@@ -853,9 +901,14 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
     };
 
     const applyCustomRoot = (path: string, selectPath?: string) => {
-        if (selectPath) pendingSelectRef.current = selectPath;
-        setShowHome(false);
+        flushPosition();
+        setSelectedPath(null);
+        pendingSelectRef.current = selectPath ?? null;
         setCustomRoot(path);
+        setRecentFolders(addRecentFolder(path));
+        /* Drop rows from the previous root so the sidebar never shows stale files. */
+        setEntries([]);
+        setScanErrors([]);
         try {
             window.localStorage.setItem(CUSTOM_ROOT_KEY, path);
         } catch {
@@ -874,45 +927,32 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
         });
     };
 
+    /**
+     * Recent history can point outside the current roots. Open its folder first so
+     * the player has a matching scan entry instead of snapping back to the newest file.
+     */
+    const openRecentVideo = (path: string) => {
+        const key = normalizeVideoPath(path);
+        if (entries.some((entry) => normalizeVideoPath(entry.path) === key)) {
+            selectVideo(path);
+            return;
+        }
+        applyCustomRoot(window.path.dirname(path), path);
+    };
+
     const handleUseLibraryFolders = () => {
-        setShowHome(false);
+        flushPosition();
+        setSelectedPath(null);
         setCustomRoot("");
         pendingSelectRef.current = null;
+        setEntries([]);
+        setScanErrors([]);
         try {
             window.localStorage.removeItem(CUSTOM_ROOT_KEY);
         } catch {
             /* ignore */
         }
         setRefreshToken((token) => token + 1);
-    };
-
-    const applyScanDepth = (next: ScanDepth) => {
-        setScanDepth(next);
-        try {
-            window.localStorage.setItem(SCAN_DEPTH_KEY, String(next));
-        } catch {
-            /* ignore */
-        }
-        setRefreshToken((token) => token + 1);
-    };
-
-    const handleScanDepthChange = (next: ScanDepth) => {
-        if (next !== "all" || scanDepth === "all") {
-            applyScanDepth(next);
-            return;
-        }
-        void dialogUtils
-            .warn({
-                title: "Scan all subfolders?",
-                message: "Scanning every subfolder can take a very long time for a large folder.",
-                detail: "You can cancel the scan at any time with the Cancel button.",
-                noOption: false,
-                buttons: ["Cancel", "Scan all"],
-                defaultId: 0,
-            })
-            .then(({ response }) => {
-                if (response) applyScanDepth("all");
-            });
     };
 
     const cancelScan = () => {
@@ -976,17 +1016,8 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
 
     const handleBackHome = () => {
         flushPosition();
-        setShowHome(true);
         setSelectedPath(null);
-        setCustomRoot("");
         pendingSelectRef.current = null;
-        setQuery("");
-        try {
-            window.localStorage.removeItem(CUSTOM_ROOT_KEY);
-        } catch {
-            /* ignore */
-        }
-        setRefreshToken((token) => token + 1);
     };
 
     const scanNote = customRoot
@@ -1053,7 +1084,7 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                             <span>Sort</span>
                             <select
                                 value={sort}
-                                aria-label="Sort videos"
+                                aria-label="Sort playlist"
                                 onChange={(event) =>
                                     setSort(event.currentTarget.value === "name" ? "name" : "newest")
                                 }
@@ -1063,27 +1094,18 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                             </select>
                         </label>
 
-                        <button
-                            type="button"
-                            className={`mediaPanelIconButton${scanState === "scanning" ? " is-spinning" : ""}`}
-                            aria-label="Rescan library"
-                            title="Rescan library"
-                            disabled={roots.length === 0 || scanState === "scanning"}
-                            onClick={handleRefresh}
-                        >
-                            <FontAwesomeIcon icon={faArrowsRotate} />
-                        </button>
-
-                        <button
-                            type="button"
-                            className="mediaPanelBackHome"
-                            aria-label="Back to home"
-                            title="Back to Media home"
-                            onClick={handleBackHome}
-                        >
-                            <FontAwesomeIcon icon={faArrowLeft} aria-hidden />
-                            <span>Back To Home</span>
-                        </button>
+                        {selected ? (
+                            <button
+                                type="button"
+                                className="mediaPanelBackHome"
+                                aria-label="Back to home"
+                                title="Back to Media home"
+                                onClick={handleBackHome}
+                            >
+                                <FontAwesomeIcon icon={faArrowLeft} aria-hidden />
+                                <span>Back to home</span>
+                            </button>
+                        ) : null}
                     </div>
                 </header>
 
@@ -1092,39 +1114,11 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                         <FontAwesomeIcon icon={faFolderOpen} aria-hidden />
                         <span>{customRoot || "Library folders"}</span>
                     </span>
-                    <label className="mediaPanelDepth">
-                        <span>Depth</span>
-                        <select
-                            value={String(scanDepth)}
-                            aria-label="Scan depth"
-                            title="How many subfolder levels to scan"
-                            onChange={(event) => {
-                                const value = event.currentTarget.value;
-                                handleScanDepthChange(value === "all" ? "all" : (Number(value) as ScanDepth));
-                            }}
-                        >
-                            {SCAN_DEPTH_OPTIONS.map((option) => (
-                                <option key={option.value} value={String(option.value)}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                    {customRoot ? (
-                        <button
-                            type="button"
-                            className="mediaPanelSourceButton"
-                            title="Scan the configured library folders instead"
-                            onClick={handleUseLibraryFolders}
-                        >
-                            Back to library
-                        </button>
-                    ) : null}
                 </div>
 
                 <div className="mediaPanelBody">
                     <main className="mediaPanelMain">
-                        {selected && !showHome ? (
+                        {selected ? (
                             <>
                                 <div ref={stageRef} className="mediaPanelStage">
                                     {/* biome-ignore lint/a11y/useMediaCaption: local library videos ship no caption tracks */}
@@ -1321,9 +1315,8 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                         <div className="mediaPanelSectionHead">
                                             <h2 id="mediaPanelContinueTitle" className="mediaPanelSectionTitle">
                                                 <FontAwesomeIcon icon={faClockRotateLeft} aria-hidden />
-                                                <span>Continue watching</span>
+                                                <span>Continue Playing</span>
                                             </h2>
-                                            <span className="mediaPanelSectionCount">{continueItems.length}</span>
                                         </div>
 
                                         <div className="mediaPanelContinueRow">
@@ -1370,54 +1363,19 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                 ) : null}
                             </>
                         ) : (
-                            <div className="mediaPanelBlank">
-                                {scanState === "scanning" ? (
-                                    <>
-                                        <span className="mediaPanelSpinner" aria-hidden />
-                                        <span className="mediaPanelBlankTitle">Scanning your videos…</span>
-                                        <span className="mediaPanelBlankText">{scanNote}</span>
-                                        <button
-                                            type="button"
-                                            className="mediaPanelButton is-ghost"
-                                            onClick={cancelScan}
-                                        >
-                                            Cancel
-                                        </button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <FontAwesomeIcon
-                                            icon={faFolderOpen}
-                                            className="mediaPanelBlankIcon"
-                                            aria-hidden
-                                        />
-                                        <span className="mediaPanelBlankTitle">
-                                            {showHome ? "Add videos" : "No videos yet"}
-                                        </span>
-                                        <span className="mediaPanelBlankText">
-                                            Drag a video folder or an MP4/WebM file here, or choose a folder.
-                                        </span>
-                                        <div className="mediaPanelBlankActions">
-                                            <button
-                                                type="button"
-                                                className="mediaPanelButton"
-                                                onClick={handleChooseFolder}
-                                            >
-                                                Choose folder
-                                            </button>
-                                            {customRoot ? (
-                                                <button
-                                                    type="button"
-                                                    className="mediaPanelButton is-ghost"
-                                                    onClick={handleUseLibraryFolders}
-                                                >
-                                                    Back to library
-                                                </button>
-                                            ) : null}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
+                            <MediaHome
+                                scanning={scanState === "scanning"}
+                                scanNote={scanNote}
+                                onCancelScan={cancelScan}
+                                continueItems={homeContinueItems}
+                                recentlyDownloaded={recentRows}
+                                recentFolders={availableRecentFolders}
+                                customRoot={customRoot}
+                                onSelectVideo={openRecentVideo}
+                                onOpenFolder={applyCustomRoot}
+                                onChooseFolder={handleChooseFolder}
+                                onUseLibrary={handleUseLibraryFolders}
+                            />
                         )}
                     </main>
 
@@ -1425,11 +1383,6 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                         <div className="mediaPanelSidebarHead">
                             <div className="mediaPanelSidebarTitleBlock">
                                 <span className="mediaPanelSidebarTitle">Media</span>
-                                <span className="mediaPanelSidebarCount">
-                                    {query.trim()
-                                        ? `${visible.length + recentRows.length} of ${entries.length} videos`
-                                        : `${entries.length} video${entries.length === 1 ? "" : "s"}`}
-                                </span>
                             </div>
                         </div>
 
@@ -1440,15 +1393,6 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                         <FontAwesomeIcon icon={faDownload} aria-hidden />
                                         <span>Recently Downloaded</span>
                                     </h2>
-                                    <span className="mediaPanelRecentCount">{recentRows.length}</span>
-                                    <button
-                                        type="button"
-                                        className="mediaPanelRecentClear"
-                                        title="Clear recently downloaded list"
-                                        onClick={clearRecent}
-                                    >
-                                        Clear
-                                    </button>
                                 </div>
                                 <ul className="mediaPanelList mediaPanelRecentList">
                                     {recentRows.map(({ entry, downloadedAt }) => {
@@ -1496,11 +1440,6 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
 
                         <div className="mediaPanelLibraryHead">
                             <span className="mediaPanelLibraryTitle">Library</span>
-                            <span className="mediaPanelLibraryCount">
-                                {query.trim()
-                                    ? `${visible.length} of ${libraryEntries.length} videos`
-                                    : `${libraryEntries.length} video${libraryEntries.length === 1 ? "" : "s"}`}
-                            </span>
                         </div>
 
                         {scanState === "scanning" && entries.length === 0 ? (
@@ -1520,7 +1459,7 @@ const MediaPanel = ({ onClose }: MediaPanelProps) => {
                                 </span>
                             </div>
                         ) : (
-                            <ul className="mediaPanelList mediaPanelLibraryList">
+                            <ul ref={libraryListRef} className="mediaPanelList mediaPanelLibraryList">
                                 {visible.map((item, index) => {
                                     const active = selected
                                         ? normalizeVideoPath(item.path) === normalizeVideoPath(selected.path)

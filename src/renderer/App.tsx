@@ -1,5 +1,4 @@
 import { getDefaultLocationPath, setDefaultLocationPath } from "@common/library/folders";
-import type { DownloaderRecipeDraft } from "@common/types/downloader";
 import { confirmDeleteProgressForLinks } from "@features/home/classic/listSelectionActions";
 import { useAppCommandOwner } from "@features/keybindings";
 import { useDirectoryValidator } from "@features/reader/hooks/useDirectoryValidator";
@@ -57,6 +56,7 @@ import DownloaderPanel from "./features/downloader/DownloaderPanel";
 import DownloaderReviewModal from "./features/downloader/DownloaderReviewModal";
 import MediaPanel from "./features/media/MediaPanel";
 import VideoPlayer from "./features/media/VideoPlayer";
+import QuickJump from "./features/quickJump";
 import TrashPanel from "./features/trash/TrashPanel";
 import TrashToast from "./features/trash/TrashToast";
 import i18n from "./i18n";
@@ -100,8 +100,6 @@ interface AppContext {
     openDownloader: (initialUrls?: string) => void;
     /** Open the downloader directly on its Download History tab. */
     openDownloadHistory: () => void;
-    /** Open the downloader Sites tab with a draft from the visual recipe builder. */
-    openRecipeEditor: (draft: DownloaderRecipeDraft) => void;
     /** True while the downloader panel is mounted. */
     downloaderOpen: boolean;
     /** True while the image-review popup owns the window. */
@@ -174,7 +172,6 @@ const App = (): ReactElement => {
         view: "queue",
         request: 0,
     });
-    const [recipeDraft, setRecipeDraft] = useState<DownloaderRecipeDraft | null>(null);
     const [trashOpen, setTrashOpen] = useState(false);
     const [mediaOpen, setMediaOpen] = useState(false);
 
@@ -193,11 +190,6 @@ const App = (): ReactElement => {
         setDownloaderView((current) => ({ view: "history", request: current.request + 1 }));
         setDownloaderOpen(true);
     }, []);
-    const openRecipeEditor = useCallback((draft: DownloaderRecipeDraft) => {
-        setRecipeDraft(draft);
-        setDownloaderView((current) => ({ view: "sites", request: current.request + 1 }));
-        setDownloaderOpen(true);
-    }, []);
     const openTrash = useCallback(() => {
         setMediaOpen(false);
         setTrashOpen((open) => !open);
@@ -210,7 +202,6 @@ const App = (): ReactElement => {
     const openReaderExclusive = useCallback(
         async (link: string, options?: Parameters<typeof openInReaderIfValid>[1]) => {
             closeBrowser();
-            setDownloaderOpen(false);
             setMediaOpen(false);
             setTrashOpen(false);
             return openInReaderIfValid(link, options);
@@ -917,7 +908,6 @@ const App = (): ReactElement => {
                 openVideo,
                 openDownloader,
                 openDownloadHistory,
-                openRecipeEditor,
                 downloaderOpen,
                 downloaderReviewOpen,
                 openTrash,
@@ -951,8 +941,6 @@ const App = (): ReactElement => {
                     onDraftChange={setDownloaderDraft}
                     initialView={downloaderView.view}
                     viewRequest={downloaderView.request}
-                    recipeDraft={recipeDraft}
-                    onRecipeDraftConsumed={() => setRecipeDraft(null)}
                     onClose={() => setDownloaderOpen(false)}
                     onOpenOutput={(path) => void openReaderExclusive(path)}
                 />
@@ -961,6 +949,7 @@ const App = (): ReactElement => {
             {trashOpen ? <TrashPanel onClose={() => setTrashOpen(false)} /> : null}
             {mediaOpen ? <MediaPanel onClose={() => setMediaOpen(false)} /> : null}
             <BrowserHost />
+            <QuickJump />
             <TrashToast />
             <DownloadToast />
             <UiBlockOverlay />

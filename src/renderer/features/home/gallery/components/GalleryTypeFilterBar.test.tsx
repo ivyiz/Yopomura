@@ -39,7 +39,7 @@ describe("GalleryTypeFilterBar", () => {
         expect(manga).toHaveClass("tooltip-bottom-start");
         expect(manga?.getAttribute("data-tooltip")).toMatch(/manhwa/i);
         expect(manga?.getAttribute("data-tooltip")).toMatch(/webtoon/i);
-        expect(book?.getAttribute("data-tooltip")).toMatch(/EPUB/);
+        expect(book?.getAttribute("data-tooltip")).toMatch(/Epub/);
         expect(book?.getAttribute("data-tooltip")).toMatch(/PDF is not included/i);
     });
 });

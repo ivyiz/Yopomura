@@ -172,8 +172,8 @@ const ProxySettings = () => {
                                     update("protocol", event.currentTarget.value as ProxyProtocol)
                                 }
                             >
-                                <option value="http">HTTP</option>
-                                <option value="https">HTTPS</option>
+                                <option value="http">Http</option>
+                                <option value="https">Https</option>
                                 <option value="socks5">SOCKS5</option>
                             </select>
                         </label>

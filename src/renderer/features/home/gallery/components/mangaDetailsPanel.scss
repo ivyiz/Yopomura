@@ -212,7 +212,7 @@
         position: relative;
         isolation: isolate;
         border: 1px solid var(--error-color);
-        border-radius: 6px;
+        border-radius: var(--radius-md);
         background-color: var(--body-bg-color);
         /* tint with opacity on a themed overlay */
         &::before {
@@ -244,7 +244,7 @@
             word-break: break-all;
             opacity: 0.85;
             padding: 0.55rem 0.7rem;
-            border-radius: 4px;
+            border-radius: var(--radius-sm);
             width: 100%;
             box-sizing: border-box;
             position: relative;
@@ -276,7 +276,7 @@
                 align-items: center;
                 gap: 0.45rem;
                 border: none;
-                border-radius: 4px;
+                border-radius: var(--radius-sm);
                 padding: 10px 15px;
                 font-size: 0.95rem;
                 cursor: pointer;
@@ -346,7 +346,7 @@
         width: auto;
         aspect-ratio: 2 / 3;
         max-height: 100%;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         overflow: hidden;
     }
 
@@ -360,7 +360,7 @@
         height: 100%;
         object-fit: cover;
         display: block;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
     }
 
@@ -391,7 +391,7 @@
         height: var(--button-width);
         padding: 0;
         border: none;
-        border-radius: 6px;
+        border-radius: var(--radius-md);
         overflow: visible;
         display: inline-flex;
         align-items: center;
@@ -450,7 +450,7 @@
         color: var(--font-color-secondary);
         background: var(--btn-color);
         padding: 0.25em 0.5em;
-        border-radius: 4px;
+        border-radius: var(--radius-sm);
     }
 
     .details-author {
@@ -478,7 +478,7 @@
         .details-cover-source-toggle {
             padding: 0 0.75rem;
             font-size: 1.2rem;
-            border-radius: 6px;
+            border-radius: var(--radius-md);
             white-space: nowrap;
 
             &[aria-pressed="true"] {
@@ -503,7 +503,7 @@
             height: var(--button-width);
             padding: 0;
             overflow: visible;
-            border-radius: 6px;
+            border-radius: var(--radius-md);
             font-size: 1.2rem;
             display: inline-flex;
             align-items: center;
@@ -621,7 +621,7 @@
         height: auto;
         padding: 0.6rem 0.75rem;
         border: 0;
-        border-radius: 6px;
+        border-radius: var(--radius-md);
         text-align: left;
         font-weight: normal;
         overflow: visible;
@@ -645,7 +645,7 @@
         color: var(--font-color);
         background: var(--text-input-bg);
         border: 0;
-        border-radius: 6px;
+        border-radius: var(--radius-md);
         padding: 0.6rem 0.75rem;
         resize: none;
         overflow: hidden;
@@ -812,7 +812,7 @@
                     background-color: var(--code-bg-color);
                     color: var(--code-text-color);
                     padding: 2px 6px;
-                    border-radius: 4px;
+                    border-radius: var(--radius-sm);
                     font-size: 1rem;
                 }
 
@@ -849,7 +849,7 @@
                 width: 6px;
                 min-width: 6px;
                 min-height: 2.5rem;
-                border-radius: 3px;
+                border-radius: var(--radius-sm);
                 background-color: var(--btn-color);
             }
 

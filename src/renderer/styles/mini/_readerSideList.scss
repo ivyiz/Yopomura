@@ -282,7 +282,7 @@
                     background: var(--text-input-bg);
                     color: var(--text-input-color);
                     border: none;
-                    border-radius: 4px;
+                    border-radius: var(--radius-sm);
                     padding: 10px;
                     font-size: 16px;
                     font-family: var(--font-family);

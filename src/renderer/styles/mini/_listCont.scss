@@ -250,7 +250,7 @@
  */
 .listCont .location-cont li.locationRow {
     height: 100%;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     overflow: hidden;
     border: 1px solid var(--divider-color);
     /* Translucent tint layers over the theme row colour (and already-read tint)
@@ -295,7 +295,7 @@
         width: var(--location-cover-width, 80px);
         height: auto;
         aspect-ratio: 2 / 3;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         overflow: hidden;
         display: grid;
         place-items: center;
@@ -322,7 +322,6 @@
         font-weight: bold;
         color: var(--font-color-secondary);
         opacity: 0.75;
-        text-transform: uppercase;
     }
 
     .locationInfo {
@@ -376,13 +375,13 @@
         }
         &::-webkit-scrollbar-track {
             background: var(--scrollbar-track-color);
-            border-radius: 7px;
+            border-radius: var(--radius-md);
         }
         &::-webkit-scrollbar-thumb {
             min-height: 56px;
             background: var(--scrollbar-thumb-color);
             border: 3px solid var(--scrollbar-track-color);
-            border-radius: 7px;
+            border-radius: var(--radius-md);
         }
         &::-webkit-scrollbar-thumb:hover {
             background: var(--scrollbar-thumb-color-hover);

@@ -2,7 +2,6 @@ import { getDefaultLocationPath } from "@common/library/folders";
 import type {
     DownloaderJob,
     DownloaderPreview,
-    DownloaderRecipeDraft,
     DownloaderRecipeSummary,
     DownloaderState,
 } from "@common/types/downloader";
@@ -41,9 +40,6 @@ type DownloaderPanelProps = {
     initialView?: "queue" | "history" | "sites";
     /** Changes on every open request so an already-mounted panel still switches views. */
     viewRequest?: number;
-    /** Draft from the visual browser recipe builder. */
-    recipeDraft?: DownloaderRecipeDraft | null;
-    onRecipeDraftConsumed?: () => void;
     onClose: () => void;
     onOpenOutput: (path: string) => void;
 };
@@ -120,8 +116,6 @@ const DownloaderPanel = ({
     onDraftChange,
     initialView = "queue",
     viewRequest = 0,
-    recipeDraft = null,
-    onRecipeDraftConsumed,
     onClose,
     onOpenOutput,
 }: DownloaderPanelProps) => {
@@ -140,14 +134,6 @@ const DownloaderPanel = ({
     const [previewUrl, setPreviewUrl] = useState("");
     const [preview, setPreview] = useState<DownloaderPreview | null>(null);
     const [previewBusy, setPreviewBusy] = useState(false);
-    const [editor, setEditor] = useState<DownloaderRecipeDraft | null>(null);
-
-    useEffect(() => {
-        if (!recipeDraft) return;
-        setEditor({ ...recipeDraft });
-        setView("sites");
-        onRecipeDraftConsumed?.();
-    }, [recipeDraft, onRecipeDraftConsumed]);
 
     useEffect(() => {
         // Re-apply when the same view is requested again after a manual toggle.
@@ -277,36 +263,6 @@ const DownloaderPanel = ({
         const result = await window.electron.invoke("downloader:importRecipe");
         if (result.ok) {
             setRecipeMessage(`Imported ${result.recipe.name}`);
-            await refreshRecipes();
-        } else {
-            setRecipeMessage(result.message);
-        }
-    };
-
-    const updateEditor = (patch: Partial<DownloaderRecipeDraft>) => {
-        setEditor((current) => (current ? { ...current, ...patch } : current));
-    };
-
-    const newRecipe = () => {
-        setEditor({
-            id: "new-site",
-            name: "New Site",
-            match: [],
-            mode: "gallery",
-            titleSelector: "h1",
-            pageSelector: "img",
-        });
-        setPreviewUrl("");
-        setPreview(null);
-        setRecipeMessage("");
-    };
-
-    const saveEditor = async () => {
-        if (!editor) return;
-        const result = await window.electron.invoke("downloader:saveRecipe", editor);
-        if (result.ok) {
-            setRecipeMessage(`Saved ${result.recipe.name}`);
-            setEditor(null);
             await refreshRecipes();
         } else {
             setRecipeMessage(result.message);
@@ -609,9 +565,6 @@ const DownloaderPanel = ({
                 ) : (
                     <div className="downloaderSites">
                         <div className="downloaderSitesToolbar">
-                            <button type="button" onClick={newRecipe}>
-                                New Recipe
-                            </button>
                             <button type="button" onClick={() => void importRecipe()}>
                                 Import Recipe
                             </button>
@@ -623,150 +576,6 @@ const DownloaderPanel = ({
                             </button>
                         </div>
                         {recipeMessage ? <p className="downloaderSitesMessage">{recipeMessage}</p> : null}
-                        {editor ? (
-                            <div className="downloaderRecipeEditor">
-                                <div className="downloaderRecipeEditorHead">
-                                    <strong>Recipe Editor</strong>
-                                    <button type="button" onClick={() => setEditor(null)}>
-                                        Cancel
-                                    </button>
-                                </div>
-                                <div className="downloaderRecipeEditorGrid">
-                                    <label>
-                                        <span>Name</span>
-                                        <input
-                                            value={editor.name}
-                                            onChange={(event) => updateEditor({ name: event.currentTarget.value })}
-                                        />
-                                    </label>
-                                    <label>
-                                        <span>ID</span>
-                                        <input
-                                            value={editor.id}
-                                            onChange={(event) => updateEditor({ id: event.currentTarget.value })}
-                                        />
-                                    </label>
-                                    <label className="is-wide">
-                                        <span>Hosts (comma separated)</span>
-                                        <input
-                                            value={editor.match.join(", ")}
-                                            onChange={(event) =>
-                                                updateEditor({
-                                                    match: event.currentTarget.value
-                                                        .split(",")
-                                                        .map((value) => value.trim())
-                                                        .filter(Boolean),
-                                                })
-                                            }
-                                        />
-                                    </label>
-                                    <label>
-                                        <span>Mode</span>
-                                        <select
-                                            value={editor.mode}
-                                            onChange={(event) =>
-                                                updateEditor({
-                                                    mode: event.currentTarget
-                                                        .value as DownloaderRecipeDraft["mode"],
-                                                })
-                                            }
-                                        >
-                                            <option value="gallery">Gallery</option>
-                                            <option value="reader">Reader</option>
-                                            <option value="series">Series</option>
-                                        </select>
-                                    </label>
-                                    <label>
-                                        <span>Title selector</span>
-                                        <input
-                                            value={editor.titleSelector || ""}
-                                            onChange={(event) =>
-                                                updateEditor({ titleSelector: event.currentTarget.value })
-                                            }
-                                        />
-                                    </label>
-                                    <label>
-                                        <span>Chapter selector</span>
-                                        <input
-                                            value={editor.chapterSelector || ""}
-                                            disabled={editor.mode !== "series"}
-                                            onChange={(event) =>
-                                                updateEditor({
-                                                    chapterSelector: event.currentTarget.value,
-                                                })
-                                            }
-                                        />
-                                    </label>
-                                    <label className="is-wide">
-                                        <span>Page image selector</span>
-                                        <input
-                                            value={editor.pageSelector || ""}
-                                            onChange={(event) =>
-                                                updateEditor({ pageSelector: event.currentTarget.value })
-                                            }
-                                        />
-                                    </label>
-                                    <label>
-                                        <span>Next page selector</span>
-                                        <input
-                                            value={editor.nextSelector || ""}
-                                            onChange={(event) =>
-                                                updateEditor({ nextSelector: event.currentTarget.value })
-                                            }
-                                        />
-                                    </label>
-                                    <label className="is-wide">
-                                        <span>Test URL</span>
-                                        <input
-                                            value={editor.testUrl || ""}
-                                            onChange={(event) =>
-                                                updateEditor({ testUrl: event.currentTarget.value })
-                                            }
-                                        />
-                                    </label>
-                                    <label className="is-wide">
-                                        <span>Advanced script (optional)</span>
-                                        <textarea
-                                            value={editor.script || ""}
-                                            onChange={(event) =>
-                                                updateEditor({ script: event.currentTarget.value })
-                                            }
-                                            placeholder={
-                                                "async ({ url }) => ({\n  title: document.title,\n  chapters: [...document.querySelectorAll('a.chapter')].map(a => ({ href: a.href, name: a.textContent })),\n  images: [...document.querySelectorAll('.reader img')].map(img => img.src),\n  next: document.querySelector('a.next')?.href || ''\n})"
-                                            }
-                                            spellCheck={false}
-                                            rows={5}
-                                        />
-                                    </label>
-                                    <p className="downloaderRecipeEditorWarning">
-                                        Scripts run inside the sandboxed page. Only use recipes you trust.
-                                    </p>
-                                </div>
-                                <div className="downloaderRecipeEditorActions">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (editor.testUrl) setPreviewUrl(editor.testUrl);
-                                            void runPreview(editor.testUrl);
-                                        }}
-                                        disabled={previewBusy || !editor.testUrl?.trim()}
-                                    >
-                                        {previewBusy ? "Previewing…" : "Preview"}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => void saveEditor()}
-                                        disabled={
-                                            !editor.id.trim() ||
-                                            editor.match.length === 0 ||
-                                            (!editor.pageSelector?.trim() && !editor.script?.trim())
-                                        }
-                                    >
-                                        Save Recipe
-                                    </button>
-                                </div>
-                            </div>
-                        ) : null}
                         <div className="downloaderRecipes">
                             {recipes.length === 0 ? (
                                 <p className="downloaderEmpty">

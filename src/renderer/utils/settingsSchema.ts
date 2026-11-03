@@ -18,7 +18,7 @@ const log = createRendererLogger("settingsSchema");
 
 const sortTypeEnum = z.union([z.literal("normal"), z.literal("inverse")]);
 const sortByEnum = z.union([z.literal("name"), z.literal("date")]);
-const viewModeEnum = z.union([z.literal("classic"), z.literal("gallery")]);
+const viewModeEnum = z.union([z.literal("classic"), z.literal("gallery"), z.literal("v2")]);
 /** Gallery details hero compositions persisted by {@link settingSchema}. */
 const detailsHeroLayoutEnum = z.union([z.literal("vertical"), z.literal("horizontal")]);
 /** Tracker membership filters supported by the gallery toolbar. */
@@ -144,6 +144,7 @@ const settingSchema = z
          * When false, the temp folder is deleted when the reader closes.
          */
         keepExtractedFiles: z.boolean(),
+        maxCachedPages: z.number().min(20).max(200).default(50),
         /** Render reader setting toggles as checkboxes instead of toggle switches. */
         checkboxReaderSetting: z.boolean(),
         /** Reload settings.json and shortcuts.json when changed by another window. */
@@ -216,6 +217,7 @@ const settingSchema = z
         librarySettingsExpanded: true,
         libraryFoldersListExpanded: true,
         keepExtractedFiles: true,
+        maxCachedPages: 50,
         checkboxReaderSetting: false,
         syncSettings: true,
         syncThemes: true,

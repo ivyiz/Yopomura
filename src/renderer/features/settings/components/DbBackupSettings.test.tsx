@@ -41,7 +41,7 @@ describe("DbBackupSettings", () => {
         await waitFor(() => {
             expect(screen.getByText(copy.restore)).toBeInTheDocument();
         });
-        expect(screen.getByText(/2\.0 KB/)).toBeInTheDocument();
+        expect(screen.getByText(/2\.0 KiB/)).toBeInTheDocument();
     });
 
     it("Backup Now invokes runNow without opening the list", async () => {

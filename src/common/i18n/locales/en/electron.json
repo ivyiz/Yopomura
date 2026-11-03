@@ -46,7 +46,7 @@
         "severityErrorTitle": "{{severity}} Error",
         "detailSource": "Source: {{source}}",
         "detailAction": "Action: {{action}}",
-        "detailIpcChannel": "IPC Channel: {{channel}}",
+        "detailIpcChannel": "Ipc Channel: {{channel}}",
         "detailTime": "Time: {{time}}",
         "detailAppVersion": "App Version: {{version}}"
     },

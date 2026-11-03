@@ -180,6 +180,14 @@ export const isElementShown = (el: HTMLElement): boolean => {
 };
 
 /**
+ * Turns a camelCase sort key into a readable label in normal case (`lastRead` -> `Last read`).
+ */
+export const sortKeyLabel = (key: string): string => {
+    const spaced = key.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+};
+
+/**
  * Returns a debounced function that delays invoking `callback` until `waitMs` has elapsed.
  */
 export const debounce = <T extends unknown[]>(

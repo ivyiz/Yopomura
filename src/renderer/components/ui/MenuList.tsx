@@ -21,7 +21,7 @@ const MenuList: React.FC = () => {
     const [focused, setFocused] = useState(-1);
     const ref = useRef<HTMLDivElement | null>(null);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (optSelectData) {
             if (!optSelectData.elemBox) return log.error("elem box prop not provided.");
             if (ref.current) {
@@ -173,7 +173,7 @@ const MenuList: React.FC = () => {
                 top: pos.y,
                 // display: display ? "block" : "none",
                 "--min-width": pos.width === 0 ? "fit-content" : `${pos.width}px`,
-                visibility: optSelectData.items.length > 0 ? "visible" : "hidden",
+                visibility: pos.width <= 1 || optSelectData.items.length === 0 ? "hidden" : "visible",
             }}
             onKeyDown={(e) => {
                 e.stopPropagation();

@@ -249,7 +249,7 @@ export class DirectoryValidatorService {
                     app.deleteDirOnClose = tempExtractPath;
                 }
 
-                // library scan/cover reuse this path; only the reader overlay should show EXTRACTING
+                // library scan/cover reuse this path; only the reader overlay should show the extracting message
                 if (options.showLoading) {
                     onProgress({
                         message: i18n.t("loading.extracting", {

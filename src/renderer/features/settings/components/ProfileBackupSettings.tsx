@@ -66,7 +66,7 @@ const ProfileBackupSettings: React.FC = () => {
         try {
             const { response } = await dialogUtils.warn({
                 title: "Restore profile",
-                message: "Restore your Yopomura profile from a ZIP backup?",
+                message: "Restore your Yopomura profile from a zip backup?",
                 detail: "This replaces your library database, settings, presets, shortcuts, themes, covers and trash on the next launch. Your current profile is kept in a safety folder. Yopomura must restart to finish restoring.",
                 noOption: false,
                 buttons: ["Cancel", "Restore profile"],

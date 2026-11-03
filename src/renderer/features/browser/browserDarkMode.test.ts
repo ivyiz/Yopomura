@@ -21,13 +21,13 @@ const makeStorage = (initial?: string) => {
 };
 
 describe("browser force dark", () => {
-    it("defaults to on and only stores an explicit off", () => {
+    it("defaults to off and only enables an explicit on", () => {
         const storage = makeStorage();
-        expect(readForceDark(storage)).toBe(true);
-        saveForceDark(false, storage);
         expect(readForceDark(storage)).toBe(false);
         saveForceDark(true, storage);
         expect(readForceDark(storage)).toBe(true);
+        saveForceDark(false, storage);
+        expect(readForceDark(storage)).toBe(false);
     });
 
     it("returns an empty list for corrupt or non-array values", () => {
@@ -65,7 +65,7 @@ describe("browser force dark", () => {
             },
         };
         expect(readDisabledHosts(storage)).toEqual([]);
-        expect(readForceDark(storage)).toBe(true);
+        expect(readForceDark(storage)).toBe(false);
         expect(() => saveDisabledHosts(["a.com"], storage)).not.toThrow();
         expect(() => saveForceDark(false, storage)).not.toThrow();
     });

@@ -218,6 +218,17 @@ export const SETTINGS_TARGETS_STATIC: readonly SettingsTarget[] = [
         keywords: ["recently deleted", "trash", "undo", "deleted", "recover", "retention", "countdown"],
         contentPath: "trash",
     }),
+    setting("setting:media-history", "#settings-mediaHistory", "mediaHistory.title", {
+        keywords: [
+            "media history",
+            "continue playing",
+            "recent folders",
+            "recently downloaded",
+            "clear history",
+            "watch history",
+        ],
+        contentPath: "mediaHistory",
+    }),
     setting("setting:copy-theme", "#settings-copyTheme", "theme.copyCurrent", {
         keywords: ["clipboard", "share theme"],
     }),
@@ -354,22 +365,10 @@ export const SETTINGS_TARGETS_STATIC: readonly SettingsTarget[] = [
         "otherSettings.autoRefreshSideList",
         { contentPath: "otherSettings.autoRefreshSideListDesc" },
     ),
-    otherSetting(
-        "setting:canvas-based-rendering",
-        "#settings-canvasBasedRendering",
-        "otherSettings.canvasBasedRendering",
-        {
-            contentPath: ["otherSettings.canvasBasedRenderingDesc1", "otherSettings.canvasBasedRenderingDesc2"],
-        },
-    ),
-    otherSetting(
-        "setting:dynamic-image-loading",
-        "#settings-dynamicImageLoading",
-        "otherSettings.dynamicImageLoading",
-        {
-            contentPath: ["otherSettings.dynamicImageLoadingDesc1", "otherSettings.dynamicImageLoadingDesc2"],
-        },
-    ),
+    otherSetting("setting:max-cached-pages", "#settings-maxCachedPages", "otherSettings.maxCachedPages", {
+        keywords: ["lru", "cache", "memory", "ram", "pages", "buffer"],
+        contentPath: "otherSettings.maxCachedPagesDesc",
+    }),
     otherSetting("setting:auto-focus-chapter", "#settings-autoFocusChapter", "otherSettings.autoFocusChapter", {
         contentPath: "otherSettings.autoFocusChapterDesc",
     }),

@@ -14,7 +14,7 @@
     }
     &::-webkit-scrollbar-thumb {
         min-height: 48px;
-        border-radius: 6px;
+        border-radius: var(--radius-md);
         background: var(--scrollbar-thumb-color);
     }
     &::-webkit-scrollbar-thumb:hover {
@@ -125,7 +125,7 @@
     margin-top: 28px;
     padding: 24px;
     border: 1px dashed var(--divider-color);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     color: var(--font-color-secondary);
     text-align: center;
 
@@ -162,7 +162,7 @@
     padding: 0;
     overflow: hidden;
     border: 1px solid var(--divider-color);
-    border-radius: 11px;
+    border-radius: var(--radius-lg);
     background: color-mix(in srgb, var(--body-bg-color) 88%, var(--font-color) 4%);
     transition:
         border-color 0.14s ease,
@@ -182,7 +182,7 @@
     gap: 12px;
     padding: 12px;
     border: 0;
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
     background: transparent;
     color: var(--font-color);
     font-family: inherit;
@@ -207,7 +207,7 @@
     align-items: center;
     justify-content: center;
     border: 1px solid var(--divider-color);
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
     background: var(--text-input-bg);
     color: var(--font-color-secondary);
     font-size: 1.05rem;

@@ -182,7 +182,7 @@ describe("DirectoryValidatorService", () => {
             sendImages: true,
         });
         expect(onProgress).toHaveBeenCalled();
-        expect(onProgress.mock.calls.some((call) => String(call[0]?.message ?? "").includes("EXTRACTING"))).toBe(
+        expect(onProgress.mock.calls.some((call) => String(call[0]?.message ?? "").includes("Extracting"))).toBe(
             true,
         );
     });

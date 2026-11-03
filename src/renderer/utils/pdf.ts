@@ -17,6 +17,7 @@ const renderPDF = async (
     onUpdate?: (total: number, done: number) => void,
     pageLimit?: number,
 ): Promise<{ count: number; success: number; renderPath: string; link: string }> => {
+    let pdf: any;
     try {
         const loadingTask = pdfjsLib.getDocument(link);
 
@@ -28,67 +29,67 @@ const renderPDF = async (
             throw new Error("PDF is password protected.");
         };
 
-        const pdf = await loadingTask.promise;
+        pdf = await loadingTask.promise;
         const totalPages = pdf.numPages;
         let count = 0;
         let success = 0;
 
         const lastPage = pageLimit && pageLimit > 0 ? Math.min(totalPages, pageLimit) : totalPages;
 
-        const renderPromises = [];
+        const renderPage = async (pageNum: number) => {
+            try {
+                const page = await pdf.getPage(pageNum);
 
-        for (let i = 1; i <= lastPage; i++) {
-            renderPromises.push(
-                (async (pageNum) => {
-                    try {
-                        const page = await pdf.getPage(pageNum);
+                const viewport = page.getViewport({
+                    scale: scale || 1.5,
+                });
 
-                        const viewport = page.getViewport({
-                            scale: scale || 1.5,
-                        });
+                const canvas = document.createElement("canvas");
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
 
-                        const canvas = document.createElement("canvas");
-                        canvas.width = viewport.width;
-                        canvas.height = viewport.height;
+                const context = canvas.getContext("2d");
+                if (!context) {
+                    throw new Error(`Unable to get canvas context for page ${pageNum}`);
+                }
 
-                        const context = canvas.getContext("2d");
-                        if (!context) {
-                            throw new Error(`Unable to get canvas context for page ${pageNum}`);
-                        }
+                await page.render({
+                    canvasContext: context,
+                    viewport: viewport,
+                    intent: "print",
+                }).promise;
 
-                        await page.render({
-                            canvasContext: context,
-                            viewport: viewport,
-                            intent: "print",
-                        }).promise;
+                page.cleanup();
 
-                        page.cleanup();
+                const image = canvas.toDataURL("image/png");
 
-                        const image = canvas.toDataURL("image/png");
+                canvas.width = 0;
+                canvas.height = 0;
 
-                        canvas.width = 0;
-                        canvas.height = 0;
+                const imagePath = window.path.join(renderPath, `./${pageNum}.png`);
+                const imageData = image.replace(/^data:image\/png;base64,/, "");
 
-                        const imagePath = window.path.join(renderPath, `./${pageNum}.png`);
-                        const imageData = image.replace(/^data:image\/png;base64,/, "");
+                await window.fs.writeFile(imagePath, imageData, "base64");
+                success++;
 
-                        await window.fs.writeFile(imagePath, imageData, "base64");
-                        success++;
+                return true;
+            } catch (err) {
+                log.error(`PDF.js: render failed for page ${pageNum}`, err);
+                return false;
+            } finally {
+                count++;
+                onUpdate?.(totalPages, count);
+            }
+        };
 
-                        return true;
-                    } catch (err) {
-                        log.error(`PDF.js: render failed for page ${pageNum}`, err);
-                        return false;
-                    } finally {
-                        count++;
-                        onUpdate?.(totalPages, count);
-                    }
-                })(i),
-            );
+        const batchSize = 2;
+        for (let i = 1; i <= lastPage; i += batchSize) {
+            const batch = [];
+            for (let j = i; j < Math.min(i + batchSize, lastPage + 1); j++) {
+                batch.push(renderPage(j));
+            }
+            await Promise.all(batch);
         }
-
-        // Process all pages concurrently
-        await Promise.all(renderPromises);
 
         // Write the source file
         await window.fs.writeFile(window.path.join(renderPath, "SOURCE"), link);
@@ -104,6 +105,14 @@ const renderPDF = async (
             message: "PDF Reading Error",
             reason: err instanceof Error ? err.message : String(err),
         };
+    } finally {
+        if (pdf) {
+            try {
+                await pdf.destroy();
+            } catch {
+                /* destroying the document is best effort */
+            }
+        }
     }
 };
 

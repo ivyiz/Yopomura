@@ -34,13 +34,7 @@
     overflow: hidden;
     color-scheme: dark;
     color: var(--videoPlayer-text);
-    background:
-        radial-gradient(
-            1100px 560px at 50% -10%,
-            color-mix(in srgb, var(--videoPlayer-accent) 9%, transparent),
-            transparent 70%
-        ),
-        var(--videoPlayer-bg);
+    background: var(--videoPlayer-bg);
     outline: none;
     user-select: none;
     -webkit-app-region: no-drag;
@@ -61,7 +55,7 @@
         min-height: 38px;
         padding: 0 13px;
         border: 1px solid var(--videoPlayer-border);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         appearance: none;
         background: var(--videoPlayer-surface);
         color: var(--videoPlayer-text);
@@ -311,7 +305,7 @@
             height: 34px;
             padding: 0 27px 0 10px;
             border: 1px solid var(--videoPlayer-border);
-            border-radius: 8px;
+            border-radius: var(--radius-md);
             appearance: none;
             background: var(--videoPlayer-surface);
             color: var(--videoPlayer-text);
@@ -424,7 +418,7 @@
         min-height: 40px;
         padding: 8px 10px;
         border: 1px solid transparent;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         background: transparent;
         color: var(--videoPlayer-muted);
         font-size: 0.84rem;

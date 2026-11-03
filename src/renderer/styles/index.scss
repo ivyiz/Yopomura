@@ -67,6 +67,20 @@ html{
 }
 
 /*
+ * Shape tokens shared by every component. Hairlines are derived from the theme's text
+ * colour so they stay subtle on dark and light themes alike; no new theme properties.
+ */
+body {
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --line: color-mix(in srgb, var(--font-color) 10%, transparent);
+    --line-strong: color-mix(in srgb, var(--font-color) 20%, transparent);
+    --tint-hover: color-mix(in srgb, var(--font-color) 6%, transparent);
+    --focus-ring: 2px solid var(--font-color);
+}
+
+/*
  * ListNavigator.SearchInput chrome.
  *
  * Deliberately left outside @layer main: every consumer toolbar (gallery, details
@@ -131,8 +145,8 @@ html{
 
 @layer main {
     ::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
+        width: 8px;
+        height: 8px;
     }
 
     ::-webkit-scrollbar-track {
@@ -142,6 +156,7 @@ html{
     ::-webkit-scrollbar-thumb {
         min-height: 70px;
         background: var(--scrollbar-thumb-color);
+        border-radius: var(--radius-md);
     }
 
     ::-webkit-scrollbar-corner {
@@ -250,7 +265,7 @@ html{
             width: 100%;
             background-color: var(--divider-color);
             border: none;
-            height: 2px;
+            height: 1px;
             margin: 5px 0;
         }
         a {
@@ -258,7 +273,7 @@ html{
                 outline: transparent;
             }
             &.real-anchor {
-                border-radius: 4px;
+                border-radius: var(--radius-sm);
                 cursor: pointer;
                 text-decoration: underline;
             }
@@ -280,7 +295,12 @@ html{
 
             &:focus {
                 outline: none;
-                box-shadow: var(--btn-shadow-focus) 0 0 0px 2px;
+            }
+
+            /* keyboard focus only: mouse clicks never leave a ring behind */
+            &:focus-visible {
+                outline: var(--focus-ring);
+                outline-offset: 2px;
             }
         }
         svg {
@@ -295,10 +315,8 @@ html{
             display: inline;
             color: var(--code-text-color);
             background-color: var(--code-bg-color);
-            box-shadow: 0 0 2px 1px var(--code-shadow-color);
-            text-shadow: 0 0 6px var(--body-bg-color);
             padding: 2px 4px;
-            border-radius: 4px;
+            border-radius: var(--radius-sm);
             white-space: nowrap;
             font-size: 90%;
             align-self: center;
@@ -319,7 +337,7 @@ html{
                 cursor: inherit;
                 --rotate: 0;
                 z-index: 10000;
-                font-size: 18px;
+                font-size: 13px;
                 display: block;
                 white-space: nowrap;
                 color: #fff;
@@ -329,8 +347,8 @@ html{
                 top: 50%;
                 height: fit-content;
                 transform: translate(var(--translate)) scale(0) rotate(var(--rotate));
-                padding: 3px 5px;
-                border-radius: 5px;
+                padding: 4px 8px;
+                border-radius: var(--radius-sm);
                 opacity: 0;
                 pointer-events: none;
             }
@@ -438,10 +456,11 @@ html{
                 font-family: inherit;
                 font-size: 1em;
                 cursor: pointer;
-                padding: 10px 20px;
-                border-radius: 3px;
-                border: none;
+                padding: 9px 16px;
+                border-radius: var(--radius-md);
+                border: 0;
                 overflow: hidden;
+                transition: background-color 0.12s ease;
 
                 // &:focus {
                 //     outline: none;
@@ -506,18 +525,17 @@ html{
             .overlayCont:not(.settingCont) {
                 position: relative;
                 background: var(--body-bg-color);
-                border-radius: 10px;
+                border-radius: var(--radius-lg);
                 transition: 0.3s cubic-bezier(0, 1.15, 1, 1) transform;
                 width: min(500px, 60%);
-                box-shadow:
-                    rgba(0, 0, 0, 0.3) 0px 19px 38px,
-                    rgba(0, 0, 0, 0.22) 0px 15px 12px;
+                box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
                 overflow: auto;
                 gap: 10px;
                 overflow: hidden;
                 h1 {
-                    box-shadow: inset 0 -2px 0 0 var(--divider-color);
-                    padding: 10px;
+                    box-shadow: inset 0 -1px 0 0 var(--divider-color);
+                    padding: 12px 14px;
+                    font-size: 1.15em;
                 }
             }
             @import "mini/readerAnilist";
@@ -926,7 +944,7 @@ html{
                                     }
                                     .presetItemSelected {
                                         background-color: var(--btn-color-focus);
-                                        border-radius: 4px;
+                                        border-radius: var(--radius-sm);
                                     }
                                 }
                                 button {
@@ -1057,7 +1075,7 @@ html{
                                     padding: 10px;
                                     font-size: 15px;
                                     align-items: center;
-                                    border-radius: 3px;
+                                    border-radius: var(--radius-sm);
                                     overflow: initial;
                                 }
                                 .selected {
@@ -1068,7 +1086,7 @@ html{
                                     padding: 10px;
                                     font-size: 15px;
                                     align-items: center;
-                                    border-radius: 3px;
+                                    border-radius: var(--radius-sm);
 
                                     input[type="checkbox"] {
                                         display: none;
@@ -1140,7 +1158,7 @@ html{
                                 gap: 0.6em;
                                 padding: 0 0.25em 0 0.5em;
                                 background-color: var(--text-input-bg);
-                                border-radius: 3px;
+                                border-radius: var(--radius-sm);
                                 .shortcutChord {
                                     display: inline-flex;
                                     align-items: center;
@@ -1159,7 +1177,7 @@ html{
                                     padding: 0;
                                     font-size: 0.65em;
                                     line-height: 1;
-                                    border-radius: 3px;
+                                    border-radius: var(--radius-sm);
                                     flex-shrink: 0;
                                     align-self: center;
                                 }
@@ -1272,7 +1290,7 @@ html{
                 .loadingBarCont {
                     position: relative;
                     width: 60vw;
-                    border-radius: 5px;
+                    border-radius: var(--radius-md);
                     padding: 3px;
                     box-sizing: border-box;
                     height: 30px;
@@ -1405,7 +1423,7 @@ html{
                     transform: translate(-50%, -50%);
                     z-index: 100;
                     padding: 10px 20px;
-                    border-radius: 5px;
+                    border-radius: var(--radius-md);
                     pointer-events: none;
                     box-shadow: var(--font-color) 0 0 0 0.5px;
                     transition: 0s opacity;
@@ -1762,4 +1780,28 @@ html{
  */
 body *:not(#EPubReader .htmlCont):not(#EPubReader .htmlCont *) {
     letter-spacing: normal !important;
+    /* no shouting: labels are written in normal case, never styled to all caps */
+    text-transform: none !important;
+}
+
+/* Form controls do not inherit the page font by default; make them Roboto too. */
+body button,
+body input,
+body select,
+body textarea {
+    font-family: inherit;
+}
+
+/* Keyboard focus is always visible; pointer focus stays quiet. */
+body :is(a, button, select, input[type="checkbox"], input[type="radio"], input[type="range"]):focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body *,
+    body *::before,
+    body *::after {
+        transition-duration: 0.01ms !important;
+    }
 }

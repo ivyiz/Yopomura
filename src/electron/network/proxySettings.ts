@@ -294,6 +294,18 @@ export const testProxy = async (input: {
     }
 };
 
+/** Proxy URL for Node/undici requests (http/https only; credentials included). */
+export const getProxyUrlForRequests = (): string | null => {
+    const stored = readStored();
+    const config = stored.config;
+    if (config.mode !== "manual" || !config.host || !config.port) return null;
+    if (config.protocol !== "http" && config.protocol !== "https") return null;
+    const auth = config.username
+        ? `${encodeURIComponent(config.username)}:${encodeURIComponent(cachedPassword ?? "")}@`
+        : "";
+    return `${config.protocol}://${auth}${config.host}:${config.port}`;
+};
+
 /** Environment variables for the Python downloader (HTTP/HTTPS proxies only). */
 export const getProxyEnvironment = (): Record<string, string> => {
     const stored = readStored();

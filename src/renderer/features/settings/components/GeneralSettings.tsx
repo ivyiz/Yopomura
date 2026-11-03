@@ -5,6 +5,7 @@ import { updateMainSettings } from "@store/mainSettings";
 import { resetShortcuts } from "@store/shortcuts";
 import { resetAllTheme } from "@store/themes";
 import InputCheckbox from "@ui/InputCheckbox";
+import InputNumber from "@ui/InputNumber";
 import { dialogUtils } from "@utils/dialog";
 import { promptSelectDir } from "@utils/file";
 import { useTranslation } from "react-i18next";
@@ -19,6 +20,7 @@ import GeneralReaderPresetsSettings from "./GeneralReaderPresetsSettings";
 import GeneralThemeSettings from "./GeneralThemeSettings";
 import LanguageSettings from "./LanguageSettings";
 import LibrarySettings from "./LibrarySettings";
+import MediaHistorySettings from "./MediaHistorySettings";
 import ProfileBackupSettings from "./ProfileBackupSettings";
 import ProxySettings from "./ProxySettings";
 import TrashManager from "./TrashManager";
@@ -36,6 +38,7 @@ const GeneralSettings: React.FC = () => {
             <GeneralThemeSettings />
             <ViewSizeSettings />
             <TrashManager />
+            <MediaHistorySettings />
             <LanguageSettings />
             <GeneralReaderPresetsSettings />
             {process.platform === "win32" && <FileExplorerOptions />}
@@ -286,45 +289,20 @@ const GeneralSettings: React.FC = () => {
                     />
                     <div className="desc">{t("otherSettings.autoRefreshSideListDesc")}</div>
                 </div>
-                <div className="toggleItem" id="settings-canvasBasedRendering">
-                    <InputCheckbox
-                        checked={appSettings.useCanvasBasedReader}
-                        className="noBG"
+                <div className="toggleItem" id="settings-maxCachedPages">
+                    <InputNumber
+                        value={appSettings.maxCachedPages}
+                        min={20}
+                        max={200}
+                        step={5}
                         onChange={(e) => {
-                            dispatch(
-                                setAppSettings({
-                                    useCanvasBasedReader: e.currentTarget.checked,
-                                }),
-                            );
+                            const value = Math.max(20, Math.min(200, e.valueAsNumber || 50));
+                            dispatch(setAppSettings({ maxCachedPages: value }));
                         }}
-                        labelAfter={t("otherSettings.canvasBasedRendering")}
-                    />
-                    <div className="desc">
-                        {t("otherSettings.canvasBasedRenderingDesc1")}
-                        <br />
-                        {t("otherSettings.canvasBasedRenderingDesc2")}
-                        <code>{t("shared.experimental")}</code>
-                    </div>
-                </div>
-                <div className="toggleItem" id="settings-dynamicImageLoading">
-                    <InputCheckbox
-                        checked={appSettings.readerSettings.dynamicLoading}
+                        labelBefore={t("otherSettings.maxCachedPages")}
                         className="noBG"
-                        onChange={(e) => {
-                            dispatch(
-                                setReaderSettings({
-                                    dynamicLoading: e.currentTarget.checked,
-                                }),
-                            );
-                        }}
-                        disabled={appSettings.useCanvasBasedReader}
-                        labelAfter={t("otherSettings.dynamicImageLoading")}
                     />
-                    <div className="desc">
-                        {t("otherSettings.dynamicImageLoadingDesc1")}
-                        <br />
-                        {t("otherSettings.dynamicImageLoadingDesc2")}
-                    </div>
+                    <div className="desc">{t("otherSettings.maxCachedPagesDesc")}</div>
                 </div>
 
                 <div className="toggleItem" id="settings-autoFocusChapter">

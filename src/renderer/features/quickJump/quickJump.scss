@@ -1,0 +1,378 @@
+.quickJumpOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2150000;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: clamp(48px, 12vh, 120px);
+    padding-left: 16px;
+    padding-right: 16px;
+    background: rgba(4, 6, 12, 0.65);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    animation: qjFadeIn 0.16s ease-out;
+}
+
+@keyframes qjFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes qjSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.quickJumpModal {
+    width: min(720px, 94vw);
+    max-height: min(580px, 80vh);
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--radius-xl, 14px);
+    border: 1px solid var(--line-strong, rgba(255, 255, 255, 0.16));
+    background: color-mix(in srgb, var(--body-bg-color, #16181f) 86%, transparent);
+    backdrop-filter: blur(28px) saturate(190%);
+    -webkit-backdrop-filter: blur(28px) saturate(190%);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--line, rgba(255, 255, 255, 0.08));
+    overflow: hidden;
+    color: var(--font-color, #f0f0f0);
+    animation: qjSlideIn 0.18s var(--spring-ease, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.quickJumpHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line, rgba(255, 255, 255, 0.1));
+    position: relative;
+    background: color-mix(in srgb, var(--body-bg-color, #16181f) 40%, transparent);
+
+    .quickJumpSearchIcon {
+        font-size: 1.15rem;
+        opacity: 0.6;
+        color: var(--font-color, #fff);
+        flex-shrink: 0;
+    }
+
+    .quickJumpInput {
+        flex: 1;
+        background: transparent !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        font-size: 1.05rem !important;
+        color: var(--font-color, #fff) !important;
+        font-family: inherit;
+
+        &::placeholder {
+            color: color-mix(in srgb, var(--font-color, #fff) 45%, transparent);
+        }
+    }
+
+    .quickJumpHeaderActions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    .quickJumpClearBtn {
+        border: none;
+        background: transparent;
+        color: var(--font-color);
+        opacity: 0.6;
+        cursor: pointer;
+        padding: 4px 6px;
+        border-radius: var(--radius-sm, 6px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        &:hover {
+            opacity: 1;
+            background: var(--tint-hover, rgba(255, 255, 255, 0.08));
+        }
+    }
+
+    .quickJumpBadge {
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        padding: 3px 7px;
+        border-radius: var(--radius-sm, 6px);
+        background: color-mix(in srgb, var(--font-color, #fff) 12%, transparent);
+        border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+        color: color-mix(in srgb, var(--font-color, #fff) 75%, transparent);
+        user-select: none;
+    }
+}
+
+.quickJumpTabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-bottom: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+    background: color-mix(in srgb, var(--body-bg-color, #16181f) 20%, transparent);
+
+    .quickJumpTab {
+        border: none;
+        background: transparent;
+        color: color-mix(in srgb, var(--font-color, #fff) 65%, transparent);
+        font-size: 0.78rem;
+        font-weight: 500;
+        padding: 4px 10px;
+        border-radius: var(--radius-md, 8px);
+        cursor: pointer;
+        transition: background-color 0.12s, color 0.12s;
+
+        &:hover {
+            color: var(--font-color, #fff);
+            background: var(--tint-hover, rgba(255, 255, 255, 0.06));
+        }
+
+        &.active {
+            color: var(--font-select-bg-color, #38bdf8);
+            background: color-mix(in srgb, var(--font-select-bg-color, #38bdf8) 16%, transparent);
+            font-weight: 600;
+        }
+    }
+}
+
+.quickJumpResults {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 6px 10px;
+    max-height: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    &::-webkit-scrollbar {
+        width: 6px;
+    }
+    &::-webkit-scrollbar-thumb {
+        background: var(--line-strong, rgba(255, 255, 255, 0.2));
+        border-radius: 3px;
+    }
+}
+
+.quickJumpGroupHeader {
+    padding: 8px 10px 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: color-mix(in srgb, var(--font-color, #fff) 45%, transparent);
+    user-select: none;
+}
+
+.quickJumpItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: var(--radius-md, 8px);
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background-color 0.1s ease, border-color 0.1s ease;
+    user-select: none;
+    text-align: left;
+    width: 100%;
+    background: transparent;
+    color: inherit;
+
+    &:hover {
+        background: var(--tint-hover, rgba(255, 255, 255, 0.06));
+    }
+
+    &.selected {
+        background: color-mix(in srgb, var(--font-select-bg-color, #38bdf8) 18%, transparent);
+        border-color: color-mix(in srgb, var(--font-select-bg-color, #38bdf8) 35%, transparent);
+
+        .quickJumpItemIconCont {
+            background: color-mix(in srgb, var(--font-select-bg-color, #38bdf8) 30%, transparent);
+            color: var(--font-select-bg-color, #38bdf8);
+        }
+
+        .quickJumpEnterHint {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .quickJumpItemIconCont {
+        width: 34px;
+        height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-md, 8px);
+        background: color-mix(in srgb, var(--font-color, #fff) 8%, transparent);
+        color: color-mix(in srgb, var(--font-color, #fff) 80%, transparent);
+        font-size: 0.95rem;
+        flex-shrink: 0;
+        transition: background-color 0.1s, color 0.1s;
+    }
+
+    .quickJumpItemBody {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .quickJumpItemTitle {
+        font-size: 0.9rem;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--font-color, #fff);
+    }
+
+    .quickJumpItemSubtitle {
+        font-size: 0.76rem;
+        color: color-mix(in srgb, var(--font-color, #fff) 55%, transparent);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .quickJumpItemBadge {
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 2px 7px;
+        border-radius: var(--radius-sm, 6px);
+        background: color-mix(in srgb, var(--font-color, #fff) 8%, transparent);
+        border: 1px solid var(--line, rgba(255, 255, 255, 0.1));
+        color: color-mix(in srgb, var(--font-color, #fff) 70%, transparent);
+        flex-shrink: 0;
+        text-transform: capitalize;
+
+        &.badge-url {
+            color: #38bdf8;
+            border-color: rgba(56, 189, 248, 0.3);
+            background: rgba(56, 189, 248, 0.1);
+        }
+
+        &.badge-manga {
+            color: #a78bfa;
+            border-color: rgba(167, 139, 250, 0.3);
+            background: rgba(167, 139, 250, 0.1);
+        }
+
+        &.badge-book {
+            color: #f472b6;
+            border-color: rgba(244, 114, 182, 0.3);
+            background: rgba(244, 114, 182, 0.1);
+        }
+
+        &.badge-bookmark {
+            color: #fbbf24;
+            border-color: rgba(251, 191, 36, 0.3);
+            background: rgba(251, 191, 36, 0.1);
+        }
+
+        &.badge-settings {
+            color: #34d399;
+            border-color: rgba(52, 211, 153, 0.3);
+            background: rgba(52, 211, 153, 0.1);
+        }
+
+        &.badge-action {
+            color: #60a5fa;
+            border-color: rgba(96, 165, 250, 0.3);
+            background: rgba(96, 165, 250, 0.1);
+        }
+    }
+
+    .quickJumpEnterHint {
+        font-size: 0.85rem;
+        color: color-mix(in srgb, var(--font-color, #fff) 60%, transparent);
+        opacity: 0;
+        transform: translateX(-4px);
+        transition: opacity 0.1s, transform 0.1s;
+        flex-shrink: 0;
+        margin-left: 4px;
+    }
+}
+
+.quickJumpEmpty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 36px 16px;
+    gap: 8px;
+    color: color-mix(in srgb, var(--font-color, #fff) 50%, transparent);
+
+    .quickJumpEmptyIcon {
+        font-size: 1.8rem;
+        opacity: 0.4;
+        margin-bottom: 4px;
+    }
+
+    p {
+        margin: 0;
+        font-size: 0.88rem;
+    }
+
+    .quickJumpEmptySub {
+        font-size: 0.76rem;
+        opacity: 0.7;
+    }
+}
+
+.quickJumpFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 18px;
+    border-top: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+    font-size: 0.74rem;
+    color: color-mix(in srgb, var(--font-color, #fff) 50%, transparent);
+    background: color-mix(in srgb, var(--body-bg-color, #16181f) 30%, transparent);
+
+    .quickJumpShortcuts {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+
+        span {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        kbd {
+            font-family: inherit;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 1px 5px;
+            border-radius: 4px;
+            background: color-mix(in srgb, var(--font-color, #fff) 10%, transparent);
+            border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+            color: color-mix(in srgb, var(--font-color, #fff) 80%, transparent);
+        }
+    }
+
+    .quickJumpCount {
+        font-size: 0.74rem;
+    }
+}

@@ -287,6 +287,15 @@ const filterImages = (page: PageData, pageUrl: string): RawImage[] => {
         const small = knownSize && (Math.max(width, height) < 200 || area < 35_000);
         if (small) return;
         if (STRONG_AD_RE.test(path)) return;
+        /* Ad banners are almost always animated GIFs; manga pages are static images. */
+        if (/\.gif$/i.test(path)) return;
+        if (
+            /(?:red88|789club|vivu88|z088|fo88|dom88|86bet|sv388|w88|fun88|bk8|m88|12bet|188bet|letou|v9bet|new88|hi88)/i.test(
+                path,
+            )
+        ) {
+            return;
+        }
         if (/@\d+(?:\.\d+)?(?:\.(?:jpe?g|png|webp)(?:$|[?#]))?/i.test(path)) return;
         if (/[?&]w=\d+/i.test(search) && Number(new URL(url).searchParams.get("w")) < 600) return;
         if (/[?&]type=f\d+_\d+/i.test(search)) return;

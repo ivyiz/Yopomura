@@ -12,6 +12,7 @@ import {
     faTimes,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { setAppSettings } from "@store/appSettings";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { selectLiveMangaPresetId, selectLiveMangaReaderSettings, selectReaderCommandsActive } from "@store/reader";
 import { getActiveMangaPresetName, patchLiveMangaReaderSettings, updateMangaPreset } from "@store/readerPresets";
@@ -725,6 +726,18 @@ const ReaderSettings = memo(
                                         }),
                                     ),
                             ]}
+                        />
+                        <InputNumber
+                            value={appSettings.maxCachedPages}
+                            min={20}
+                            max={200}
+                            step={5}
+                            onChange={(e) => {
+                                const value = Math.max(20, Math.min(200, e.valueAsNumber || 50));
+                                dispatch(setAppSettings({ maxCachedPages: value }));
+                            }}
+                            labelBefore={tSettings("otherSettings.maxCachedPages")}
+                            className="noBG"
                         />
                     </MangaReaderSettingSection>
                 </div>

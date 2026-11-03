@@ -1,9 +1,11 @@
 body.downloaderSideOpen #app {
     width: calc(100vw - min(460px, 100vw));
+    transition: width 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 body.downloaderSideOpen .browserHost.is-full {
     right: min(460px, 100vw);
+    transition: right 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .downloaderOverlay {
@@ -19,13 +21,13 @@ body.downloaderSideOpen .browserHost.is-full {
     padding: 0;
     background: transparent;
     backdrop-filter: none;
-    animation: downloaderSideIn 0.18s ease-out;
+    animation: downloaderSideIn 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes downloaderSideIn {
     from {
-        transform: translateX(18px);
-        opacity: 0;
+        transform: translateX(100%);
+        opacity: 0.5;
     }
     to {
         transform: translateX(0);
@@ -39,12 +41,12 @@ body.downloaderSideOpen .browserHost.is-full {
     display: flex;
     flex-direction: column;
     min-height: 0;
-    border-radius: 0;
+    border-radius: var(--radius-xl, 14px) 0 0 var(--radius-xl, 14px);
     border: 0;
     border-left: 1px solid var(--divider-color);
     background: var(--body-bg-color);
     color: var(--font-color);
-    box-shadow: -14px 0 44px rgba(0, 0, 0, 0.5);
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.35);
     overflow: hidden;
 
     button {
@@ -53,7 +55,7 @@ body.downloaderSideOpen .browserHost.is-full {
         border: 1px solid var(--divider-color);
         background: var(--btn-color);
         color: var(--font-color);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         padding: 8px 12px;
         font-size: 0.85rem;
 
@@ -72,7 +74,7 @@ body.downloaderSideOpen .browserHost.is-full {
         color: var(--font-color);
         background: var(--text-input-bg);
         border: 1px solid var(--divider-color);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         padding: 9px 11px;
         outline: none;
         font-size: 0.9rem;
@@ -166,101 +168,6 @@ body.downloaderSideOpen .browserHost.is-full {
     font-size: 0.72rem;
 }
 
-.downloaderRecipeEditor {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 10px;
-    border: 1px solid var(--divider-color);
-    border-radius: 9px;
-    background: rgba(127, 127, 127, 0.06);
-}
-
-.downloaderRecipeEditorHead {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-
-    strong {
-        font-size: 0.78rem;
-    }
-
-    button {
-        padding: 4px 8px;
-        font-size: 0.7rem;
-    }
-}
-
-.downloaderRecipeEditorGrid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-
-    label {
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 3px;
-        padding: 0;
-        background: transparent;
-
-        &:hover {
-            background: transparent;
-        }
-
-        &.is-wide {
-            grid-column: 1 / -1;
-        }
-
-        span {
-            color: var(--font-color-secondary);
-            font-size: 0.68rem;
-        }
-
-        input,
-        select,
-        textarea {
-            width: 100%;
-            min-width: 0;
-            font-size: 0.72rem;
-        }
-
-        textarea {
-            resize: vertical;
-            min-height: 64px;
-            padding: 6px 8px;
-            line-height: 1.45;
-            color: var(--font-color);
-            background: var(--body-bg-color);
-            border: 1px solid var(--divider-color);
-            border-radius: 7px;
-        }
-    }
-}
-
-.downloaderRecipeEditorWarning {
-    grid-column: 1 / -1;
-    margin: 0;
-    padding: 6px 8px;
-    border-radius: 7px;
-    color: var(--font-color-secondary);
-    background: rgba(245, 158, 11, 0.12);
-    border: 1px solid rgba(245, 158, 11, 0.35);
-    font-size: 0.68rem;
-    line-height: 1.4;
-}
-
-.downloaderRecipeEditorActions {
-    display: flex;
-    gap: 6px;
-
-    button {
-        padding: 6px 10px;
-        font-size: 0.72rem;
-    }
-}
-
 .downloaderRecipes {
     display: flex;
     flex-direction: column;
@@ -273,7 +180,7 @@ body.downloaderSideOpen .browserHost.is-full {
     gap: 8px;
     padding: 8px 10px;
     border: 1px solid var(--divider-color);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: rgba(127, 127, 127, 0.06);
 }
 
@@ -353,7 +260,7 @@ body.downloaderSideOpen .browserHost.is-full {
     flex-direction: column;
     gap: 3px;
     padding: 8px 10px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: rgba(127, 127, 127, 0.08);
 
     strong {
@@ -427,7 +334,7 @@ body.downloaderSideOpen .browserHost.is-full {
     gap: 10px;
     padding: 10px 12px;
     border: 1px solid var(--divider-color);
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
     background: rgba(127, 127, 127, 0.06);
 }
 
@@ -438,7 +345,7 @@ body.downloaderSideOpen .browserHost.is-full {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: var(--btn-color);
     color: var(--font-color-secondary);
     font-size: 0.8rem;
@@ -564,15 +471,20 @@ body.downloaderSideOpen .browserHost.is-full {
 .downloaderQueueHead {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     padding: 12px 22px 8px;
     color: var(--font-color-secondary);
-    font-size: 0.65rem;
+    font-size: 0.78rem;
+
+    span:last-of-type {
+        font-variant-numeric: tabular-nums;
+    }
 
     button {
         margin-left: auto;
-        padding: 4px 8px;
-        font-size: 0.7rem;
+        min-height: 28px;
+        padding: 5px 10px;
+        font-size: 0.8rem;
         background: transparent;
     }
 }
@@ -596,7 +508,7 @@ body.downloaderSideOpen .browserHost.is-full {
 .downloaderJob {
     border: 1px solid var(--divider-color);
     background: rgba(127, 127, 127, 0.06);
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
     padding: 10px 12px;
 
     &.is-done {

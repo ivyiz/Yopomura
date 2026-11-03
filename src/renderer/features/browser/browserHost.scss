@@ -133,7 +133,7 @@
     border: none;
     background: transparent;
     color: inherit;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-style: normal;
     cursor: pointer;
     opacity: 0.6;
@@ -169,7 +169,7 @@
     border: none;
     background: transparent;
     color: var(--font-color-secondary);
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     cursor: pointer;
     font-size: 0.8rem;
 
@@ -202,7 +202,7 @@
     flex: 0 0 26px;
     align-self: center;
     padding: 0;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
 }
 
 .browserToolbar .browserIconBtn {
@@ -210,7 +210,7 @@
     height: 32px;
     flex: 0 0 32px;
     padding: 0;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
 }
 
 .browserToolbar {
@@ -242,7 +242,7 @@
     justify-content: center;
     padding: 0;
     border: 1px solid color-mix(in srgb, var(--divider-color) 80%, transparent);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--body-bg-color) 84%, var(--font-color) 4%);
     color: var(--font-color-secondary);
     font-size: 0.82rem;
@@ -290,7 +290,7 @@
     min-width: 80px;
     height: 32px;
     padding: 0 11px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     border: 1px solid var(--divider-color);
     background: var(--text-input-bg);
     color: var(--font-color);
@@ -407,7 +407,7 @@
     flex-direction: column;
     overflow: hidden;
     border: 1px solid var(--divider-color);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     background: var(--body-bg-color);
     color: var(--font-color);
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
@@ -437,7 +437,7 @@
     align-items: center;
     justify-content: center;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     background: transparent;
     color: var(--font-color-secondary);
     cursor: pointer;
@@ -471,7 +471,7 @@
     align-items: center;
     gap: 10px;
     padding: 9px 8px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
 
     &:hover,
     &:focus-within {
@@ -486,7 +486,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 7px;
+    border-radius: var(--radius-md);
     background: rgba(127, 127, 127, 0.1);
     color: var(--font-color-secondary);
     font-size: 0.85rem;
@@ -582,7 +582,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 6px;
+        border-radius: var(--radius-md);
         background: transparent;
         color: var(--font-color-secondary);
         font-size: 0.72rem;
@@ -670,9 +670,9 @@
     display: flex;
     flex-direction: column;
     padding: 5px;
-    border-radius: 9px;
-    border: 1px solid var(--divider-color);
-    background: var(--body-bg-color);
+    border-radius: var(--radius-lg);
+    background: var(--topBar-color);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 
     button {
         border: none;
@@ -680,12 +680,21 @@
         color: var(--font-color);
         text-align: left;
         padding: 7px 10px;
-        border-radius: 6px;
+        border-radius: var(--radius-md);
         font-size: 0.8rem;
         cursor: pointer;
 
         &:hover {
             background: var(--btn-color-hover);
+        }
+
+        &:active {
+            background: var(--btn-color-focus);
+        }
+
+        &:focus-visible {
+            outline: var(--focus-ring);
+            outline-offset: -2px;
         }
     }
 }
@@ -709,9 +718,8 @@
     flex-direction: column;
     gap: 8px;
     padding: 12px;
-    border-radius: 12px;
-    border: 1px solid var(--divider-color);
-    background: var(--body-bg-color);
+    border-radius: var(--radius-lg);
+    background: var(--topBar-color);
     box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
 }
 
@@ -734,7 +742,7 @@
     min-width: 0;
     height: 30px;
     padding: 0 10px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     border: 1px solid var(--divider-color);
     background: var(--text-input-bg);
     color: var(--font-color);
@@ -750,7 +758,7 @@
     flex: 0 0 auto;
     height: 30px;
     padding: 0 10px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     border: 1px solid var(--divider-color);
     background: transparent;
     color: var(--font-color);
@@ -771,7 +779,7 @@
     flex: 1 1 auto;
     height: 32px;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: var(--btn-color-focus);
     color: #fff;
     font-size: 0.78rem;
@@ -805,7 +813,7 @@
     flex-direction: column;
     overflow-y: auto;
     border: 1px solid var(--divider-color);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: var(--text-input-bg);
 }
 

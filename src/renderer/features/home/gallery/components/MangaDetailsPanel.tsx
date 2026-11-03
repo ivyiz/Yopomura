@@ -58,6 +58,7 @@ import {
 import { createRendererLogger } from "@utils/logger";
 import { resolveMangaChapterPath } from "@utils/mangaChapterPath";
 import { listMangaChapterChildren, type MangaChapterChild, resolveMangaStartPath } from "@utils/mangaChapters";
+import { sortKeyLabel } from "@utils/utils";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { shallowEqual } from "react-redux";
@@ -955,11 +956,11 @@ const MangaDetailsPanel = ({
                                             type="button"
                                             data-tooltip={t("shared.sort.tooltip", {
                                                 arrow: sortOrder === "normal" ? "▲ " : "▼ ",
-                                                by: sortBy.toUpperCase(),
+                                                by: sortKeyLabel(sortBy),
                                             })}
                                             aria-label={t("shared.sort.tooltip", {
                                                 arrow: sortOrder === "normal" ? "▲ " : "▼ ",
-                                                by: sortBy.toUpperCase(),
+                                                by: sortKeyLabel(sortBy),
                                             })}
                                             onClick={handleSortClick}
                                         >

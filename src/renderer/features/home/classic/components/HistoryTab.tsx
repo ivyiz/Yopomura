@@ -11,6 +11,7 @@ import { deleteLibraryItem } from "@store/library";
 import { dialogUtils } from "@utils/dialog";
 import { formatUtils } from "@utils/file";
 import { libraryItemSearchText, resolveAllItemMetadata, trackerByItemLink } from "@utils/libraryMetadata";
+import { sortKeyLabel } from "@utils/utils";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppContext } from "src/renderer/App";
@@ -246,7 +247,7 @@ const HistoryTab: React.FC = () => {
                             <button
                                 data-tooltip={t("shared.sort.tooltip", {
                                     arrow: appSettings.historyListSortType === "normal" ? "▲ " : "▼ ",
-                                    by: appSettings.historyListSortBy.toUpperCase(),
+                                    by: sortKeyLabel(appSettings.historyListSortBy),
                                 })}
                                 onClick={(e) => {
                                     const items: Menu.ListItem[] = [

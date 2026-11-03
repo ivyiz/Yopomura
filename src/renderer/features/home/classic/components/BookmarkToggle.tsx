@@ -82,8 +82,8 @@ const BookmarkToggle = () => {
                         <span className="bookmarkPopoverTitle">{tHome("classic.bookmarks.title")}</span>
                         <span className="bookmarkPopoverCount">{count}</span>
                         <span className="bookmarkPopoverKeys" aria-hidden="true">
-                            <kbd>CTRL</kbd>
-                            <kbd>SHIFT</kbd>
+                            <kbd>Ctrl</kbd>
+                            <kbd>Shift</kbd>
                             <kbd>B</kbd>
                         </span>
                     </div>

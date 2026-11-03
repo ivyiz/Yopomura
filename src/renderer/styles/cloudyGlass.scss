@@ -1,0 +1,419 @@
+/* Anti-Slop Refined Design System & Glassmorphic Engine */
+body {
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --line: color-mix(in srgb, var(--font-color) 12%, transparent);
+  --line-strong: color-mix(in srgb, var(--font-color) 22%, transparent);
+  --tint-hover: color-mix(in srgb, var(--font-color) 8%, transparent);
+  --spring-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-card: 180ms;
+  --duration-panel: 240ms;
+  --duration-popover: 120ms;
+  font-family: "Roboto", sans-serif !important;
+}
+
+/* 1. No text glow anywhere; element shadows are left to each component. */
+*,
+*::before,
+*::after {
+  text-shadow: none !important;
+  -webkit-text-stroke: 0 !important;
+}
+
+/* 2. Keep focus visible for keyboard users. */
+button:focus-visible,
+.btn:focus-visible,
+.galleryTab:focus-visible,
+.galleryTagFilterActivator:focus-visible,
+.galleryTrackingFilterButton:focus-visible,
+.continueReadingBtn:focus-visible,
+.mediaPanelButton:focus-visible {
+  outline: var(--focus-ring) !important;
+  outline-offset: 2px !important;
+}
+
+/* 3. Disable opening animations and transitions on Settings */
+.settingCont,
+.overlayCont.settingCont,
+.settings,
+#settings {
+  transition: none !important;
+  animation: none !important;
+  transform: none !important;
+}
+
+.settingCont *,
+.overlayCont.settingCont *,
+.settings *,
+#settings * {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Ensure toggle switch knob is vertically centered */
+.toggle-area {
+  overflow: visible !important;
+}
+.toggle-area .toggle-state,
+.settingCont .toggle-area .toggle-state,
+#settings .toggle-area .toggle-state {
+  position: relative !important;
+  top: 50% !important;
+  transform: translate(0, -50%) !important;
+  margin-top: 0 !important;
+}
+
+/* Header & Toolbars with Optical Frosted Glass */
+#topBar {
+
+  border-bottom: 1px solid var(--line);
+}
+
+#topBar button,
+#topBar .btn,
+#topBar .homeBtns button,
+#topBar .windowBtnCont button,
+.homeBtns button,
+.windowBtnCont button,
+button.home,
+button.settingsBtn,
+.viewToggle button,
+.bookmarkToggle,
+.quickJumpToggle,
+.browserSideToggle,
+.browserToggle,
+.mediaToggle,
+.downloaderToggle,
+.trashToggle {
+  border: none !important;
+  border-width: 0 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  transition: background-color var(--duration-popover) var(--spring-ease),
+              color var(--duration-popover) var(--spring-ease) !important;
+}
+
+#topBar button:hover,
+#topBar .btn:hover,
+#topBar .homeBtns button:hover,
+.bookmarkToggle:hover,
+.homeBtns .popover-wrapper button:hover {
+  background: color-mix(in srgb, var(--font-color) 8%, transparent) !important;
+  border: none !important;
+  border-width: 0 !important;
+  border-color: transparent !important;
+  border-radius: 0 !important;
+}
+
+#topBar button.is-active,
+#topBar button.active,
+#topBar .homeBtns button.is-active,
+#topBar .homeBtns button.active {
+  background: color-mix(in srgb, var(--btn-shadow-focus) 18%, transparent) !important;
+  border: none !important;
+  border-width: 0 !important;
+  border-color: transparent !important;
+  border-radius: 0 !important;
+}
+
+.popover-wrapper,
+.homeBtns .popover-wrapper,
+#topBar .popover-wrapper {
+  border: none !important;
+  border-width: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+
+  border-radius: 0 !important;
+}
+
+.bookmarkToggleCount {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* TopBar Branding (Title) centering & adaptive right-shift on small window */
+#topBar .mainTitleCont {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  pointer-events: none !important;
+}
+
+#topBar .mainTitleCont .title {
+  position: absolute !important;
+  top: 50% !important;
+  left: clamp(
+    calc(var(--topbar-title-left, 420px) + var(--topbar-title-half-width, 60px) + 8px),
+    50%,
+    calc(100% - var(--topbar-title-right, 138px) - var(--topbar-title-half-width, 60px) - 8px)
+  ) !important;
+  transform: translate(-50%, -50%) !important;
+  max-width: calc(100% - var(--topbar-title-left, 420px) - var(--topbar-title-right, 138px) - 24px) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.locationTitle,
+.locationRow .locationTitle,
+.locationInfo .locationTitle,
+li.locationRow .locationTitle {
+  font-weight: 400 !important;
+}
+
+.galleryToolbar {
+
+  border-bottom: 1px solid var(--line) !important;
+}
+
+.galleryTabBar,
+.galleryTypeFilterBar,
+.galleryTagFilterBar,
+.galleryTrackingFilterBar {
+  border: 0 !important;
+  border-radius: var(--radius-md) !important;
+  padding: 3px !important;
+
+}
+
+.galleryTabBar .galleryTab,
+.galleryTypeFilterBar .galleryTab {
+  border-radius: var(--radius-sm) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  transition: opacity var(--duration-popover) var(--spring-ease),
+              background-color var(--duration-popover) var(--spring-ease),
+              color var(--duration-popover) var(--spring-ease) !important;
+}
+
+.galleryTabBar .galleryTab.active,
+.galleryTypeFilterBar .galleryTab.active {
+  color: var(--font-select-bg-color) !important;
+  background-color: color-mix(in srgb, var(--font-select-bg-color) 18%, transparent) !important;
+  font-weight: 600 !important;
+}
+
+/* Inputs & Search */
+input[type="text"],
+input[type="search"],
+.searchInput {
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 6px 12px !important;
+  box-shadow: none !important;
+  transition: border-color var(--duration-popover) var(--spring-ease),
+              background-color var(--duration-popover) var(--spring-ease) !important;
+}
+
+/* Settings Search bar alignment: clear the magnifying glass icon */
+.settingsSearch .search-input,
+.settingsSearch input,
+.settingsSearch input[type="text"] {
+  padding-left: 2.85em !important;
+  padding-right: 2.2em !important;
+  font-size: 0.95rem !important;
+}
+
+.settingsSearchIcon {
+  left: 1.45em !important;
+  pointer-events: none !important;
+  z-index: 10 !important;
+}
+
+/* Trash and overlay glassmorphic consistency */
+.trashPanelOverlay,
+.downloaderReviewOverlay {
+  background: color-mix(in srgb, var(--body-bg-color) 70%, transparent) !important;
+
+}
+
+.trashPanel {
+  border: 1px solid var(--line-strong) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18) !important;
+
+}
+
+/* Dropdown / MenuList styles: eliminate slide-in jump */
+.itemList {
+  transition: opacity 120ms ease !important;
+  transition-property: opacity !important;
+
+  border: 0 !important;
+  border-radius: var(--radius-xl) !important;
+}
+
+input[type="text"]:focus,
+input[type="search"]:focus,
+.searchInput:focus {
+  border-color: var(--btn-shadow-focus) !important;
+  box-shadow: none !important;
+}
+
+/* CSS Containment & Virtualized Grid Rendering */
+.galleryItem,
+.galleryList .galleryItem,
+.listItem,
+.listCont li,
+.listCont .location-cont li.locationRow,
+.libraryFolderCard,
+.mediaPanelContinueCard,
+.mediaPanelHomeVideoCard {
+  contain: layout style paint;
+}
+
+.galleryList .galleryItem,
+.libraryGrid .galleryItem,
+.libraryFolderCard {
+  content-visibility: auto;
+  contain-intrinsic-size: 200px 300px;
+}
+
+.galleryList.list .galleryItem {
+  contain-intrinsic-size: 100% 84px;
+}
+
+/* Cards Animation & Hover Transitions */
+.galleryItem,
+.galleryList .galleryItem,
+.listItem,
+.listCont li,
+.listCont .location-cont li.locationRow,
+.libraryFolderCard,
+.mediaPanelContinueCard,
+.mediaPanelHomeVideoCard {
+  border-radius: var(--radius-lg) !important;
+  transition: transform var(--duration-card) var(--spring-ease),
+              opacity var(--duration-card) var(--spring-ease),
+              border-color var(--duration-card) var(--spring-ease),
+              background-color var(--duration-card) var(--spring-ease) !important;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.galleryList .galleryItem {
+  border: 1px solid var(--line) !important;
+  overflow: hidden !important;
+}
+
+.galleryList .galleryItem:hover,
+.galleryItem:hover {
+  transform: translateY(-2px) !important;
+  border-color: color-mix(in srgb, var(--btn-shadow-focus) 50%, transparent) !important;
+  will-change: transform, opacity;
+}
+
+.galleryList .galleryItem .coverContainer {
+  border-radius: var(--radius-md) !important;
+  overflow: hidden !important;
+}
+
+/* Floating Panels (excluding Settings) */
+.overlayCont:not(.settingCont),
+.mangaDetailsPanel,
+.manga-details-panel,
+.sideList,
+.downloaderPanel,
+.readerSideList {
+
+  border: 1px solid var(--line-strong) !important;
+  border-radius: var(--radius-xl) !important;
+  transition: transform var(--duration-panel) var(--spring-ease),
+              opacity var(--duration-panel) var(--spring-ease) !important;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Popovers & Context Menus */
+.contextMenu,
+.browserContextMenu,
+.popover,
+.popover-content,
+.popoverContent,
+.bookmarkPopover,
+.gridSizePopover,
+.libraryScanPopover,
+.ctrl-menu-item {
+
+  border: 0 !important;
+  border-radius: var(--radius-xl) !important;
+  transition: transform var(--duration-popover) var(--spring-ease),
+              opacity var(--duration-popover) var(--spring-ease) !important;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Primary CTA */
+button.primary,
+.btn-primary,
+.continueReadingBtn {
+  background: var(--btn-shadow-focus) !important;
+  color: var(--font-select-color) !important;
+  border: 1px solid color-mix(in srgb, var(--btn-shadow-focus) 80%, black) !important;
+  border-radius: var(--radius-md) !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  transition: opacity var(--duration-popover) var(--spring-ease),
+              filter var(--duration-popover) var(--spring-ease) !important;
+}
+
+button.primary:hover,
+.btn-primary:hover,
+.continueReadingBtn:hover {
+  filter: brightness(1.1) !important;
+}
+
+button:not(.primary):not(.btn-primary):not(.galleryTab):not(#topBar *):not(#topBar):not(.homeBtns *):not(.windowBtnCont *),
+.btn:not(.btn-primary):not(#topBar *):not(#topBar):not(.homeBtns *):not(.windowBtnCont *) {
+  border-radius: var(--radius-md) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  transition: opacity var(--duration-popover) var(--spring-ease),
+              background-color var(--duration-popover) var(--spring-ease),
+              border-color var(--duration-popover) var(--spring-ease),
+              color var(--duration-popover) var(--spring-ease) !important;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb-color) !important;
+  border-radius: 9999px !important;
+  border: 2px solid transparent !important;
+  background-clip: content-box !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-color-hover) !important;
+  background-clip: content-box !important;
+}
+
+
+/* Downloader Drawer polish */
+.downloaderPanel {
+  background: color-mix(in srgb, var(--body-bg-color) 85%, transparent) !important;
+
+  border-top: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  border-left: 1px solid var(--line-strong) !important;
+  border-radius: var(--radius-xl) 0 0 var(--radius-xl) !important;
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.28) !important;
+}

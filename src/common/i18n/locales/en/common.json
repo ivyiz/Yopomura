@@ -7,7 +7,7 @@
         "reset": "Reset",
         "resetting": "Resetting...",
         "cancel": "Cancel",
-        "ok": "OK",
+        "ok": "Okay",
         "yes": "Yes",
         "no": "No",
         "close": "Close",
@@ -75,7 +75,7 @@
         "required": "This field is required"
     },
     "link": {
-        "openUrlInBrowser": "Open URL in Browser?"
+        "openUrlInBrowser": "Open link in Browser?"
     },
     "contextMenu": {
         "open": "Open",
@@ -114,10 +114,10 @@
         "missingDetail": "Locate it on disk to keep progress and bookmarks, or remove the library entry.",
         "chapterMissingDetail": "This chapter is missing, but the manga folder is still on disk. Open the first chapter, locate the renamed chapter, or cancel.",
         "noChapterUnderSeries": "No readable chapter was found under the manga folder.",
-        "selectChapter": "Select a chapter folder (with images) or a supported archive/PDF file.",
+        "selectChapter": "Select a chapter folder (with images) or a supported archive/Pdf file.",
         "selectChapterNotRoot": "Select a chapter inside the manga folder, not the manga folder itself.",
         "pathMissing": "Selected path does not exist.",
-        "selectManga": "Select a manga folder or a supported archive/PDF file.",
+        "selectManga": "Select a manga folder or a supported archive/Pdf file.",
         "selectBook": "Select a supported book file.",
         "nameMismatchTitle": "Name does not match",
         "nameMismatchMessage": "Selected \"{{chosen}}\" does not match library item \"{{title}}\".",

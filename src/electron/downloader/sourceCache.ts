@@ -12,7 +12,7 @@ type CacheFile = Record<string, CacheEntry>;
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-const cachePath = (): string => path.join(app.getPath("userData"), "downloader-source-cache.json");
+const cachePath = (): string => path.join(app.getPath("userData"), "downloader-source-cache-v2.json");
 
 /** Host plus port, so localhost fixtures and unusual ports do not collide. */
 export const hostKey = (url: string): string => {

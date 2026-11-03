@@ -1,4 +1,5 @@
 import type {
+    BrowserAdblockState,
     BrowserBookmark,
     BrowserContextMenuRequest,
     BrowserDownload,
@@ -68,7 +69,7 @@ import {
 } from "./browserBookmarks";
 import { DISABLED_HOSTS_EVENT, publishDisabledHosts, readDisabledHosts, readForceDark } from "./browserDarkMode";
 import { applyBrowserEngine, BROWSER_ENGINE_EVENT, ENGINE_LABEL, readBrowserEngine } from "./browserEngine";
-import type { BrowserMode, ToggleBrowserDetail } from "./browserEvents";
+import type { BrowserMode, OpenBrowserDetail, ToggleBrowserDetail } from "./browserEvents";
 import {
     BROWSER_TOOLS,
     type BrowserToolId,
@@ -93,7 +94,7 @@ const EMPTY_STATE: BrowserState = {
     favicon: "",
     canGoBack: false,
     canGoForward: false,
-    forceDark: true,
+    forceDark: false,
     visible: false,
 };
 
@@ -167,7 +168,6 @@ const BrowserHost = () => {
     const {
         openDownloader,
         openDownloadHistory,
-        openRecipeEditor,
         downloaderOpen,
         downloaderReviewOpen,
         videoOpen,
@@ -211,6 +211,19 @@ const BrowserHost = () => {
     const [bookmarkBubble, setBookmarkBubble] = useState<BookmarkBubbleDraft | null>(null);
     const [pinnedTools, setPinnedTools] = useState<BrowserToolId[]>(readPinnedToolIds);
     const [adblockEnabled, setAdblockEnabled] = useState<boolean>(readSavedAdblock);
+    const [adblockState, setAdblockState] = useState<BrowserAdblockState | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        void window.electron.invoke("browser:getAdblock").then((state) => {
+            if (!cancelled) setAdblockState(state);
+        });
+        const off = window.electron.on("browser:adblockState", (state) => setAdblockState(state));
+        return () => {
+            cancelled = true;
+            off();
+        };
+    }, []);
     const modeRef = useRef<BrowserMode | null>(null);
     const paneRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -448,6 +461,51 @@ const BrowserHost = () => {
     }, [ensureTab]);
 
     useEffect(() => {
+        const onOpen = (event: Event) => {
+            const detail = (event as CustomEvent<OpenBrowserDetail>).detail;
+            const targetMode = detail?.mode ?? "full";
+            modeRef.current = targetMode;
+            setMode(targetMode);
+            setMenu(null);
+            setDownloadsOpen(false);
+            setExtensionsOpen(false);
+            setBookmarkBubble(null);
+
+            const saved = readBrowserEngine();
+            setEngine(saved);
+            void window.electron.invoke("browser:setSearchEngine", { engine: saved });
+            const savedAdblock = readSavedAdblock();
+            setAdblockEnabled(savedAdblock);
+            void window.electron.invoke("browser:setAdblock", { enabled: savedAdblock });
+            void window.electron.invoke("browser:setForceDark", { enabled: readForceDark() });
+            for (const host of readDisabledHosts()) {
+                void window.electron.invoke("browser:setHostForceDark", {
+                    hostOrUrl: host,
+                    enabled: false,
+                });
+            }
+
+            void (async () => {
+                if (detail?.url) {
+                    const next = await window.electron.invoke("browser:getState");
+                    setState(next);
+                    if (next.tabs.length === 0) {
+                        await window.electron.invoke("browser:createTab", { url: detail.url });
+                    } else {
+                        const targetId = next.activeId ?? next.tabs[0].id;
+                        await window.electron.invoke("browser:navigate", { id: targetId, input: detail.url });
+                    }
+                    await refreshHosts();
+                } else {
+                    await ensureTab();
+                }
+            })();
+        };
+        window.addEventListener("yokomura:open-browser", onOpen);
+        return () => window.removeEventListener("yokomura:open-browser", onOpen);
+    }, [ensureTab, refreshHosts]);
+
+    useEffect(() => {
         const onClose = () => {
             modeRef.current = null;
             setMode(null);
@@ -568,20 +626,23 @@ const BrowserHost = () => {
         if (!mode) return;
         const element = contentRef.current;
         if (!element) return;
-        const observer = new ResizeObserver(() => {
-            lastBounds.current = "";
-            syncBounds();
-        });
-        observer.observe(element);
-        const onResize = () => {
-            lastBounds.current = "";
-            syncBounds();
+        let boundsRafId = 0;
+        const throttledSync = () => {
+            if (boundsRafId) return;
+            boundsRafId = requestAnimationFrame(() => {
+                boundsRafId = 0;
+                lastBounds.current = "";
+                syncBounds();
+            });
         };
-        window.addEventListener("resize", onResize);
+        const observer = new ResizeObserver(throttledSync);
+        observer.observe(element);
+        window.addEventListener("resize", throttledSync);
         requestAnimationFrame(syncBounds);
         return () => {
+            if (boundsRafId) cancelAnimationFrame(boundsRafId);
             observer.disconnect();
-            window.removeEventListener("resize", onResize);
+            window.removeEventListener("resize", throttledSync);
         };
     }, [mode, syncBounds]);
 
@@ -821,7 +882,19 @@ const BrowserHost = () => {
         const next = !adblockEnabled;
         setAdblockEnabled(next);
         window.localStorage.setItem("yokomura-browser-adblock", next ? "on" : "off");
-        void window.electron.invoke("browser:setAdblock", { enabled: next });
+        void window.electron
+            .invoke("browser:setAdblock", { enabled: next })
+            .then((state) => setAdblockState(state));
+    };
+
+    const activeHost = activeTab ? hostOf(activeTab.url) : "";
+    const adblockPaused = Boolean(activeHost && adblockState?.exceptions.includes(activeHost));
+    const toggleAdblockForSite = () => {
+        if (!activeHost) return;
+        void window.electron
+            .invoke("browser:setAdblockException", { host: activeHost, disabled: !adblockPaused })
+            .then((state) => setAdblockState(state));
+        closeMenu();
     };
 
     const saveBookmarkDraft = async (values: { title: string; category: string }) => {
@@ -941,13 +1014,6 @@ const BrowserHost = () => {
         openDownloadHistory();
     };
 
-    const buildDownloaderRecipe = async () => {
-        closeMenu();
-        await new Promise((resolve) => window.setTimeout(resolve, 250));
-        const draft = await window.electron.invoke("browser:buildRecipe");
-        if (draft) openRecipeEditor(draft);
-    };
-
     const contextAction = async (action: "open" | "new-tab" | "copy" | "download" | "external") => {
         if (!menu) return;
         const url = menu.linkURL || menu.pageURL;
@@ -973,7 +1039,9 @@ const BrowserHost = () => {
                 pinned,
                 active: adblockEnabled,
                 disabled: false,
-                status: adblockEnabled ? "On" : "Off",
+                status: adblockEnabled
+                    ? `On${adblockState?.blocked ? ` · ${adblockState.blocked} blocked` : ""}`
+                    : "Off",
                 onAction: toggleAdblock,
             };
         }
@@ -1023,7 +1091,9 @@ const BrowserHost = () => {
                     className={`browserToolTile ${adblockEnabled ? "is-on" : ""}`}
                     data-tool="adblock"
                     title={
-                        adblockEnabled ? "Ad blocking on (click to disable)" : "Ad blocking off (click to enable)"
+                        adblockEnabled
+                            ? `Ad blocking on (${adblockState?.blocked ?? 0} blocked, click to disable)`
+                            : "Ad blocking off (click to enable)"
                     }
                     aria-pressed={adblockEnabled}
                     onClick={toggleAdblock}
@@ -1464,9 +1534,6 @@ const BrowserHost = () => {
                                     <button type="button" onClick={() => void contextAction("download")}>
                                         Send page to Downloader
                                     </button>
-                                    <button type="button" onClick={() => void buildDownloaderRecipe()}>
-                                        Create downloader recipe
-                                    </button>
                                     {darkAvailable ? (
                                         <button
                                             type="button"
@@ -1478,6 +1545,13 @@ const BrowserHost = () => {
                                             {currentDisabled
                                                 ? "Enable dark for this site"
                                                 : "Disable dark for this site"}
+                                        </button>
+                                    ) : null}
+                                    {activeHost ? (
+                                        <button type="button" onClick={toggleAdblockForSite}>
+                                            {adblockPaused
+                                                ? "Enable ad blocking for this site"
+                                                : "Pause ad blocking for this site"}
                                         </button>
                                     ) : null}
                                     <button type="button" onClick={() => void contextAction("copy")}>

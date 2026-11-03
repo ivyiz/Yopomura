@@ -14,7 +14,7 @@
         min-width: 130px;
         padding: 0 8px;
         border: 1px solid var(--divider-color);
-        border-radius: 7px;
+        border-radius: var(--radius-md);
         background: var(--text-input-bg);
         color: var(--font-color);
         font-family: inherit;
@@ -31,6 +31,32 @@
         height: 16px;
         accent-color: var(--btn-color-focus);
         cursor: pointer;
+    }
+}
+
+.browserAdblockActions {
+    display: inline-flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.browserAdblockFilterInput {
+    width: 100%;
+    min-height: 110px;
+    margin-bottom: 8px;
+    padding: 8px;
+    border: 1px solid var(--divider-color);
+    border-radius: var(--radius-md);
+    background: var(--text-input-bg);
+    color: var(--font-color);
+    font-family: inherit;
+    font-size: 0.75rem;
+    line-height: 1.45;
+    resize: vertical;
+    outline: none;
+
+    &:focus {
+        border-color: var(--btn-color-focus);
     }
 }
 
@@ -61,7 +87,7 @@
     gap: 10px;
     padding: 6px 8px;
     border: 1px solid var(--divider-color);
-    border-radius: 7px;
+    border-radius: var(--radius-md);
     background: var(--text-input-bg);
     font-size: 0.76rem;
 
@@ -75,7 +101,7 @@
         flex: 0 0 auto;
         padding: 4px 8px;
         border: 1px solid var(--divider-color);
-        border-radius: 6px;
+        border-radius: var(--radius-md);
         background: var(--btn-color);
         color: var(--font-color);
         font-family: inherit;

@@ -50,6 +50,16 @@ VIDEO_EXTS = {
     ".wmv", ".mpg", ".mpeg", ".ogv", ".ts", ".m3u8",
 }
 
+# Site chrome and ad banners that a generic page scrape must never treat as pages.
+JUNK_IMAGE_RE = re.compile(
+    r"(?:^|[/_.-])"
+    r"(?:logo|favicon|sprite|avatar|emoji|icon|badge|banner|advert|ads?|adsmg|pixel|tracking|"
+    r"spinner|placeholder|loading|cover|covers|og-image|thumbnails?|thumbs?|seriesthumb|"
+    r"red88|789club|vivu88|z088|fo88|dom88|86bet|sv388|w88|fun88|bk8|m88|12bet|188bet)"
+    r"(?:[/_.-]|$)",
+    re.I,
+)
+
 
 def is_video_url(url):
     """True for obvious video URLs so they never land in a manga folder."""
@@ -329,7 +339,12 @@ def extract_generic_page(target_url):
         absolute = urljoin(target_url, raw.strip())
         if not absolute.lower().startswith(("http://", "https://")):
             continue
-        extension = os.path.splitext(urlparse(absolute).path)[1].lower()
+        image_path = urlparse(absolute).path
+        if JUNK_IMAGE_RE.search(image_path):
+            continue
+        if image_path.lower().endswith(".gif"):
+            continue
+        extension = os.path.splitext(image_path)[1].lower()
         if extension and extension not in IMAGE_EXTS:
             continue
         if absolute in seen:
@@ -583,7 +598,7 @@ class Downloader:
                 if isinstance(item_url, str) and item_url.lower().startswith(("http://", "https://")):
                     if is_video_url(item_url):
                         continue
-                    items.append({"url": item_url, "referer": None})
+                    items.append({"url": item_url, "referer": url})
                 if len(items) >= 50000:
                     break
             safe_headers = {}
@@ -787,7 +802,7 @@ class Downloader:
                 and url.lower().startswith(("http://", "https://"))
                 and not is_video_url(url)
             ]
-            items = [{"url": url, "referer": None} for url in urls]
+            items = [{"url": url, "referer": job.url} for url in urls]
 
         if not items:
             raise DownloadFailed("No downloadable images found")

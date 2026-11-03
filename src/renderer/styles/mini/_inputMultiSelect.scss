@@ -25,7 +25,7 @@
     height: 100%;
     padding: 0 0.55em 0 0.65em;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     background: none;
     color: var(--font-color);
     cursor: pointer;
@@ -111,7 +111,7 @@
     min-height: 2.35em;
     padding: 0.35em 0.45em;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     background: none;
     color: var(--font-color);
     cursor: pointer;

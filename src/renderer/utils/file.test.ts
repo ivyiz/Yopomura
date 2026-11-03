@@ -34,7 +34,7 @@ describe("formatUtils", () => {
         expect(formatUtils.book.test("n.epub")).toBe(true);
         expect(formatUtils.files.test("n.pdf")).toBe(true);
         expect(formatUtils.files.getName("Story.cbz")).toBe("Story");
-        expect(formatUtils.files.getExt("Story.epub")).toBe("EPUB");
+        expect(formatUtils.files.getExt("Story.epub")).toBe("Epub");
         expect(formatUtils.dialogFilters.book()[0]?.extensions).toEqual(["epub"]);
         expect(toDialogExtensions([".pdf", "epub"])).toEqual(["pdf", "epub"]);
     });

@@ -86,4 +86,14 @@ export type BrowserBookmark = {
 export type BrowserAdblockState = {
     enabled: boolean;
     ready: boolean;
+    /** Which engine path is active. */
+    mode: "engine" | "prebuilt" | "fallback" | "off";
+    /** Epoch ms when the filter lists were last built/downloaded; 0 when unknown. */
+    listsUpdatedAt: number;
+    /** Requests blocked since the app started (or the last reset). */
+    blocked: number;
+    /** Top blocked page hosts, descending. */
+    blockedByHost: Array<{ host: string; count: number }>;
+    /** Hosts where ad blocking is paused. */
+    exceptions: string[];
 };

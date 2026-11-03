@@ -128,4 +128,25 @@ describe("settingSchema library keys", () => {
         expect(repaired.data.librarySettingsExpanded).toBe(true);
         expect(repaired.data.libraryFoldersListExpanded).toBe(true);
     });
+
+    it("defaults maxCachedPages to 50 and repairs when missing", () => {
+        const repaired = repairZodInputWithDefaults(settingSchema, {}, (path) => {
+            let cur: unknown = defaultSettings;
+            for (const part of path) {
+                if (cur === null || typeof cur !== "object" || !(String(part) in cur)) return undefined;
+                cur = (cur as Record<string, unknown>)[String(part)];
+            }
+            return cur;
+        });
+        expect(repaired.success).toBe(true);
+        if (!repaired.success) return;
+        expect(repaired.data.maxCachedPages).toBe(50);
+    });
+
+    it("validates maxCachedPages range between 20 and 200", () => {
+        expect(() => settingSchema.parse({ ...defaultSettings, maxCachedPages: 19 })).toThrow();
+        expect(() => settingSchema.parse({ ...defaultSettings, maxCachedPages: 201 })).toThrow();
+        const valid = settingSchema.parse({ ...defaultSettings, maxCachedPages: 100 });
+        expect(valid.maxCachedPages).toBe(100);
+    });
 });

@@ -7,8 +7,10 @@ import { renderWithProviders } from "../test/renderWithProviders";
 import { setLibraryScanStatus } from "./store/ui";
 import TopBar from "./TopBar";
 
-const { navigateToSettingMock } = vi.hoisted(() => ({
+const { navigateToSettingMock, openDownloaderMock, openTrashMock } = vi.hoisted(() => ({
     navigateToSettingMock: vi.fn(),
+    openDownloaderMock: vi.fn(),
+    openTrashMock: vi.fn(),
 }));
 
 /**
@@ -20,6 +22,11 @@ vi.mock("./App", () => ({
         pageNumberInputRef: { current: null },
         bookProgressRef: { current: null },
         closeReader: vi.fn(),
+        openDownloader: openDownloaderMock,
+        openTrash: openTrashMock,
+        openMedia: vi.fn(),
+        closeMedia: vi.fn(),
+        mediaOpen: false,
     }),
 }));
 
@@ -89,5 +96,31 @@ describe("TopBar library scan status", () => {
         fireEvent.click(getByRole("button", { name: "Open Library settings" }));
         expect(navigateToSettingMock).toHaveBeenCalledWith("setting:library-scan-now", store.dispatch);
         expect(getByRole("button", { name: "Cancel scan" })).toBeTruthy();
+    });
+});
+
+describe("TopBar responsive collapse", () => {
+    it("renders direct secondary buttons on wide screens", () => {
+        window.innerWidth = 1024;
+        const { queryByRole, container } = renderWithProviders(<TopBar />);
+        expect(queryByRole("button", { name: "More" })).toBeNull();
+        expect(container.querySelector(".homeBtns > .downloaderToggle")).toBeTruthy();
+        expect(container.querySelector(".homeBtns > .browserSideToggle")).toBeTruthy();
+    });
+
+    it("collapses secondary buttons into More menu when window width < 800", () => {
+        window.innerWidth = 750;
+        const { getByRole, container } = renderWithProviders(<TopBar />);
+        const moreBtn = getByRole("button", { name: "More" });
+        expect(moreBtn).toBeTruthy();
+
+        fireEvent.click(moreBtn);
+        expect(getByRole("dialog", { name: "More" })).toBeTruthy();
+        const downloaderBtn = container.querySelector(".topBarMoreMenu .downloaderToggle");
+        expect(downloaderBtn).toBeTruthy();
+        if (downloaderBtn) {
+            fireEvent.click(downloaderBtn);
+            expect(openDownloaderMock).toHaveBeenCalled();
+        }
     });
 });

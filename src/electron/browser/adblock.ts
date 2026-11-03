@@ -27,6 +27,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { BrowserAdblockState } from "@common/types/browser";
+import { CosmeticFilter, NetworkFilter } from "@ghostery/adblocker";
 import { app, net, type Session } from "electron";
 import { createMainLogger } from "../util/logger";
 import {
@@ -40,18 +41,30 @@ import {
 
 const logger = createMainLogger("BrowserAdblock");
 
-const ENGINE_FILE_NAME = "adblock-engine-v2.bin";
-const ENGINE_META_FILE_NAME = "adblock-engine-v2.meta.json";
+const ENGINE_FILE_NAME = "adblock-engine-v3.bin";
+const ENGINE_META_FILE_NAME = "adblock-engine-v3.meta.json";
 const HOSTS_CACHE_FILE_NAME = "adblock-hosts-v2.json";
+const EXCEPTIONS_FILE_NAME = "adblock-exceptions.json";
+const USER_FILTERS_FILE_NAME = "adblock-user-filters.txt";
 const HOSTS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const ENGINE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+/** Rebuild the engine in the background once lists are older than this. */
+const ENGINE_REFRESH_MS = 24 * 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 45_000;
-const LEGACY_CACHE_FILE_NAMES = ["adblock-engine.bin", "adblock-hosts.json"] as const;
+const STATS_BROADCAST_MS = 500;
+const LEGACY_CACHE_FILE_NAMES = [
+    "adblock-engine.bin",
+    "adblock-engine-v2.bin",
+    "adblock-engine-v2.meta.json",
+    "adblock-hosts.json",
+] as const;
 const REMOTE_LIST_URLS = [
     "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/filters.txt",
     "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/privacy.txt",
     "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/unbreak.txt",
     "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/quick-fixes.txt",
+    "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/annoyances-cookies.txt",
+    "https://raw.githubusercontent.com/abpvn/abpvn/master/filter/abpvn_ublock.txt",
     "https://easylist.to/easylist/easylist.txt",
     "https://easylist.to/easylist/easyprivacy.txt",
     "https://raw.githubusercontent.com/brave/adblock-lists/master/brave-lists/brave-specific.txt",
@@ -85,6 +98,19 @@ type CachedEngine = {
 
 let enabled = true;
 let ready = false;
+let mode: BrowserAdblockState["mode"] = "off";
+let listsUpdatedAt = 0;
+let blockedTotal = 0;
+const blockedByHost = new Map<string, number>();
+let exceptions = new Set<string>();
+let exceptionFilters: import("@ghostery/adblocker").NetworkFilter[] = [];
+let customNetworkFilters: NetworkFilter[] = [];
+let customCosmeticFilters: CosmeticFilter[] = [];
+let userFiltersLoaded = false;
+let userFiltersText = "";
+const stateListeners = new Set<(state: BrowserAdblockState) => void>();
+let statsTimer: ReturnType<typeof setTimeout> | null = null;
+let exceptionsLoaded = false;
 let blocker: ElectronBlockerInstance | null = null;
 let blockerLoad: Promise<ElectronBlockerInstance | null> | null = null;
 let cosmeticFiltersDisabled = false;
@@ -101,6 +127,203 @@ const userDataPath = (fileName: string): string | null => {
     } catch (error) {
         logger.debug("userData path unavailable", error);
         return null;
+    }
+};
+
+/** Normalizes a host or URL typed in the settings UI. */
+const normalizeHost = (value: string): string => {
+    const trimmed = value.trim().toLowerCase();
+    if (!trimmed) return "";
+    try {
+        const parsed = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
+        return parsed.hostname.replace(/^www\./, "");
+    } catch {
+        return "";
+    }
+};
+
+const readExceptions = (): Set<string> => {
+    if (exceptionsLoaded) return exceptions;
+    exceptionsLoaded = true;
+    const filePath = userDataPath(EXCEPTIONS_FILE_NAME);
+    if (!filePath) return exceptions;
+    try {
+        const parsed: unknown = JSON.parse(fs.readFileSync(filePath, "utf8"));
+        if (Array.isArray(parsed)) {
+            exceptions = new Set(
+                parsed.map((row) => (typeof row === "string" ? normalizeHost(row) : "")).filter(Boolean),
+            );
+        }
+    } catch {
+        /* first run or corrupt file; start empty */
+    }
+    return exceptions;
+};
+
+const writeExceptions = (): void => {
+    const filePath = userDataPath(EXCEPTIONS_FILE_NAME);
+    if (!filePath) return;
+    try {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, JSON.stringify([...exceptions].sort(), null, 2), "utf8");
+    } catch (error) {
+        logger.warn("could not save adblock exceptions", error);
+    }
+};
+
+/** `@@*$domain=host` pauses network filtering for pages on that host. */
+const exceptionRulesFor = (host: string): string[] => [
+    `@@*$domain=${host}`,
+    `@@||${host}^$elemhide`,
+    `@@||${host}^$generichide`,
+];
+
+/** Reads the user's custom filter rules (uBO syntax), cached after first read. */
+const readUserFilters = (): string => {
+    if (userFiltersLoaded) return userFiltersText;
+    userFiltersLoaded = true;
+    const filePath = userDataPath(USER_FILTERS_FILE_NAME);
+    if (!filePath) return userFiltersText;
+    try {
+        userFiltersText = fs.readFileSync(filePath, "utf8");
+    } catch {
+        userFiltersText = "";
+    }
+    return userFiltersText;
+};
+
+const writeUserFilters = (text: string): void => {
+    userFiltersText = text;
+    userFiltersLoaded = true;
+    const filePath = userDataPath(USER_FILTERS_FILE_NAME);
+    if (!filePath) return;
+    try {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, text, "utf8");
+    } catch (error) {
+        logger.warn("could not save custom adblock filters", error);
+    }
+};
+
+const parseUserFilters = (text: string): { network: NetworkFilter[]; cosmetic: CosmeticFilter[] } => {
+    const network: NetworkFilter[] = [];
+    const cosmetic: CosmeticFilter[] = [];
+    for (const raw of text.split(/\r?\n/)) {
+        const line = raw.trim();
+        if (!line || line.startsWith("!") || line.startsWith("[")) continue;
+        const isCosmetic = /##|#@#|#\$#|#%#/.test(line);
+        try {
+            if (isCosmetic) {
+                const filter = CosmeticFilter.parse(line, true);
+                if (filter) cosmetic.push(filter);
+            } else {
+                const filter = NetworkFilter.parse(line, true);
+                if (filter) network.push(filter);
+            }
+        } catch {
+            /* ignore malformed user rules instead of failing the whole engine */
+        }
+    }
+    return { network, cosmetic };
+};
+
+const applyUserFiltersToEngine = (engine: ElectronBlockerInstance): void => {
+    const parsed = parseUserFilters(readUserFilters());
+    if (
+        parsed.network.length === 0 &&
+        parsed.cosmetic.length === 0 &&
+        customNetworkFilters.length === 0 &&
+        customCosmeticFilters.length === 0
+    ) {
+        return;
+    }
+    try {
+        engine.update({
+            newNetworkFilters: parsed.network,
+            newCosmeticFilters: parsed.cosmetic,
+            removedNetworkFilters: customNetworkFilters.map((filter) => filter.getId()),
+            removedCosmeticFilters: customCosmeticFilters.map((filter) => filter.getId()),
+        });
+        customNetworkFilters = parsed.network;
+        customCosmeticFilters = parsed.cosmetic;
+    } catch (error) {
+        logger.warn("could not apply custom adblock filters", error);
+    }
+};
+
+export const getAdblockCustomFilters = (): string => readUserFilters();
+
+export const setAdblockCustomFilters = (text: string): BrowserAdblockState => {
+    writeUserFilters(text);
+    if (blocker) applyUserFiltersToEngine(blocker);
+    notifyState();
+    return getAdblockState();
+};
+
+const applyExceptionsToEngine = (engine: ElectronBlockerInstance): void => {
+    const hosts = [...readExceptions()];
+    const next = hosts
+        .flatMap((host) => exceptionRulesFor(host))
+        .map((rule) => {
+            try {
+                return NetworkFilter.parse(rule, true);
+            } catch {
+                return null;
+            }
+        })
+        .filter((filter): filter is NetworkFilter => Boolean(filter));
+    if (next.length === 0 && exceptionFilters.length === 0) return;
+    try {
+        engine.update({
+            newNetworkFilters: next,
+            removedNetworkFilters: exceptionFilters.map((filter) => filter.getId()),
+        });
+        exceptionFilters = next;
+    } catch (error) {
+        logger.warn("could not apply adblock site exceptions", error);
+    }
+};
+
+const notifyState = (): void => {
+    const state = getAdblockState();
+    for (const listener of stateListeners) {
+        try {
+            listener(state);
+        } catch (error) {
+            logger.debug("adblock state listener failed", error);
+        }
+    }
+};
+
+const scheduleNotify = (): void => {
+    if (statsTimer) return;
+    statsTimer = setTimeout(() => {
+        statsTimer = null;
+        notifyState();
+    }, STATS_BROADCAST_MS);
+};
+
+const recordBlocked = (request: {
+    url?: string;
+    tabId?: number;
+    _originalRequestDetails?: { referrer?: string };
+}): void => {
+    blockedTotal += 1;
+    const referrer = request._originalRequestDetails?.referrer;
+    const host = normalizeHost(referrer ?? "") || normalizeHost(request.url ?? "") || "unknown";
+    blockedByHost.set(host, (blockedByHost.get(host) ?? 0) + 1);
+    if (blockedByHost.size > 200) {
+        const oldest = blockedByHost.keys().next().value;
+        if (oldest) blockedByHost.delete(oldest);
+    }
+    scheduleNotify();
+};
+
+const attachStats = (engine: ElectronBlockerInstance): void => {
+    try {
+        engine.on("request-blocked", (request) => recordBlocked(request));
+    } catch (error) {
+        logger.debug("could not attach adblock stats listener", error);
     }
 };
 
@@ -197,12 +420,16 @@ const loadBlocker = async (): Promise<ElectronBlockerInstance | null> => {
     removeLegacyCaches();
     const cached = loadCachedEngine(ElectronBlocker);
     if (cached?.source === "brave" && Date.now() - cached.savedAt < ENGINE_CACHE_TTL_MS) {
+        mode = "engine";
+        listsUpdatedAt = cached.savedAt;
         return cached.engine;
     }
 
     try {
         const fetched = await ElectronBlocker.fromLists(adblockFetch, [...REMOTE_LIST_URLS]);
         cacheEngine(fetched, "brave");
+        mode = "engine";
+        listsUpdatedAt = Date.now();
         logger.info("adblock engine ready (Brave/uBO list set)");
         return fetched;
     } catch (error) {
@@ -211,17 +438,64 @@ const loadBlocker = async (): Promise<ElectronBlockerInstance | null> => {
 
     // Keep a usable engine so the next online launch can retry the Brave list
     // while filtering offline in the meantime.
-    if (cached) return cached.engine;
+    if (cached) {
+        mode = cached.source === "brave" ? "engine" : "prebuilt";
+        listsUpdatedAt = cached.savedAt;
+        return cached.engine;
+    }
 
     try {
         const fetched = await ElectronBlocker.fromPrebuiltAdsAndTracking(adblockFetch);
         cacheEngine(fetched, "prebuilt");
+        mode = "prebuilt";
+        listsUpdatedAt = Date.now();
         logger.info("adblock engine ready (Ghostery prebuilt fallback)");
         return fetched;
     } catch (error) {
         logger.warn("could not download adblock lists; using host fallback", error);
+        mode = "fallback";
         return null;
     }
+};
+
+let refreshPromise: Promise<void> | null = null;
+
+/** Rebuilds the engine with the current list set and swaps it into live sessions. */
+const rebuildEngine = (): Promise<void> => {
+    if (refreshPromise) return refreshPromise;
+    refreshPromise = (async () => {
+        const { ElectronBlocker } = await import("@ghostery/adblocker-electron");
+        const fetched = await ElectronBlocker.fromLists(adblockFetch, [...REMOTE_LIST_URLS]);
+        cacheEngine(fetched, "brave");
+        for (const session of sessions) disableForSession(session);
+        blocker = fetched;
+        ready = true;
+        mode = "engine";
+        listsUpdatedAt = Date.now();
+        attachStats(fetched);
+        applyExceptionsToEngine(fetched);
+        applyUserFiltersToEngine(fetched);
+        for (const session of sessions) {
+            try {
+                fetched.enableBlockingInSession(session);
+            } catch (error) {
+                logger.warn("could not attach refreshed adblock engine", error);
+            }
+        }
+        logger.info("adblock engine refreshed", { lists: REMOTE_LIST_URLS.length });
+        notifyState();
+    })()
+        .catch((error: unknown) => logger.warn("could not refresh adblock lists", error))
+        .finally(() => {
+            refreshPromise = null;
+        });
+    return refreshPromise;
+};
+
+/** Manual list refresh used by Settings. */
+export const updateAdblockFilters = async (): Promise<BrowserAdblockState> => {
+    await rebuildEngine();
+    return getAdblockState();
 };
 
 /** Loads the serialized engine once per process. */
@@ -232,7 +506,15 @@ const ensureBlocker = (): Promise<ElectronBlockerInstance | null> => {
     blockerLoad = loadBlocker()
         .then((loaded) => {
             blocker = loaded;
-            if (loaded) ready = true;
+            if (loaded) {
+                ready = true;
+                attachStats(loaded);
+                applyExceptionsToEngine(loaded);
+                applyUserFiltersToEngine(loaded);
+                if (mode === "engine" && listsUpdatedAt > 0 && Date.now() - listsUpdatedAt > ENGINE_REFRESH_MS) {
+                    void rebuildEngine();
+                }
+            }
             return loaded;
         })
         .finally(() => {
@@ -350,6 +632,7 @@ const enableFallback = (session: Session): void => {
         session.webRequest.onBeforeRequest({ urls: ["<all_urls>"] }, listener);
         fallbackHandlers.set(session, listener);
         ready = true;
+        mode = "fallback";
         logger.warn("ad blocking is using the host-list fallback (curated hosts + cached EasyList rules)");
     } catch (error) {
         logger.warn("could not install adblock fallback handler", error);
@@ -425,7 +708,46 @@ export const enableAdblockInSession = (session: Session): void => {
 };
 
 export const getAdblockState = (): BrowserAdblockState => {
-    return { enabled, ready };
+    const topHosts = [...blockedByHost.entries()]
+        .sort((left, right) => right[1] - left[1])
+        .slice(0, 12)
+        .map(([host, count]) => ({ host, count }));
+    return {
+        enabled,
+        ready,
+        mode: enabled ? mode : "off",
+        listsUpdatedAt,
+        blocked: blockedTotal,
+        blockedByHost: topHosts,
+        exceptions: [...readExceptions()].sort(),
+    };
+};
+
+/** Subscribes main-process callers to throttled blocked-count updates. */
+export const subscribeAdblockState = (listener: (state: BrowserAdblockState) => void): (() => void) => {
+    stateListeners.add(listener);
+    return () => stateListeners.delete(listener);
+};
+
+/** Pauses/resumes blocking for one page host. Applied live; no reload needed. */
+export const setAdblockException = (rawHost: string, disabled: boolean): BrowserAdblockState => {
+    const host = normalizeHost(rawHost);
+    if (host) {
+        if (disabled) readExceptions().add(host);
+        else readExceptions().delete(host);
+        exceptionsLoaded = true;
+        writeExceptions();
+        if (blocker) applyExceptionsToEngine(blocker);
+    }
+    notifyState();
+    return getAdblockState();
+};
+
+export const resetAdblockStats = (): BrowserAdblockState => {
+    blockedTotal = 0;
+    blockedByHost.clear();
+    notifyState();
+    return getAdblockState();
 };
 
 /** Enables/disables blocking in every registered browser session. */
@@ -438,5 +760,6 @@ export const setAdblockEnabled = (next: boolean): BrowserAdblockState => {
             disableForSession(session);
         }
     }
+    notifyState();
     return getAdblockState();
 };

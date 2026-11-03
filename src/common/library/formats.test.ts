@@ -50,7 +50,7 @@ describe("format testers", () => {
         expect(formatUtils.files.test("n.epub")).toBe(true);
         expect(formatUtils.files.test("n.html")).toBe(false);
         expect(formatUtils.files.getName("Story.cbz")).toBe("Story");
-        expect(formatUtils.files.getExt("Story.epub")).toBe("EPUB");
+        expect(formatUtils.files.getExt("Story.epub")).toBe("Epub");
         expect(formatUtils.dialogFilters.book()[0]?.extensions).toEqual(["epub"]);
         expect(isImageFileName("a.PNG")).toBe(true);
         expect(isMangaFileName("n.pdf")).toBe(true);

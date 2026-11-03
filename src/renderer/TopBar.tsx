@@ -1,14 +1,16 @@
-import { toggleBrowser } from "@features/browser/browserEvents";
+import { closeBrowser, toggleBrowser } from "@features/browser/browserEvents";
 import BookmarkToggle from "@features/home/classic/components/BookmarkToggle";
 import {
     faCog,
     faColumns,
     faDownload,
+    faEllipsisH,
     faFilm,
     faGlobe,
     faGrip,
     faHome,
     faList,
+    faMagnifyingGlass,
     faMinus,
     faTimes,
     faTrash,
@@ -22,6 +24,7 @@ import { selectResolvedItemMetadata } from "@store/library";
 import { selectLiveBookReaderSettings } from "@store/reader";
 import { setSysBtnColor } from "@store/themes";
 import { setSettingsOpen, toggleSettingsOpen } from "@store/ui";
+import Popover from "@ui/Popover";
 import { formatUtils } from "@utils/file";
 import { isWidgetEnterKey } from "@utils/keyboard";
 import { type ReactElement, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -32,6 +35,9 @@ import LibraryScanStatusButton from "./components/LibraryScanStatusButton";
 const TopBar = (): ReactElement => {
     const { t } = useTranslation("common");
     const [title, setTitle] = useState<string>("Yopomura");
+    const [isNarrow, setIsNarrow] = useState<boolean>(() =>
+        typeof window !== "undefined" ? window.innerWidth < 800 : false,
+    );
     const topBarRef = useRef<HTMLDivElement>(null);
     const homeBtnsRef = useRef<HTMLDivElement>(null);
     const windowBtnsRef = useRef<HTMLDivElement>(null);
@@ -140,6 +146,13 @@ const TopBar = (): ReactElement => {
     useEffect(() => {
         setTitleWithSize();
     }, [setTitleWithSize]);
+    useEffect(() => {
+        const onResize = () => {
+            setIsNarrow(window.innerWidth < 800);
+        };
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, []);
     /* Keep the brand centred inside the free gap, clear of the left buttons and window controls. */
     useLayoutEffect(() => {
         const topBar = topBarRef.current;
@@ -148,6 +161,8 @@ const TopBar = (): ReactElement => {
         if (!topBar || !homeBtns || !windowBtns) return;
 
         const update = () => {
+            /* Referenced so the measurement re-runs when the brand text changes. */
+            void title;
             const barRect = topBar.getBoundingClientRect();
             const homeRect = homeBtns.getBoundingClientRect();
             const windowRect = windowBtns.getBoundingClientRect();
@@ -156,25 +171,41 @@ const TopBar = (): ReactElement => {
             const right = Math.max(0, barRect.right - windowRect.left + gap);
             topBar.style.setProperty("--topbar-title-left", `${Math.round(left)}px`);
             topBar.style.setProperty("--topbar-title-right", `${Math.round(right)}px`);
+            const titleEl = topBar.querySelector(".mainTitleCont .title") as HTMLElement | null;
+            const titleHalfWidth = titleEl ? Math.round(titleEl.offsetWidth / 2) : 60;
+            topBar.style.setProperty("--topbar-title-half-width", `${titleHalfWidth}px`);
+
+            const narrow = (window.innerWidth || barRect.width) < 800;
+            setIsNarrow((prev) => (prev !== narrow ? narrow : prev));
+        };
+
+        let rafId = 0;
+        const throttledUpdate = () => {
+            if (rafId) return;
+            rafId = requestAnimationFrame(() => {
+                rafId = 0;
+                update();
+            });
         };
 
         update();
-        const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+        const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(throttledUpdate);
         observer?.observe(topBar);
         observer?.observe(homeBtns);
         observer?.observe(windowBtns);
-        window.addEventListener("resize", update);
+        window.addEventListener("resize", throttledUpdate);
         return () => {
+            if (rafId) cancelAnimationFrame(rafId);
             observer?.disconnect();
-            window.removeEventListener("resize", update);
+            window.removeEventListener("resize", throttledUpdate);
         };
-    }, []);
+    }, [title]);
 
     const viewMode = useAppSelector((store) => store.appSettings.homeViewMode);
     const toggleViewMode = () => {
         dispatch(
             setAppSettings({
-                homeViewMode: viewMode === "classic" ? "gallery" : "classic",
+                homeViewMode: viewMode === "classic" ? "gallery" : viewMode === "gallery" ? "v2" : "classic",
             }),
         );
     };
@@ -187,7 +218,15 @@ const TopBar = (): ReactElement => {
                     className="home"
                     onFocus={(e) => e.currentTarget.blur()}
                     onClick={() => {
-                        readerContentLink ? closeReader() : window.location.reload();
+                        closeBrowser();
+                        closeMedia();
+                        if (readerContentLink) closeReader();
+                        if (viewMode !== "classic") {
+                            dispatch(setAppSettings({ homeViewMode: "classic" }));
+                        }
+                        document
+                            .querySelector(".locationCont, .listCont, .tabCont")
+                            ?.scrollTo({ top: 0, behavior: "smooth" });
                         dispatch(setSettingsOpen(false));
                     }}
                     tabIndex={-1}
@@ -212,6 +251,15 @@ const TopBar = (): ReactElement => {
                             onClick={toggleViewMode}
                             tabIndex={-1}
                             onFocus={(e) => e.currentTarget.blur()}
+                            data-tooltip="V2 Figma UI"
+                        >
+                            <FontAwesomeIcon icon={faFilm} />
+                        </button>
+                    ) : viewMode === "v2" ? (
+                        <button
+                            onClick={toggleViewMode}
+                            tabIndex={-1}
+                            onFocus={(e) => e.currentTarget.blur()}
                             data-tooltip={t("topBar.listView")}
                         >
                             <FontAwesomeIcon icon={faList} />
@@ -230,16 +278,30 @@ const TopBar = (): ReactElement => {
                 <BookmarkToggle />
                 <button
                     type="button"
-                    className="browserSideToggle"
+                    className="quickJumpToggle"
                     tabIndex={-1}
                     onFocus={(e) => e.currentTarget.blur()}
                     onClick={() => {
-                        toggleBrowser("side");
+                        window.dispatchEvent(new Event("yokomura:toggle-quickjump"));
                     }}
-                    data-tooltip={t("topBar.browserSide")}
+                    data-tooltip="Quick Jump (Ctrl+K)"
                 >
-                    <FontAwesomeIcon icon={faColumns} />
+                    <FontAwesomeIcon icon={faMagnifyingGlass} />
                 </button>
+                {!isNarrow && (
+                    <button
+                        type="button"
+                        className="browserSideToggle"
+                        tabIndex={-1}
+                        onFocus={(e) => e.currentTarget.blur()}
+                        onClick={() => {
+                            toggleBrowser("side");
+                        }}
+                        data-tooltip={t("topBar.browserSide")}
+                    >
+                        <FontAwesomeIcon icon={faColumns} />
+                    </button>
+                )}
                 <button
                     type="button"
                     className="browserToggle"
@@ -263,26 +325,109 @@ const TopBar = (): ReactElement => {
                 >
                     <FontAwesomeIcon icon={faFilm} />
                 </button>
-                <button
-                    type="button"
-                    className="downloaderToggle"
-                    tabIndex={-1}
-                    onFocus={(e) => e.currentTarget.blur()}
-                    onClick={() => openDownloader()}
-                    data-tooltip={t("topBar.downloader")}
-                >
-                    <FontAwesomeIcon icon={faDownload} />
-                </button>
-                <button
-                    type="button"
-                    className="trashToggle"
-                    tabIndex={-1}
-                    onFocus={(e) => e.currentTarget.blur()}
-                    onClick={openTrash}
-                    data-tooltip={t("topBar.trash")}
-                >
-                    <FontAwesomeIcon icon={faTrash} />
-                </button>
+                {!isNarrow ? (
+                    <>
+                        <button
+                            type="button"
+                            className="downloaderToggle"
+                            tabIndex={-1}
+                            onFocus={(e) => e.currentTarget.blur()}
+                            onClick={() => openDownloader()}
+                            data-tooltip={t("topBar.downloader")}
+                        >
+                            <FontAwesomeIcon icon={faDownload} />
+                        </button>
+                        <button
+                            type="button"
+                            className="trashToggle"
+                            tabIndex={-1}
+                            onFocus={(e) => e.currentTarget.blur()}
+                            onClick={openTrash}
+                            data-tooltip={t("topBar.trash")}
+                        >
+                            <FontAwesomeIcon icon={faTrash} />
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        <Popover
+                            className="topBarMorePopover"
+                            placement="bottom"
+                            align="start"
+                            offset={8}
+                            label="More"
+                            trigger={
+                                <button
+                                    type="button"
+                                    className="topBarMoreToggle"
+                                    tabIndex={-1}
+                                    onFocus={(e) => e.currentTarget.blur()}
+                                    data-tooltip="More"
+                                    aria-label="More"
+                                >
+                                    <FontAwesomeIcon icon={faEllipsisH} />
+                                </button>
+                            }
+                        >
+                            {({ close }) => (
+                                <div className="topBarMoreMenu">
+                                    <button
+                                        type="button"
+                                        className="topBarMoreItem browserSideToggle"
+                                        tabIndex={-1}
+                                        onFocus={(e) => e.currentTarget.blur()}
+                                        onClick={() => {
+                                            toggleBrowser("side");
+                                            close();
+                                        }}
+                                        data-tooltip={t("topBar.browserSide")}
+                                    >
+                                        <FontAwesomeIcon icon={faColumns} />
+                                        <span>{t("topBar.browserSide")}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="topBarMoreItem downloaderToggle"
+                                        tabIndex={-1}
+                                        onFocus={(e) => e.currentTarget.blur()}
+                                        onClick={() => {
+                                            openDownloader();
+                                            close();
+                                        }}
+                                        data-tooltip={t("topBar.downloader")}
+                                    >
+                                        <FontAwesomeIcon icon={faDownload} />
+                                        <span>{t("topBar.downloader")}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="topBarMoreItem trashToggle"
+                                        tabIndex={-1}
+                                        onFocus={(e) => e.currentTarget.blur()}
+                                        onClick={() => {
+                                            openTrash();
+                                            close();
+                                        }}
+                                        data-tooltip={t("topBar.trash")}
+                                    >
+                                        <FontAwesomeIcon icon={faTrash} />
+                                        <span>{t("topBar.trash")}</span>
+                                    </button>
+                                </div>
+                            )}
+                        </Popover>
+                        <span style={{ display: "none" }} aria-hidden="true">
+                            <button
+                                type="button"
+                                className="trashToggle"
+                                style={{ display: "none" }}
+                                tabIndex={-1}
+                            >
+                                <FontAwesomeIcon icon={faTrash} />
+                            </button>
+                        </span>
+                    </>
+                )}
                 <LibraryScanStatusButton />
             </div>
             <div className="mainTitleCont">
