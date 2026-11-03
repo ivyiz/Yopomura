@@ -1,3 +1,13 @@
+# 1.0.3
+
+- UI: flat chrome across buttons, menus, popovers and browser extensions. Decorative borders are gone; hover and active surfaces carry the state instead.
+- UI: a single font family for the whole interface, scaled up 15% for readability. Branding keeps its original size.
+- UI: library location paths and recent activity dates now sit inset from the panel edge.
+- Media: video cards show only the title, with balanced padding and ellipsis for long names. Search icon no longer overlaps the placeholder text.
+- Downloader: 3-column image review, the browser stays open while you review, previews are larger, and rows no longer collapse with long image lists.
+- Reader: page LRU cache and quick jump.
+- Browser: adblock, proxy and dark mode fixes.
+
 # 1.0.2
 
 - Downloader: review resolved images before downloading; every image starts selected and you uncheck the ones you do not want.
