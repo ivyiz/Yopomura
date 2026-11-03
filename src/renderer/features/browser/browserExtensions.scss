@@ -17,7 +17,8 @@
     padding: 6px;
     border-radius: var(--radius-lg);
     background: var(--topBar-color);
-    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+    /* Flat popover: no elevation, matching the rest of the chrome. */
+    box-shadow: none;
     color: var(--font-color);
     font-family: inherit;
     font-size: 0.8rem;

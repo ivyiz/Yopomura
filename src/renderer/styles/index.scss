@@ -64,6 +64,8 @@
 
 html{
     --error-color: #c62828;
+    /* UI scale: every rem-based size grows 15% from the 16px default. */
+    font-size: 18.4px;
 }
 
 /*
@@ -240,7 +242,8 @@ body {
         // font-family: "Mona Sans", "Mona Sans Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
         //     sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
         // font-weight: 100;
-        font-size: 15px;
+        /* 15px * 1.15 — keeps em-based text in step with the rem scale. */
+        font-size: 17.25px;
         width: 100vw;
         height: 100vh;
         color: var(--font-color);
